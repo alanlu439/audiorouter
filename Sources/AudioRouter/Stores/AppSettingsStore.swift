@@ -40,7 +40,7 @@ public final class AppSettingsStore: ObservableObject {
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         launchAtLogin = defaults.bool(forKey: Keys.launchAtLogin)
-        showInDock = defaults.bool(forKey: Keys.showInDock)
+        showInDock = defaults.object(forKey: Keys.showInDock) as? Bool ?? true
         theme = defaults.string(forKey: Keys.theme).flatMap(AudioRouterTheme.init(rawValue:)) ?? .system
         showUnsupportedNotes = defaults.object(forKey: Keys.showUnsupportedNotes) as? Bool ?? true
     }
@@ -62,7 +62,7 @@ public final class AppSettingsStore: ObservableObject {
 
     public func reset() {
         launchAtLogin = false
-        showInDock = false
+        showInDock = true
         theme = .system
         showUnsupportedNotes = true
         applyActivationPolicy()

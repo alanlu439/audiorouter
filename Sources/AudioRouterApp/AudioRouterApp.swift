@@ -14,6 +14,17 @@ struct AudioRouterApplication: App {
     }
 
     var body: some Scene {
+        WindowGroup("AudioRouter", id: "main") {
+            MainWindowView(store: store)
+                .frame(minWidth: 760, idealWidth: 980, minHeight: 560, idealHeight: 700)
+                .onAppear {
+                    store.start()
+                }
+        }
+        .commands {
+            AudioRouterCommands(store: store)
+        }
+
         MenuBarExtra("AudioRouter", systemImage: "speaker.wave.2.circle.fill") {
             MenuBarPopoverView(store: store)
                 .frame(width: 430, height: 680)
@@ -26,17 +37,6 @@ struct AudioRouterApplication: App {
         Settings {
             SettingsView(store: store)
                 .frame(width: 720, height: 560)
-        }
-
-        Window("AudioRouter", id: "main") {
-            MainWindowView(store: store)
-                .frame(minWidth: 760, idealWidth: 980, minHeight: 560, idealHeight: 700)
-                .onAppear {
-                    store.start()
-                }
-        }
-        .commands {
-            AudioRouterCommands(store: store)
         }
     }
 }
@@ -52,6 +52,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         Self.store?.applyActivationPolicy()
         Self.store?.start()
+        DispatchQueue.main.async {
+            NSApp.activate(ignoringOtherApps: true)
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {

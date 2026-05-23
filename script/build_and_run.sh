@@ -60,8 +60,6 @@ cat >"$INFO_PLIST" <<PLIST
   <string>NSApplication</string>
   <key>NSAudioCaptureUsageDescription</key>
   <string>AudioRouter can inspect currently active audio apps and show controls for app-level audio settings.</string>
-  <key>LSUIElement</key>
-  <true/>
 </dict>
 </plist>
 PLIST

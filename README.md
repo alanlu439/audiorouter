@@ -7,7 +7,7 @@ The app uses public macOS APIs only. Device discovery, default input/output swit
 ## Features implemented
 
 - Menu bar app with a rich SwiftUI popover.
-- No Dock icon by default through `LSUIElement`.
+- Opens as a normal macOS app with a Dock icon and main window, while also keeping a menu bar popover.
 - Settings window with General, Devices, Shortcuts, Presets, and Advanced sections.
 - Output and input device discovery through CoreAudio.
 - Current output and input device display.
