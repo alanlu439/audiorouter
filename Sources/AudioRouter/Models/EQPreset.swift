@@ -7,6 +7,7 @@ public enum EQPreset: String, Codable, CaseIterable, Identifiable {
     case podcast = "Podcast"
     case movie = "Movie"
     case music = "Music"
+    case custom = "Custom"
 
     public var id: String { rawValue }
 
@@ -24,6 +25,8 @@ public enum EQPreset: String, Codable, CaseIterable, Identifiable {
             return [3, 2, 1, 0, 1, 2, 3, 4, 4, 3]
         case .music:
             return [2, 1, 0, 1, 2, 1, 0, 1, 2, 2]
+        case .custom:
+            return Array(repeating: 0, count: 10)
         }
     }
 

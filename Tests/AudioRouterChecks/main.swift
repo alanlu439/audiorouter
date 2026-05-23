@@ -10,8 +10,9 @@ func runChecks() throws {
 }
 
 func checkEQPresets() {
-    precondition(EQPreset.allCases.count == 6, "Expected six EQ presets")
+    precondition(EQPreset.allCases.count == 7, "Expected seven EQ presets")
     precondition(EQPreset.music.bands.count == 10, "Music preset should expose ten bands")
+    precondition(EQPreset.custom.bands.count == 10, "Custom preset should expose ten bands")
 }
 
 func checkPresetPersistence() throws {
@@ -35,6 +36,11 @@ func checkPresetPersistence() throws {
     let reloaded = PresetManager(fileURL: directory.appendingPathComponent("presets.json"))
     precondition(reloaded.presets.first?.name == "Desk", "Preset name did not persist")
     precondition(reloaded.presets.first?.eqPreset == .music, "Preset EQ did not persist")
+
+    let exported = reloaded.exportJSON()
+    let imported = PresetManager(fileURL: directory.appendingPathComponent("imported.json"))
+    imported.importJSON(exported)
+    precondition(imported.presets.first?.name == "Desk", "Preset JSON import did not restore setup")
 }
 
 func checkShortcutPersistence() {

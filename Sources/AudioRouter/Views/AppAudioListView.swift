@@ -12,7 +12,7 @@ struct AppAudioListView: View {
                 trailing: "\(store.audioSources.count)"
             )
 
-            Text("Source App → Output Device")
+            Text("Source App -> Output Device")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
 

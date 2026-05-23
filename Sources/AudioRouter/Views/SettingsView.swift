@@ -33,14 +33,18 @@ struct SettingsDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 switch section {
-                case .general:
-                    GeneralSettingsView(store: store)
+                case .dashboard:
+                    RoutingDashboardView(store: store)
+                case .mixer:
+                    MixerView(store: store)
                 case .devices:
                     DevicesView(store: store)
+                case .eq:
+                    EQView(eqManager: store.eqManager)
+                case .setups:
+                    PresetsView(store: store)
                 case .shortcuts:
                     ShortcutsSettingsView(store: store)
-                case .presets:
-                    PresetsView(store: store)
                 case .advanced:
                     AdvancedSettingsView(store: store)
                 }
@@ -99,10 +103,13 @@ private struct ShortcutsSettingsView: View {
             ForEach(ShortcutAction.allCases) { action in
                 let binding = store.shortcutManager.shortcut(for: action)
                 HStack {
+                    Image(systemName: action.systemImage)
+                        .foregroundStyle(.teal)
+                        .frame(width: 24)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(action.title)
                             .font(.subheadline.weight(.semibold))
-                        Text(action == .openPopover ? "Local command records the request. Global popover opening is TODO." : "Local app command")
+                        Text(action == .openPopover ? "Open AudioRouter from the app command path." : "Click modifiers and key to edit visually.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -111,9 +118,13 @@ private struct ShortcutsSettingsView: View {
                         .labelsHidden()
                     Toggle("⌥", isOn: modifierBinding(action, .option))
                         .labelsHidden()
-                    TextField("Key", text: keyBinding(action, defaultValue: binding.key))
-                        .frame(width: 38)
-                        .textFieldStyle(.roundedBorder)
+                    Picker("Key", selection: keyBinding(action, defaultValue: binding.key)) {
+                        ForEach(visualKeys, id: \.self) { key in
+                            Text(key.uppercased()).tag(key)
+                        }
+                    }
+                    .labelsHidden()
+                    .frame(width: 64)
                     Text(binding.displayValue)
                         .font(.caption.monospaced())
                         .foregroundStyle(.secondary)
@@ -152,6 +163,10 @@ private struct ShortcutsSettingsView: View {
             }
         )
     }
+
+    private var visualKeys: [String] {
+        ["a", "m", "s", "=", "-", "[", "]", "1", "2", "3", "r", "p"]
+    }
 }
 
 private struct AdvancedSettingsView: View {
@@ -161,7 +176,27 @@ private struct AdvancedSettingsView: View {
     var body: some View {
         DockCard {
             SectionHeader(title: "Advanced", systemImage: "slider.horizontal.3")
+            Toggle("Launch at login", isOn: launchAtLoginBinding)
+            Toggle("Show app in Dock", isOn: showInDockBinding)
+            Picker("Theme", selection: themeBinding) {
+                ForEach(AudioRouterTheme.allCases) { theme in
+                    Text(theme.rawValue).tag(theme)
+                }
+            }
+            .pickerStyle(.segmented)
+            Divider()
+            HStack {
+                Text("Backend")
+                    .font(.subheadline.weight(.semibold))
+                Spacer()
+                StatusLabel(text: store.routingBackendName, status: store.supportsTruePerAppRouting ? .working : .simulated)
+            }
+            Toggle("Demo Mode", isOn: demoModeBinding)
             Toggle("Show unsupported feature notes", isOn: unsupportedNotesBinding)
+            Text("Driver notes: true per-app routing, per-app gain, and system-wide EQ require a virtual audio routing driver. Public APIs keep this interface visual and save every route preference.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
             Button {
                 showDebug.toggle()
             } label: {
@@ -190,6 +225,37 @@ private struct AdvancedSettingsView: View {
         Binding(
             get: { store.settings.showUnsupportedNotes },
             set: { store.settings.showUnsupportedNotes = $0 }
+        )
+    }
+
+    private var demoModeBinding: Binding<Bool> {
+        Binding(
+            get: { store.settings.demoMode },
+            set: { value in
+                store.settings.demoMode = value
+                store.refresh()
+            }
+        )
+    }
+
+    private var launchAtLoginBinding: Binding<Bool> {
+        Binding(
+            get: { store.settings.launchAtLogin },
+            set: { store.setLaunchAtLogin($0) }
+        )
+    }
+
+    private var showInDockBinding: Binding<Bool> {
+        Binding(
+            get: { store.settings.showInDock },
+            set: { store.settings.showInDock = $0 }
+        )
+    }
+
+    private var themeBinding: Binding<AudioRouterTheme> {
+        Binding(
+            get: { store.settings.theme },
+            set: { store.settings.theme = $0 }
         )
     }
 }

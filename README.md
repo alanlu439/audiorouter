@@ -1,6 +1,6 @@
 # AudioRouter
 
-AudioRouter is an original SwiftUI macOS utility for controlling audio devices, system volume, app routing preferences, EQ presets, and quick audio setups. It is designed as a compact, dark-mode-first app with a main window, menu bar popover, and separate Settings window.
+AudioRouter is an original SwiftUI macOS utility for controlling audio devices, system volume, app routing preferences, EQ presets, shortcuts, and quick audio setups. It is designed as a visual audio control center with a compact menu bar popover, a full Routing Dashboard, and a dark-mode-first macOS interface.
 
 The app uses public macOS APIs only. Device discovery, default input/output switching, and supported device volume/mute/balance controls are backed by CoreAudio. Features macOS does not expose publicly, such as true arbitrary per-app output volume, independent per-app device routing, and system-wide EQ, are implemented as polished UI and persisted state with clear TODO notes for a future driver-backed audio engine.
 
@@ -9,7 +9,10 @@ The app uses public macOS APIs only. Device discovery, default input/output swit
 - Menu bar app with a rich SwiftUI popover.
 - Opens as a normal macOS app with a Dock icon and main window, while also keeping a menu bar popover.
 - Compact icon-only menu bar extra to reduce width and stay visible longer when the menu bar is crowded.
-- Settings window with General, Devices, Shortcuts, Presets, and Advanced sections.
+- Settings window with visual sections for routing, mixing, devices, EQ, setups, shortcuts, and advanced controls.
+- Full visual main window with Dashboard, Mixer, Devices, EQ, Setups, Shortcuts, and Advanced screens.
+- Routing Dashboard patch bay with source cards, output cards, visible route lines, drag-and-drop assignment, route controls, and follow-system reset.
+- Live Mode for real CoreAudio-backed controls and Demo Mode for fully explorable mock sources, devices, routes, meters, and EQ behavior.
 - Output and input device discovery through CoreAudio.
 - Current output and input device display.
 - Switch default output/input device.
@@ -20,9 +23,10 @@ The app uses public macOS APIs only. Device discovery, default input/output swit
 - Public API backend that detects audio-producing apps, lists output devices, saves routes, and clearly marks driver-required routing.
 - Future virtual-driver backend stub for true per-app routing.
 - Stateful per-app volume, mute, "Follow System Output", and specific output-device preference UI.
-- 10-band EQ UI with Flat, Bass Boost, Vocal, Podcast, Movie, and Music presets.
-- Save, apply, rename, and delete audio setups.
-- Local keyboard shortcuts for mute, volume up/down, and next output device.
+- Visual system, input, per-app, and per-device level meters. Live metering is simulated until a driver-backed engine owns the stream.
+- 10-band EQ UI with visual sliders, curve preview, Before toggle, Reset, Custom, Flat, Bass Boost, Vocal, Podcast, Movie, and Music presets.
+- Visual setup cards with save, apply, duplicate, rename, delete, JSON export, and JSON import.
+- Visual shortcut editor for mute, app mute, volume up/down, next/previous output, opening the app path, and applying the first three saved setups.
 - Debug audio device list and unsupported-feature notes.
 
 ## Stubbed or limited features

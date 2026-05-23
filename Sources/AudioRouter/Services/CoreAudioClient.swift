@@ -247,6 +247,7 @@ final class CoreAudioClient {
             volume: volume(deviceID: deviceID, scope: scope, channelCount: channelCount),
             isMuted: isMuted(deviceID: deviceID, scope: scope),
             balance: balance(deviceID: deviceID, scope: scope),
+            sampleRate: sampleRate(deviceID: deviceID),
             canSetVolume: canSetVolume(deviceID: deviceID, scope: scope, channelCount: channelCount),
             canSetMute: isSettable(deviceID, selector: kAudioDevicePropertyMute, scope: scope),
             canSetBalance: canSetBalance(deviceID: deviceID, scope: scope)
@@ -460,6 +461,31 @@ final class CoreAudioClient {
         let maxVolume = max(left, right)
         guard maxVolume > 0 else { return 0 }
         return Double((right - left) / maxVolume).clampedBalance
+    }
+
+    private func sampleRate(deviceID: AudioObjectID) -> Double? {
+        guard hasProperty(deviceID, selector: kAudioDevicePropertyNominalSampleRate, scope: kAudioObjectPropertyScopeGlobal),
+              let rate = try? float64Property(
+                deviceID,
+                selector: kAudioDevicePropertyNominalSampleRate,
+                scope: kAudioObjectPropertyScopeGlobal
+              ) else {
+            return nil
+        }
+        return Double(rate)
+    }
+
+    private func float64Property(
+        _ objectID: AudioObjectID,
+        selector: AudioObjectPropertySelector,
+        scope: AudioObjectPropertyScope,
+        element: AudioObjectPropertyElement = kAudioObjectPropertyElementMain
+    ) throws -> Float64 {
+        var address = propertyAddress(selector: selector, scope: scope, element: element)
+        var value: Float64 = 0
+        var size = UInt32(MemoryLayout<Float64>.size)
+        try check(AudioObjectGetPropertyData(objectID, &address, 0, nil, &size, &value), "Read CoreAudio Float64 property")
+        return value
     }
 
     private func canSetVolume(deviceID: AudioObjectID, scope: AudioObjectPropertyScope, channelCount: Int) -> Bool {

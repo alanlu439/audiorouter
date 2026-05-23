@@ -25,3 +25,13 @@ public struct MainWindowView: View {
         .preferredColorScheme(store.settings.theme.colorScheme)
     }
 }
+
+#if DEBUG
+struct MainWindowView_Previews: PreviewProvider {
+    @MainActor
+    static var previews: some View {
+        MainWindowView(store: PreviewSupport.demoStore())
+            .frame(width: 1100, height: 760)
+    }
+}
+#endif

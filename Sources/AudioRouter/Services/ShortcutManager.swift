@@ -49,6 +49,11 @@ public final class ShortcutManager: ObservableObject {
         ShortcutBinding(action: .increaseVolume, key: "=", modifiers: [.command, .option]),
         ShortcutBinding(action: .decreaseVolume, key: "-", modifiers: [.command, .option]),
         ShortcutBinding(action: .nextOutputDevice, key: "]", modifiers: [.command, .option]),
+        ShortcutBinding(action: .previousOutputDevice, key: "[", modifiers: [.command, .option]),
+        ShortcutBinding(action: .muteSelectedApp, key: "s", modifiers: [.command, .option]),
+        ShortcutBinding(action: .applyPreset1, key: "1", modifiers: [.command, .option]),
+        ShortcutBinding(action: .applyPreset2, key: "2", modifiers: [.command, .option]),
+        ShortcutBinding(action: .applyPreset3, key: "3", modifiers: [.command, .option]),
         ShortcutBinding(action: .openPopover, key: "a", modifiers: [.command, .option])
     ]
 }

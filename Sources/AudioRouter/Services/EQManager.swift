@@ -25,6 +25,16 @@ public final class EQManager: ObservableObject {
     public func setBand(index: Int, gain: Double) {
         guard state.bands.indices.contains(index) else { return }
         state.bands[index] = max(-12, min(12, gain))
+        state.selectedPreset = .custom
+        save()
+    }
+
+    public func reset() {
+        applyPreset(.flat)
+    }
+
+    public func saveCustomPreset() {
+        state.selectedPreset = .custom
         save()
     }
 

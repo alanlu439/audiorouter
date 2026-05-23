@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct PresetsView: View {
@@ -5,25 +6,50 @@ struct PresetsView: View {
     var compact: Bool = false
     @State private var renamingID: UUID?
     @State private var renameText = ""
+    @State private var importText = ""
+    @State private var showImport = false
 
     var body: some View {
         DockCard {
             SectionHeader(title: "Setups", systemImage: "square.stack.3d.up", trailing: "\(store.presetManager.presets.count)")
 
-            Button {
-                store.saveCurrentSetup()
-            } label: {
-                Label("Save Current Setup", systemImage: "plus.circle.fill")
-                    .frame(maxWidth: .infinity)
+            HStack {
+                Button {
+                    store.saveCurrentSetup()
+                } label: {
+                    Label("Save Current Setup", systemImage: "plus.circle.fill")
+                }
+                .buttonStyle(.borderedProminent)
+                Button {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(store.presetManager.exportJSON(), forType: .string)
+                } label: {
+                    Label("Export JSON", systemImage: "square.and.arrow.up")
+                }
+                Button {
+                    showImport.toggle()
+                } label: {
+                    Label("Import JSON", systemImage: "square.and.arrow.down")
+                }
             }
-            .buttonStyle(.borderedProminent)
+
+            if showImport {
+                TextEditor(text: $importText)
+                    .frame(height: 90)
+                    .background(.black.opacity(0.12), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                Button("Import Setups") {
+                    store.presetManager.importJSON(importText)
+                    showImport = false
+                    importText = ""
+                }
+            }
 
             if store.presetManager.presets.isEmpty {
                 Text("Saved setups will appear here.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else {
-                VStack(spacing: 8) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 280), spacing: 12)], spacing: 12) {
                     ForEach(store.presetManager.presets.prefix(compact ? 3 : store.presetManager.presets.count)) { preset in
                         presetRow(preset)
                     }
@@ -34,7 +60,7 @@ struct PresetsView: View {
 
     @ViewBuilder
     private func presetRow(_ preset: AudioPreset) -> some View {
-        HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
             if renamingID == preset.id {
                 TextField("Name", text: $renameText)
                     .textFieldStyle(.roundedBorder)
@@ -43,40 +69,62 @@ struct PresetsView: View {
                         renamingID = nil
                     }
             } else {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(preset.name)
-                        .font(.subheadline.weight(.semibold))
-                        .lineLimit(1)
-                    Text(preset.eqPreset.rawValue)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(preset.name)
+                            .font(.headline)
+                            .lineLimit(1)
+                        Text("EQ \(preset.eqPreset.rawValue)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    StatusLabel(text: "Saved", status: .working)
                 }
             }
-            Spacer()
-            Button("Apply") {
-                store.applyPreset(preset)
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text("Output: \(name(for: preset.outputDeviceUID) ?? "Follow System")")
+                Text("Input: \(name(for: preset.inputDeviceUID) ?? "Default Input")")
+                Text("Routes: \(preset.appOutputAssignments.count) · Muted: \(preset.mutedApps.values.filter { $0 }.count)")
             }
-            .buttonStyle(.borderless)
-            Button {
-                if renamingID == preset.id {
-                    store.presetManager.rename(preset, to: renameText)
-                    renamingID = nil
-                } else {
-                    renameText = preset.name
-                    renamingID = preset.id
+            .font(.caption)
+            .foregroundStyle(.secondary)
+
+            HStack {
+                Button("Apply") {
+                    store.applyPreset(preset)
                 }
-            } label: {
-                Image(systemName: renamingID == preset.id ? "checkmark" : "pencil")
+                Button {
+                    store.presetManager.duplicate(preset)
+                } label: {
+                    Image(systemName: "plus.square.on.square")
+                }
+                Button {
+                    if renamingID == preset.id {
+                        store.presetManager.rename(preset, to: renameText)
+                        renamingID = nil
+                    } else {
+                        renameText = preset.name
+                        renamingID = preset.id
+                    }
+                } label: {
+                    Image(systemName: renamingID == preset.id ? "checkmark" : "pencil")
+                }
+                Button(role: .destructive) {
+                    store.presetManager.delete(preset)
+                } label: {
+                    Image(systemName: "trash")
+                }
             }
-            .buttonStyle(.borderless)
-            Button {
-                store.presetManager.delete(preset)
-            } label: {
-                Image(systemName: "trash")
-            }
-            .buttonStyle(.borderless)
-            .foregroundStyle(.red)
+            .buttonStyle(.bordered)
         }
-        .padding(.vertical, 3)
+        .padding(12)
+        .background(.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    private func name(for uid: String?) -> String? {
+        guard let uid else { return nil }
+        return store.devices.first { $0.uid == uid }?.name
     }
 }

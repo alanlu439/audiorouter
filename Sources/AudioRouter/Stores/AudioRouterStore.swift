@@ -7,7 +7,13 @@ public final class AudioRouterStore: ObservableObject {
     @Published public private(set) var audioSources: [AudioSource] = []
     @Published public private(set) var lastError: String?
     @Published public private(set) var unsupportedNote: String?
-    @Published public var selectedSettingsSection: SettingsSection = .general
+    @Published public var selectedSettingsSection: SettingsSection = .dashboard
+    @Published public var sourceMeters: [String: Double] = [:]
+    @Published public var deviceMeters: [String: Double] = [:]
+    @Published public var systemOutputMeter: Double = 0
+    @Published public var inputMeter: Double = 0
+    @Published public var soloSourceID: String?
+    @Published public var selectedSourceID: String?
 
     public let settings: AppSettingsStore
     public let eqManager: EQManager
@@ -18,6 +24,9 @@ public final class AudioRouterStore: ObservableObject {
     private let volumeManager: SystemVolumeManager
     private let audioRoutingManager: AudioRoutingManager
     private var refreshTimer: Timer?
+    private var meterTimer: Timer?
+    private var meterPhase: Double = 0
+    private var lastRefreshUsedDemoMode: Bool?
     private var cancellables: Set<AnyCancellable> = []
 
     public init(
@@ -82,17 +91,33 @@ public final class AudioRouterStore: ObservableObject {
                 self?.refresh(silent: true)
             }
         }
+        guard meterTimer == nil else { return }
+        meterTimer = Timer.scheduledTimer(withTimeInterval: 0.08, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.tickMeters()
+            }
+        }
     }
 
     public func stop() {
         refreshTimer?.invalidate()
         refreshTimer = nil
+        meterTimer?.invalidate()
+        meterTimer = nil
     }
 
     public func refresh(silent: Bool = false) {
         do {
+            let usingDemoMode = settings.demoMode
             let previousOutputUIDs = Set(outputDevices.map(\.uid))
-            devices = try deviceManager.refreshDevices()
+            if usingDemoMode {
+                if lastRefreshUsedDemoMode != true || devices.isEmpty {
+                    devices = demoDevices
+                }
+            } else {
+                devices = try deviceManager.refreshDevices()
+            }
+            lastRefreshUsedDemoMode = usingDemoMode
             let currentOutputUIDs = Set(outputDevices.map(\.uid))
             for disconnectedUID in previousOutputUIDs.subtracting(currentOutputUIDs) {
                 audioRoutingManager.handleDeviceDisconnected(deviceID: disconnectedUID)
@@ -100,7 +125,7 @@ public final class AudioRouterStore: ObservableObject {
             for reconnectedUID in currentOutputUIDs.subtracting(previousOutputUIDs) {
                 audioRoutingManager.handleDeviceReconnected(deviceID: reconnectedUID)
             }
-            audioSources = audioRoutingManager.getActiveAudioSources()
+            audioSources = usingDemoMode ? demoSources : audioRoutingManager.getActiveAudioSources()
             if let warning = audioRoutingManager.lastWarning {
                 unsupportedNote = warning
             }
@@ -117,6 +142,10 @@ public final class AudioRouterStore: ObservableObject {
     }
 
     public func setDefaultDevice(_ device: AudioDevice) {
+        if settings.demoMode {
+            devices = devices.map { copyDevice($0, isDefault: $0.kind == device.kind && $0.uid == device.uid) }
+            return
+        }
         do {
             try deviceManager.setDefaultDevice(uid: device.uid, kind: device.kind)
             devices = devices.map { copyDevice($0, isDefault: $0.kind == device.kind && $0.uid == device.uid) }
@@ -139,6 +168,9 @@ public final class AudioRouterStore: ObservableObject {
     public func setDeviceVolume(_ device: AudioDevice, volume: Double) {
         let clamped = volume.clampedUnit
         devices = devices.map { $0.id == device.id ? copyDevice($0, volume: clamped) : $0 }
+        if settings.demoMode {
+            return
+        }
         do {
             if device.kind == .output {
                 try volumeManager.setOutputVolume(device: device, volume: clamped)
@@ -154,6 +186,9 @@ public final class AudioRouterStore: ObservableObject {
 
     public func setDeviceMuted(_ device: AudioDevice, isMuted: Bool) {
         devices = devices.map { $0.id == device.id ? copyDevice($0, isMuted: isMuted) : $0 }
+        if settings.demoMode {
+            return
+        }
         do {
             try volumeManager.setMuted(device: device, isMuted: isMuted)
             refreshAfterDelay()
@@ -166,6 +201,9 @@ public final class AudioRouterStore: ObservableObject {
     public func setDeviceBalance(_ device: AudioDevice, balance: Double) {
         let clamped = balance.clampedBalance
         devices = devices.map { $0.id == device.id ? copyDevice($0, balance: clamped) : $0 }
+        if settings.demoMode {
+            return
+        }
         do {
             try volumeManager.setBalance(device: device, balance: clamped)
             refreshAfterDelay()
@@ -186,10 +224,18 @@ public final class AudioRouterStore: ObservableObject {
     }
 
     public func switchToNextOutputDevice() {
+        switchOutputDevice(offset: 1)
+    }
+
+    public func switchToPreviousOutputDevice() {
+        switchOutputDevice(offset: -1)
+    }
+
+    private func switchOutputDevice(offset: Int) {
         let outputs = outputDevices
         guard outputs.count > 1 else { return }
         let currentIndex = outputs.firstIndex { $0.uid == currentOutput?.uid } ?? 0
-        let nextIndex = outputs.index(after: currentIndex) == outputs.endIndex ? outputs.startIndex : outputs.index(after: currentIndex)
+        let nextIndex = (currentIndex + offset + outputs.count) % outputs.count
         setDefaultDevice(outputs[nextIndex])
     }
 
@@ -202,6 +248,7 @@ public final class AudioRouterStore: ObservableObject {
     }
 
     public func setSourceVolume(source: AudioSource, volume: Double) {
+        selectedSourceID = source.id
         audioRoutingManager.setSourceVolume(sourceID: source.id, volume: volume)
         updateAudioSource(source.id) { current in
             current.volume = max(0, min(1.5, volume))
@@ -211,7 +258,13 @@ public final class AudioRouterStore: ObservableObject {
         }
     }
 
+    public func toggleSolo(source: AudioSource) {
+        selectedSourceID = source.id
+        soloSourceID = soloSourceID == source.id ? nil : source.id
+    }
+
     public func setSourceMuted(source: AudioSource, isMuted: Bool) {
+        selectedSourceID = source.id
         audioRoutingManager.muteSource(sourceID: source.id, muted: isMuted)
         updateAudioSource(source.id) { current in
             current.isMuted = isMuted
@@ -222,6 +275,7 @@ public final class AudioRouterStore: ObservableObject {
     }
 
     public func assignSourceOutput(source: AudioSource, uid: String?) {
+        selectedSourceID = source.id
         if let uid {
             audioRoutingManager.assignOutputDevice(sourceID: source.id, deviceID: uid)
         } else {
@@ -235,6 +289,45 @@ public final class AudioRouterStore: ObservableObject {
         if let warning = audioRoutingManager.lastWarning {
             showUnsupportedNote(warning)
         }
+    }
+
+    public func resetSourceToSystemOutput(_ source: AudioSource) {
+        assignSourceOutput(source: source, uid: nil)
+    }
+
+    public func toggleSelectedSourceMute() {
+        guard let selectedSourceID,
+              let source = audioSources.first(where: { $0.id == selectedSourceID }) else {
+            showUnsupportedNote("Select an app source in Dashboard or Mixer before using Mute Selected App.")
+            return
+        }
+        setSourceMuted(source: source, isMuted: !source.isMuted)
+    }
+
+    public func applyPreset(at index: Int) {
+        guard presetManager.presets.indices.contains(index) else {
+            showUnsupportedNote("No saved setup exists in slot \(index + 1).")
+            return
+        }
+        applyPreset(presetManager.presets[index])
+    }
+
+    public func routedSources(to device: AudioDevice) -> [AudioSource] {
+        audioSources.filter { source in
+            route(for: source).routeMode == .customDevice && route(for: source).outputDeviceID == device.uid
+        }
+    }
+
+    public func routeStatus(for source: AudioSource) -> String {
+        let route = route(for: source)
+        if route.routeMode == .followSystem {
+            return "Working"
+        }
+        return supportsTruePerAppRouting ? "Active" : "Requires Driver"
+    }
+
+    public func routeStatusIsWarning(for source: AudioSource) -> Bool {
+        routeStatus(for: source) == "Requires Driver"
     }
 
     public func saveCurrentSetup() {
@@ -342,6 +435,64 @@ public final class AudioRouterStore: ObservableObject {
         }
     }
 
+    private func tickMeters() {
+        meterPhase += 0.19
+        systemOutputMeter = abs(sin(meterPhase * 0.72)) * 0.82 + 0.08
+        inputMeter = abs(sin(meterPhase * 0.51 + 1.1)) * 0.65
+        sourceMeters = Dictionary(uniqueKeysWithValues: audioSources.map { source in
+            let seed = Double(abs(source.id.hashValue % 100)) / 31.0
+            let activeBoost = source.isProducingAudio ? 0.35 : 0.10
+            let level = source.isMuted ? 0 : min(1, abs(sin(meterPhase + seed)) * 0.55 + activeBoost)
+            return (source.id, level)
+        })
+        deviceMeters = Dictionary(uniqueKeysWithValues: devices.map { device in
+            let routed = routedSources(to: device)
+            let base = routed.isEmpty ? (device.isDefault ? systemOutputMeter : 0.14) : min(1, routed.map { sourceMeters[$0.id] ?? 0 }.reduce(0, +) / Double(max(1, routed.count)) + 0.12)
+            return (device.id, device.kind == .input ? inputMeter : base)
+        })
+    }
+
+    private var demoDevices: [AudioDevice] {
+        [
+            AudioDevice(audioObjectID: 10, uid: "demo-macbook", name: "MacBook Speakers", kind: .output, channelCount: 2, transport: .builtIn, isDefault: true, isAlive: true, volume: 0.72, balance: 0, sampleRate: 48000, canSetVolume: true, canSetMute: true, canSetBalance: true),
+            AudioDevice(audioObjectID: 11, uid: "demo-bluetooth", name: "Bluetooth Speaker", kind: .output, channelCount: 2, transport: .bluetooth, isDefault: false, isAlive: true, volume: 0.82, balance: -0.08, sampleRate: 44100, canSetVolume: true, canSetMute: true, canSetBalance: false),
+            AudioDevice(audioObjectID: 12, uid: "demo-airpods", name: "AirPods", kind: .output, channelCount: 2, transport: .bluetoothLE, isDefault: false, isAlive: true, volume: 0.64, balance: 0.04, sampleRate: 48000, canSetVolume: true, canSetMute: true, canSetBalance: true),
+            AudioDevice(audioObjectID: 13, uid: "demo-hdmi", name: "HDMI Output", kind: .output, channelCount: 2, transport: .hdmi, isDefault: false, isAlive: true, volume: 0.58, balance: 0, sampleRate: 48000, canSetVolume: false, canSetMute: false, canSetBalance: false),
+            AudioDevice(audioObjectID: 14, uid: "demo-usb", name: "USB Audio Interface", kind: .output, channelCount: 2, transport: .usb, isDefault: false, isAlive: true, volume: 0.76, balance: 0, sampleRate: 96000, canSetVolume: true, canSetMute: true, canSetBalance: true),
+            AudioDevice(audioObjectID: 15, uid: "demo-airplay", name: "AirPlay Speaker", kind: .output, channelCount: 2, transport: .airPlay, isDefault: false, isAlive: true, volume: 0.70, balance: nil, sampleRate: 44100, canSetVolume: true, canSetMute: true, canSetBalance: false),
+            AudioDevice(audioObjectID: 16, uid: "demo-mic", name: "MacBook Microphone", kind: .input, channelCount: 1, transport: .builtIn, isDefault: true, isAlive: true, volume: 0.66, sampleRate: 48000, canSetVolume: true, canSetMute: false, canSetBalance: false)
+        ]
+    }
+
+    private var demoSources: [AudioSource] {
+        let sourceSpecs: [(String, String, String?, String?, Bool)] = [
+            ("system-sounds", "System Sounds", "com.apple.systemsounds", nil, false),
+            ("spotify", "Spotify", "com.spotify.client", nil, true),
+            ("safari", "Safari", "com.apple.Safari", "/Applications/Safari.app", true),
+            ("chrome", "Chrome", "com.google.Chrome", "/Applications/Google Chrome.app", true),
+            ("zoom", "Zoom", "us.zoom.xos", nil, true),
+            ("music", "Music", "com.apple.Music", "/System/Applications/Music.app", false),
+            ("microphone", "Microphone", "com.local.microphone", nil, true)
+        ]
+
+        return sourceSpecs.map { id, name, bundleID, icon, active in
+            let route = audioRoutingManager.route(for: id)
+            return AudioSource(
+                id: id,
+                appName: name,
+                bundleIdentifier: bundleID,
+                processID: id == "system-sounds" ? 0 : Int32(abs(id.hashValue % 9000) + 100),
+                icon: icon,
+                isProducingAudio: active,
+                lastActiveTime: Date().addingTimeInterval(active ? -3 : -65),
+                volume: route.volume,
+                isMuted: route.isMuted,
+                assignedOutputDeviceID: route.outputDeviceID,
+                followsSystemOutput: route.routeMode == .followSystem
+            )
+        }
+    }
+
     private func refreshAfterDelay(interval: TimeInterval = 0.35) {
         Task { @MainActor [weak self] in
             try? await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
@@ -368,6 +519,7 @@ public final class AudioRouterStore: ObservableObject {
             volume: volume ?? device.volume,
             isMuted: isMuted ?? device.isMuted,
             balance: balance ?? device.balance,
+            sampleRate: device.sampleRate,
             canSetVolume: device.canSetVolume,
             canSetMute: device.canSetMute,
             canSetBalance: device.canSetBalance
@@ -376,21 +528,25 @@ public final class AudioRouterStore: ObservableObject {
 }
 
 public enum SettingsSection: String, CaseIterable, Identifiable {
-    case general = "General"
+    case dashboard = "Dashboard"
+    case mixer = "Mixer"
     case devices = "Devices"
+    case eq = "EQ"
+    case setups = "Setups"
     case shortcuts = "Shortcuts"
-    case presets = "Presets"
     case advanced = "Advanced"
 
     public var id: String { rawValue }
 
     public var systemImage: String {
         switch self {
-        case .general: return "gearshape"
+        case .dashboard: return "point.3.connected.trianglepath.dotted"
+        case .mixer: return "slider.horizontal.3"
         case .devices: return "speaker.wave.2"
+        case .eq: return "waveform"
+        case .setups: return "square.stack.3d.up"
         case .shortcuts: return "keyboard"
-        case .presets: return "square.stack.3d.up"
-        case .advanced: return "slider.horizontal.3"
+        case .advanced: return "gearshape.2"
         }
     }
 }

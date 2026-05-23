@@ -1,0 +1,105 @@
+import SwiftUI
+
+struct MixerView: View {
+    @ObservedObject var store: AudioRouterStore
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("Mixer")
+                    .font(.largeTitle.weight(.bold))
+                Spacer()
+                StatusLabel(text: store.settings.demoMode ? "Demo Mode" : "Live Mode", status: store.settings.demoMode ? .simulated : .working)
+            }
+
+            DockCard {
+                SectionHeader(title: "System Output", systemImage: "speaker.wave.2.fill")
+                MeterView(level: store.systemOutputMeter, barCount: 18, height: 24, color: .green)
+                if let output = store.currentOutput {
+                    VolumeSlider(
+                        title: "Output",
+                        value: output.volume,
+                        isEnabled: output.canSetVolume,
+                        systemImage: "speaker.wave.2.fill",
+                        onChange: store.setSystemOutputVolume
+                    )
+                    Button {
+                        store.setDeviceMuted(output, isMuted: !(output.isMuted ?? false))
+                    } label: {
+                        Label((output.isMuted ?? false) ? "Unmute System" : "Mute System", systemImage: (output.isMuted ?? false) ? "speaker.wave.2.fill" : "speaker.slash.fill")
+                    }
+                    .buttonStyle(.bordered)
+                }
+            }
+
+            DockCard {
+                SectionHeader(title: "Input Microphone", systemImage: "mic.fill")
+                MeterView(level: store.inputMeter, barCount: 18, height: 24, color: .cyan)
+                if let input = store.currentInput {
+                    VolumeSlider(
+                        title: "Input",
+                        value: input.volume,
+                        isEnabled: input.canSetVolume,
+                        systemImage: "mic.fill",
+                        onChange: store.setInputVolume
+                    )
+                }
+            }
+
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 280), spacing: 14)], spacing: 14) {
+                ForEach(store.audioSources) { source in
+                    MixerSourceCard(source: source, store: store)
+                }
+            }
+        }
+    }
+}
+
+private struct MixerSourceCard: View {
+    let source: AudioSource
+    @ObservedObject var store: AudioRouterStore
+
+    var body: some View {
+        DockCard {
+            HStack {
+                AppSourceIcon(source: source)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(source.appName)
+                        .font(.headline)
+                    Text(store.routeOutputName(for: source))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                StatusLabel(text: store.routeStatus(for: source), status: store.routeStatusIsWarning(for: source) ? .requiresDriver : .working)
+            }
+            MeterView(level: store.sourceMeters[source.id] ?? 0, color: source.isProducingAudio ? .green : .cyan)
+            HStack {
+                Slider(value: Binding(get: { source.volume }, set: { store.setSourceVolume(source: source, volume: $0) }), in: 0...1.5)
+                Text("\(Int((source.volume * 100).rounded()))%")
+                    .font(.caption.monospacedDigit())
+                    .frame(width: 42)
+            }
+            HStack {
+                Button {
+                    store.setSourceMuted(source: source, isMuted: !source.isMuted)
+                } label: {
+                    Label(source.isMuted ? "Muted" : "Mute", systemImage: source.isMuted ? "speaker.slash.fill" : "speaker.wave.1.fill")
+                }
+                Button {
+                    store.toggleSolo(source: source)
+                } label: {
+                    Label(store.soloSourceID == source.id ? "Solo On" : "Solo", systemImage: "person.wave.2.fill")
+                }
+            }
+            .buttonStyle(.bordered)
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(store.selectedSourceID == source.id ? Color.teal.opacity(0.85) : Color.clear, lineWidth: 2)
+        }
+        .onTapGesture {
+            store.selectedSourceID = source.id
+        }
+    }
+}

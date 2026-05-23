@@ -5,6 +5,11 @@ public enum ShortcutAction: String, Codable, CaseIterable, Identifiable {
     case increaseVolume
     case decreaseVolume
     case nextOutputDevice
+    case previousOutputDevice
+    case muteSelectedApp
+    case applyPreset1
+    case applyPreset2
+    case applyPreset3
     case openPopover
 
     public var id: String { rawValue }
@@ -15,7 +20,25 @@ public enum ShortcutAction: String, Codable, CaseIterable, Identifiable {
         case .increaseVolume: return "Increase volume"
         case .decreaseVolume: return "Decrease volume"
         case .nextOutputDevice: return "Next output"
+        case .previousOutputDevice: return "Previous output"
+        case .muteSelectedApp: return "Mute selected app"
+        case .applyPreset1: return "Apply preset 1"
+        case .applyPreset2: return "Apply preset 2"
+        case .applyPreset3: return "Apply preset 3"
         case .openPopover: return "Open popover"
+        }
+    }
+
+    public var systemImage: String {
+        switch self {
+        case .openPopover: return "app.badge"
+        case .muteSystem: return "speaker.slash"
+        case .muteSelectedApp: return "app.dashed"
+        case .increaseVolume: return "speaker.plus"
+        case .decreaseVolume: return "speaker.minus"
+        case .nextOutputDevice: return "arrow.right.circle"
+        case .previousOutputDevice: return "arrow.left.circle"
+        case .applyPreset1, .applyPreset2, .applyPreset3: return "square.stack.3d.up"
         }
     }
 }

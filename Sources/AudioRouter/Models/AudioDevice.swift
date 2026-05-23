@@ -49,6 +49,7 @@ public struct AudioDevice: Identifiable, Codable, Hashable {
     public let volume: Double?
     public let isMuted: Bool?
     public let balance: Double?
+    public let sampleRate: Double?
     public let canSetVolume: Bool
     public let canSetMute: Bool
     public let canSetBalance: Bool
@@ -65,6 +66,7 @@ public struct AudioDevice: Identifiable, Codable, Hashable {
         volume: Double? = nil,
         isMuted: Bool? = nil,
         balance: Double? = nil,
+        sampleRate: Double? = nil,
         canSetVolume: Bool = false,
         canSetMute: Bool = false,
         canSetBalance: Bool = false
@@ -80,6 +82,7 @@ public struct AudioDevice: Identifiable, Codable, Hashable {
         self.volume = volume
         self.isMuted = isMuted
         self.balance = balance
+        self.sampleRate = sampleRate
         self.canSetVolume = canSetVolume
         self.canSetMute = canSetMute
         self.canSetBalance = canSetBalance
@@ -87,5 +90,10 @@ public struct AudioDevice: Identifiable, Codable, Hashable {
 
     public var typeDescription: String {
         "\(transport.rawValue) · \(channelCount) ch"
+    }
+
+    public var sampleRateDescription: String {
+        guard let sampleRate else { return "Sample rate N/A" }
+        return "\(Int(sampleRate.rounded())) Hz"
     }
 }

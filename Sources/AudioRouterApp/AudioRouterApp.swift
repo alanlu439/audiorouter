@@ -102,6 +102,36 @@ struct AudioRouterCommands: Commands {
             .keyboardShortcut(store.shortcutManager.shortcut(for: .nextOutputDevice).keyEquivalent,
                               modifiers: store.shortcutManager.shortcut(for: .nextOutputDevice).modifiers)
 
+            Button("Previous Output Device") {
+                store.switchToPreviousOutputDevice()
+            }
+            .keyboardShortcut(store.shortcutManager.shortcut(for: .previousOutputDevice).keyEquivalent,
+                              modifiers: store.shortcutManager.shortcut(for: .previousOutputDevice).modifiers)
+
+            Button("Mute Selected App") {
+                store.toggleSelectedSourceMute()
+            }
+            .keyboardShortcut(store.shortcutManager.shortcut(for: .muteSelectedApp).keyEquivalent,
+                              modifiers: store.shortcutManager.shortcut(for: .muteSelectedApp).modifiers)
+
+            Button("Apply Setup 1") {
+                store.applyPreset(at: 0)
+            }
+            .keyboardShortcut(store.shortcutManager.shortcut(for: .applyPreset1).keyEquivalent,
+                              modifiers: store.shortcutManager.shortcut(for: .applyPreset1).modifiers)
+
+            Button("Apply Setup 2") {
+                store.applyPreset(at: 1)
+            }
+            .keyboardShortcut(store.shortcutManager.shortcut(for: .applyPreset2).keyEquivalent,
+                              modifiers: store.shortcutManager.shortcut(for: .applyPreset2).modifiers)
+
+            Button("Apply Setup 3") {
+                store.applyPreset(at: 2)
+            }
+            .keyboardShortcut(store.shortcutManager.shortcut(for: .applyPreset3).keyEquivalent,
+                              modifiers: store.shortcutManager.shortcut(for: .applyPreset3).modifiers)
+
             Button("Open Popover Shortcut Note") {
                 store.showUnsupportedNote("SwiftUI MenuBarExtra does not expose a public API to open its popover from a global shortcut. A future AppKit status-item bridge can provide that behavior.")
             }

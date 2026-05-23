@@ -29,6 +29,32 @@ public final class PresetManager: ObservableObject {
         save()
     }
 
+    public func duplicate(_ preset: AudioPreset) {
+        var copy = preset
+        copy.id = UUID()
+        copy.name = "\(preset.name) Copy"
+        copy.createdAt = Date()
+        presets.insert(copy, at: 0)
+        save()
+    }
+
+    public func exportJSON() -> String {
+        guard let data = try? JSONEncoder().encode(presets),
+              let text = String(data: data, encoding: .utf8) else {
+            return "[]"
+        }
+        return text
+    }
+
+    public func importJSON(_ text: String) {
+        guard let data = text.data(using: .utf8),
+              let decoded = try? JSONDecoder().decode([AudioPreset].self, from: data) else {
+            return
+        }
+        presets = decoded.sorted { $0.createdAt > $1.createdAt }
+        save()
+    }
+
     public func reset() {
         presets.removeAll()
         save()
