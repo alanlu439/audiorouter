@@ -7,20 +7,31 @@ struct AppAudioListView: View {
     var body: some View {
         DockCard {
             SectionHeader(
-                title: "Apps",
-                systemImage: "square.grid.2x2",
-                trailing: "\(store.appSessions.count)"
+                title: "App Routing",
+                systemImage: "point.3.connected.trianglepath.dotted",
+                trailing: "\(store.audioSources.count)"
             )
 
-            if store.appSessions.isEmpty {
+            Text("Source App → Output Device")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            if !store.supportsTruePerAppRouting {
+                Text("True per-app routing requires an audio routing driver. This version saves routing preferences and prepares the interface, but some routing features may be simulated.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            if store.audioSources.isEmpty {
                 Text("No active audio apps detected yet.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else {
                 VStack(spacing: 10) {
-                    ForEach(Array(rows)) { session in
-                        AppAudioRowView(session: session, store: store)
-                        if session.id != rows.last?.id {
+                    ForEach(Array(rows)) { source in
+                        AppAudioRowView(source: source, store: store)
+                        if source.id != rows.last?.id {
                             Divider()
                         }
                     }
@@ -29,38 +40,45 @@ struct AppAudioListView: View {
         }
     }
 
-    private var rows: ArraySlice<AudioAppSession> {
-        store.appSessions.prefix(maxRows ?? store.appSessions.count)
+    private var rows: ArraySlice<AudioSource> {
+        store.audioSources.prefix(maxRows ?? store.audioSources.count)
     }
 }
 
 struct AppAudioRowView: View {
-    let session: AudioAppSession
+    let source: AudioSource
     @ObservedObject var store: AudioRouterStore
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 9) {
+        let route = store.route(for: source)
+        VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {
-                AppSessionIcon(session: session)
+                AppSourceIcon(source: source)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(session.displayName)
+                    Text(source.appName)
                         .font(.subheadline.weight(.semibold))
                         .lineLimit(1)
                     HStack(spacing: 6) {
-                        StatusBadge(text: session.activityLabel, isActive: session.isProducingAudio)
-                        Text(session.lastActivity.shortRelativeDescription)
+                        StatusBadge(text: source.activityLabel, isActive: source.isProducingAudio)
+                        Text(source.lastActiveTime.shortRelativeDescription)
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
                 }
                 Spacer()
+                Image(systemName: "arrow.right")
+                    .foregroundStyle(.secondary)
+                Text(store.routeOutputName(for: source))
+                    .font(.caption.weight(.semibold))
+                    .lineLimit(1)
+                    .frame(maxWidth: 140, alignment: .trailing)
                 Button {
-                    store.setAppMuted(session: session, isMuted: !session.isMuted)
+                    store.setSourceMuted(source: source, isMuted: !source.isMuted)
                 } label: {
-                    Image(systemName: session.isMuted ? "speaker.slash.fill" : "speaker.wave.1.fill")
+                    Image(systemName: source.isMuted ? "speaker.slash.fill" : "speaker.wave.1.fill")
                 }
                 .buttonStyle(.borderless)
-                .help("Stored app mute. Driver-backed audio is required for real per-app mute.")
+                .help("Mute this audio source")
             }
 
             HStack(spacing: 10) {
@@ -69,33 +87,44 @@ struct AppAudioRowView: View {
                     .frame(width: 18)
                 Slider(
                     value: Binding(
-                        get: { session.volume },
-                        set: { store.setAppVolume(session: session, volume: $0) }
+                        get: { source.volume },
+                        set: { store.setSourceVolume(source: source, volume: $0) }
                     ),
                     in: 0...1.5
                 )
-                Text("\((session.volume * 100).rounded().formatted(.number.precision(.fractionLength(0))))%")
+                Text("\((source.volume * 100).rounded().formatted(.number.precision(.fractionLength(0))))%")
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
                     .frame(width: 46, alignment: .trailing)
             }
 
-            Picker("Output", selection: outputSelection) {
-                Text("Follow System").tag("")
-                ForEach(store.outputDevices) { device in
-                    Text(device.name).tag(device.uid)
+            HStack(spacing: 10) {
+                Text("Output")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 52, alignment: .leading)
+                Picker("Output", selection: outputSelection) {
+                    Text("Follow System Output").tag("")
+                    ForEach(store.outputDevices) { device in
+                        Text(device.name).tag(device.uid)
+                    }
+                }
+                .pickerStyle(.menu)
+                Spacer()
+                if route.routeMode == .customDevice && !store.supportsTruePerAppRouting {
+                    Text("Routing requires audio driver")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.orange)
                 }
             }
-            .pickerStyle(.menu)
-            .help("Stored output preference. Independent per-app routing requires a virtual driver or audio plug-in.")
         }
     }
 
     private var outputSelection: Binding<String> {
         Binding(
-            get: { session.assignedOutputUID ?? "" },
+            get: { source.followsSystemOutput ? "" : (source.assignedOutputDeviceID ?? "") },
             set: { value in
-                store.assignAppOutput(session: session, uid: value.isEmpty ? nil : value)
+                store.assignSourceOutput(source: source, uid: value.isEmpty ? nil : value)
             }
         )
     }

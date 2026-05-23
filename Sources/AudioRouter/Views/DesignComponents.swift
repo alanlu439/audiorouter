@@ -76,12 +76,12 @@ struct DeviceIcon: View {
     }
 }
 
-struct AppSessionIcon: View {
-    let session: AudioAppSession
+struct AppSourceIcon: View {
+    let source: AudioSource
 
     var body: some View {
         Group {
-            if let path = session.iconPath {
+            if let path = source.icon {
                 Image(nsImage: NSWorkspace.shared.icon(forFile: path))
                     .resizable()
                     .scaledToFit()

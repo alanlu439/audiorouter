@@ -65,7 +65,7 @@ final class CoreAudioClient {
         }
     }
 
-    func audioAppSessions() throws -> [AudioAppSession] {
+    func audioSources() throws -> [AudioSource] {
         let processIDs = try objectIDArray(
             objectID: AudioObjectID(kAudioObjectSystemObject),
             selector: kAudioHardwarePropertyProcessObjectList
@@ -91,16 +91,16 @@ final class CoreAudioClient {
                 return nil
             }
 
-            return AudioAppSession(
+            return AudioSource(
                 id: bundleID ?? "pid-\(pid)",
-                pid: pid,
-                bundleID: bundleID,
-                displayName: name,
-                iconPath: runningApp?.bundleURL?.path,
+                appName: name,
+                bundleIdentifier: bundleID,
+                processID: pid,
+                icon: runningApp?.bundleURL?.path,
                 isProducingAudio: isRunningOutput
             )
         }
-        .sorted { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
+        .sorted { $0.appName.localizedCaseInsensitiveCompare($1.appName) == .orderedAscending }
     }
 
     func setDefaultDevice(uid: String, kind: AudioDeviceKind) throws {

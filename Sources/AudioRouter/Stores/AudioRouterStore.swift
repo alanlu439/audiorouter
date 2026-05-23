@@ -4,7 +4,7 @@ import Foundation
 @MainActor
 public final class AudioRouterStore: ObservableObject {
     @Published public private(set) var devices: [AudioDevice] = []
-    @Published public private(set) var appSessions: [AudioAppSession] = []
+    @Published public private(set) var audioSources: [AudioSource] = []
     @Published public private(set) var lastError: String?
     @Published public private(set) var unsupportedNote: String?
     @Published public var selectedSettingsSection: SettingsSection = .general
@@ -16,7 +16,7 @@ public final class AudioRouterStore: ObservableObject {
 
     private let deviceManager: AudioDeviceManaging
     private let volumeManager: SystemVolumeManager
-    private let appSessionManager: AppAudioSessionManager
+    private let audioRoutingManager: AudioRoutingManager
     private var refreshTimer: Timer?
     private var cancellables: Set<AnyCancellable> = []
 
@@ -26,7 +26,7 @@ public final class AudioRouterStore: ObservableObject {
         eqManager: EQManager = EQManager(),
         presetManager: PresetManager = PresetManager(),
         shortcutManager: ShortcutManager = ShortcutManager(),
-        appSessionManager: AppAudioSessionManager = AppAudioSessionManager()
+        audioRoutingManager: AudioRoutingManager = AudioRoutingManager()
     ) {
         self.deviceManager = deviceManager
         self.volumeManager = SystemVolumeManager(deviceManager: deviceManager)
@@ -34,7 +34,7 @@ public final class AudioRouterStore: ObservableObject {
         self.eqManager = eqManager
         self.presetManager = presetManager
         self.shortcutManager = shortcutManager
-        self.appSessionManager = appSessionManager
+        self.audioRoutingManager = audioRoutingManager
 
         settings.objectWillChange
             .sink { [weak self] _ in self?.objectWillChange.send() }
@@ -66,6 +66,14 @@ public final class AudioRouterStore: ObservableObject {
         inputDevices.first { $0.isDefault } ?? inputDevices.first
     }
 
+    public var routingBackendName: String {
+        audioRoutingManager.backendName
+    }
+
+    public var supportsTruePerAppRouting: Bool {
+        audioRoutingManager.supportsTruePerAppRouting
+    }
+
     public func start() {
         refresh()
         guard refreshTimer == nil else { return }
@@ -83,8 +91,19 @@ public final class AudioRouterStore: ObservableObject {
 
     public func refresh(silent: Bool = false) {
         do {
+            let previousOutputUIDs = Set(outputDevices.map(\.uid))
             devices = try deviceManager.refreshDevices()
-            appSessions = appSessionManager.refreshSessions(existing: appSessions)
+            let currentOutputUIDs = Set(outputDevices.map(\.uid))
+            for disconnectedUID in previousOutputUIDs.subtracting(currentOutputUIDs) {
+                audioRoutingManager.handleDeviceDisconnected(deviceID: disconnectedUID)
+            }
+            for reconnectedUID in currentOutputUIDs.subtracting(previousOutputUIDs) {
+                audioRoutingManager.handleDeviceReconnected(deviceID: reconnectedUID)
+            }
+            audioSources = audioRoutingManager.getActiveAudioSources()
+            if let warning = audioRoutingManager.lastWarning {
+                unsupportedNote = warning
+            }
             if !silent {
                 lastError = nil
             }
@@ -174,22 +193,48 @@ public final class AudioRouterStore: ObservableObject {
         setDefaultDevice(outputs[nextIndex])
     }
 
-    public func setAppVolume(session: AudioAppSession, volume: Double) {
-        let updated = appSessionManager.setVolume(volume, for: session)
-        updateAppSession(updated)
-        showUnsupportedNote("Per-app volume is stored in AudioRouter for presets, but real per-app output gain needs a virtual audio driver or system audio plug-in.")
+    public func route(for source: AudioSource) -> AudioRoute {
+        audioRoutingManager.route(for: source.id)
     }
 
-    public func setAppMuted(session: AudioAppSession, isMuted: Bool) {
-        let updated = appSessionManager.setMuted(isMuted, for: session)
-        updateAppSession(updated)
-        showUnsupportedNote("Per-app mute is represented in the UI. Muting arbitrary app audio system-wide requires an audio driver or plug-in.")
+    public func routeOutputName(for source: AudioSource) -> String {
+        audioRoutingManager.deviceName(for: route(for: source), outputs: outputDevices)
     }
 
-    public func assignAppOutput(session: AudioAppSession, uid: String?) {
-        let updated = appSessionManager.assignOutput(uid, for: session)
-        updateAppSession(updated)
-        showUnsupportedNote("Per-app output redirection cannot be completed with public APIs alone. AudioRouter keeps the assignment ready for a future driver-backed engine.")
+    public func setSourceVolume(source: AudioSource, volume: Double) {
+        audioRoutingManager.setSourceVolume(sourceID: source.id, volume: volume)
+        updateAudioSource(source.id) { current in
+            current.volume = max(0, min(1.5, volume))
+        }
+        if let warning = audioRoutingManager.lastWarning {
+            showUnsupportedNote(warning)
+        }
+    }
+
+    public func setSourceMuted(source: AudioSource, isMuted: Bool) {
+        audioRoutingManager.muteSource(sourceID: source.id, muted: isMuted)
+        updateAudioSource(source.id) { current in
+            current.isMuted = isMuted
+        }
+        if let warning = audioRoutingManager.lastWarning {
+            showUnsupportedNote(warning)
+        }
+    }
+
+    public func assignSourceOutput(source: AudioSource, uid: String?) {
+        if let uid {
+            audioRoutingManager.assignOutputDevice(sourceID: source.id, deviceID: uid)
+        } else {
+            audioRoutingManager.resetSourceToSystemOutput(sourceID: source.id)
+        }
+        let route = audioRoutingManager.route(for: source.id)
+        updateAudioSource(source.id) { current in
+            current.assignedOutputDeviceID = route.outputDeviceID
+            current.followsSystemOutput = route.routeMode == .followSystem
+        }
+        if let warning = audioRoutingManager.lastWarning {
+            showUnsupportedNote(warning)
+        }
     }
 
     public func saveCurrentSetup() {
@@ -200,10 +245,10 @@ public final class AudioRouterStore: ObservableObject {
             systemVolume: currentOutput?.volume,
             inputVolume: currentInput?.volume,
             systemMuted: currentOutput?.isMuted ?? false,
-            appVolumes: Dictionary(uniqueKeysWithValues: appSessions.map { ($0.id, $0.volume) }),
-            mutedApps: Dictionary(uniqueKeysWithValues: appSessions.map { ($0.id, $0.isMuted) }),
-            appOutputAssignments: Dictionary(uniqueKeysWithValues: appSessions.compactMap { session in
-                session.assignedOutputUID.map { (session.id, $0) }
+            appVolumes: Dictionary(uniqueKeysWithValues: audioSources.map { ($0.id, $0.volume) }),
+            mutedApps: Dictionary(uniqueKeysWithValues: audioSources.map { ($0.id, $0.isMuted) }),
+            appOutputAssignments: Dictionary(uniqueKeysWithValues: audioSources.compactMap { source in
+                source.assignedOutputDeviceID.map { (source.id, $0) }
             }),
             eqPreset: eqManager.state.selectedPreset
         )
@@ -229,15 +274,25 @@ public final class AudioRouterStore: ObservableObject {
             setDeviceMuted(output, isMuted: preset.systemMuted)
         }
         eqManager.applyPreset(preset.eqPreset)
-        appSessions = appSessions.map { session in
-            var updated = session
-            if let volume = preset.appVolumes[session.id] {
+        audioSources = audioSources.map { source in
+            var updated = source
+            if let volume = preset.appVolumes[source.id] {
                 updated.volume = volume
+                audioRoutingManager.setSourceVolume(sourceID: source.id, volume: volume)
             }
-            if let muted = preset.mutedApps[session.id] {
+            if let muted = preset.mutedApps[source.id] {
                 updated.isMuted = muted
+                audioRoutingManager.muteSource(sourceID: source.id, muted: muted)
             }
-            updated.assignedOutputUID = preset.appOutputAssignments[session.id]
+            if let outputID = preset.appOutputAssignments[source.id] {
+                updated.assignedOutputDeviceID = outputID
+                updated.followsSystemOutput = false
+                audioRoutingManager.assignOutputDevice(sourceID: source.id, deviceID: outputID)
+            } else {
+                updated.assignedOutputDeviceID = nil
+                updated.followsSystemOutput = true
+                audioRoutingManager.resetSourceToSystemOutput(sourceID: source.id)
+            }
             return updated
         }
     }
@@ -255,12 +310,14 @@ public final class AudioRouterStore: ObservableObject {
         eqManager.applyPreset(.flat)
         shortcutManager.reset()
         presetManager.reset()
-        appSessions = appSessions.map {
-            var session = $0
-            session.volume = 1
-            session.isMuted = false
-            session.assignedOutputUID = nil
-            return session
+        audioSources = audioSources.map {
+            var source = $0
+            source.volume = 1
+            source.isMuted = false
+            source.assignedOutputDeviceID = nil
+            source.followsSystemOutput = true
+            audioRoutingManager.resetSourceToSystemOutput(sourceID: source.id)
+            return source
         }
     }
 
@@ -279,9 +336,9 @@ public final class AudioRouterStore: ObservableObject {
             .joined(separator: "\n")
     }
 
-    private func updateAppSession(_ session: AudioAppSession) {
-        if let index = appSessions.firstIndex(where: { $0.id == session.id }) {
-            appSessions[index] = session
+    private func updateAudioSource(_ id: String, transform: (inout AudioSource) -> Void) {
+        if let index = audioSources.firstIndex(where: { $0.id == id }) {
+            transform(&audioSources[index])
         }
     }
 

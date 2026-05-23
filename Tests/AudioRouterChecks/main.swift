@@ -6,6 +6,7 @@ func runChecks() throws {
     try checkPresetPersistence()
     checkShortcutPersistence()
     checkDeviceModelIDs()
+    try checkRoutingManagerRoutesAndFallback()
 }
 
 func checkEQPresets() {
@@ -66,6 +67,64 @@ func checkDeviceModelIDs() {
         isAlive: true
     )
     precondition(output.id != input.id, "Input and output identities must not collide")
+}
+
+func checkRoutingManagerRoutesAndFallback() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    let fileURL = directory.appendingPathComponent("routes.json")
+    let manager = AudioRoutingManager(backend: FakeRoutingBackend(), fileURL: fileURL)
+
+    let sources = manager.getActiveAudioSources()
+    precondition(sources.first?.appName == "Spotify", "Expected fake Spotify source")
+    manager.assignOutputDevice(sourceID: "spotify", deviceID: "speaker")
+
+    let customRoute = manager.route(for: "spotify")
+    precondition(customRoute.routeMode == .customDevice, "Route should be custom after output assignment")
+    precondition(customRoute.outputDeviceID == "speaker", "Route did not save the selected output")
+
+    let reloaded = AudioRoutingManager(backend: FakeRoutingBackend(), fileURL: fileURL)
+    precondition(reloaded.route(for: "spotify").outputDeviceID == "speaker", "Route did not persist")
+
+    reloaded.handleDeviceDisconnected(deviceID: "speaker")
+    precondition(reloaded.route(for: "spotify").routeMode == .followSystem, "Disconnected route should fall back")
+}
+
+private final class FakeRoutingBackend: AudioRoutingBackend {
+    let supportsPerAppRouting = true
+    let backendName = "Fake"
+
+    func listAudioSources() throws -> [AudioSource] {
+        [
+            AudioSource(
+                id: "spotify",
+                appName: "Spotify",
+                bundleIdentifier: "com.spotify.client",
+                processID: 42,
+                icon: nil,
+                isProducingAudio: true
+            )
+        ]
+    }
+
+    func listOutputDevices() throws -> [AudioDevice] {
+        [
+            AudioDevice(
+                audioObjectID: 1,
+                uid: "speaker",
+                name: "Bluetooth Speaker",
+                kind: .output,
+                channelCount: 2,
+                transport: .bluetooth,
+                isDefault: false,
+                isAlive: true
+            )
+        ]
+    }
+
+    func routeSourceToDevice(sourceID: String, deviceID: String?) throws {}
+    func setSourceVolume(sourceID: String, volume: Double) throws {}
+    func muteSource(sourceID: String, muted: Bool) throws {}
 }
 
 do {
