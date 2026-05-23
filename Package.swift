@@ -18,7 +18,8 @@ let package = Package(
             linkerSettings: [
                 .linkedFramework("AppKit"),
                 .linkedFramework("CoreAudio"),
-                .linkedFramework("AudioToolbox")
+                .linkedFramework("AudioToolbox"),
+                .linkedFramework("ServiceManagement")
             ]
         ),
         .executableTarget(

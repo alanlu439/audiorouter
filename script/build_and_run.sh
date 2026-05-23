@@ -4,7 +4,7 @@ set -euo pipefail
 MODE="${1:-run}"
 APP_NAME="AudioRouter"
 BUNDLE_ID="com.local.AudioRouter"
-MIN_SYSTEM_VERSION="14.2"
+MIN_SYSTEM_VERSION="14.0"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DIST_DIR="$ROOT_DIR/dist"
@@ -17,6 +17,10 @@ INFO_PLIST="$APP_CONTENTS/Info.plist"
 ICON_SOURCE="$ROOT_DIR/Resources/AppIcon.icns"
 
 cd "$ROOT_DIR"
+
+export CLANG_MODULE_CACHE_PATH="${CLANG_MODULE_CACHE_PATH:-$ROOT_DIR/.build/module-cache}"
+export SWIFTPM_CACHE_PATH="${SWIFTPM_CACHE_PATH:-$ROOT_DIR/.build/swiftpm-cache}"
+mkdir -p "$CLANG_MODULE_CACHE_PATH" "$SWIFTPM_CACHE_PATH"
 
 pkill -x "$APP_NAME" >/dev/null 2>&1 || true
 
@@ -55,7 +59,9 @@ cat >"$INFO_PLIST" <<PLIST
   <key>NSPrincipalClass</key>
   <string>NSApplication</string>
   <key>NSAudioCaptureUsageDescription</key>
-  <string>AudioRouter captures selected app audio so it can be routed to a chosen output device.</string>
+  <string>AudioRouter can inspect currently active audio apps and show controls for app-level audio settings.</string>
+  <key>LSUIElement</key>
+  <true/>
 </dict>
 </plist>
 PLIST

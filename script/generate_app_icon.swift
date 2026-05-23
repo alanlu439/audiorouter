@@ -68,7 +68,7 @@ func drawIcon(in rect: CGRect) {
         .font: font,
         .foregroundColor: NSColor(calibratedRed: 0.28, green: 0.96, blue: 0.90, alpha: 1),
         .paragraphStyle: paragraph,
-        .kern: -rect.width * 0.012
+        .kern: -rect.width * 0.006
     ]
     let textSize = text.size(withAttributes: attributes)
     let textRect = CGRect(
