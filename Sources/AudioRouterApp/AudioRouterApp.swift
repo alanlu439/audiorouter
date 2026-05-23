@@ -25,12 +25,16 @@ struct AudioRouterApplication: App {
             AudioRouterCommands(store: store)
         }
 
-        MenuBarExtra("AudioRouter", systemImage: "speaker.wave.2.circle.fill") {
+        MenuBarExtra {
             MenuBarPopoverView(store: store)
                 .frame(width: 430, height: 680)
                 .onAppear {
                     store.start()
                 }
+        } label: {
+            Image(systemName: "speaker.wave.2.circle.fill")
+                .symbolRenderingMode(.hierarchical)
+                .accessibilityLabel("AudioRouter")
         }
         .menuBarExtraStyle(.window)
 

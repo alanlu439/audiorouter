@@ -8,6 +8,7 @@ The app uses public macOS APIs only. Device discovery, default input/output swit
 
 - Menu bar app with a rich SwiftUI popover.
 - Opens as a normal macOS app with a Dock icon and main window, while also keeping a menu bar popover.
+- Compact icon-only menu bar extra to reduce width and stay visible longer when the menu bar is crowded.
 - Settings window with General, Devices, Shortcuts, Presets, and Advanced sections.
 - Output and input device discovery through CoreAudio.
 - Current output and input device display.
@@ -31,6 +32,7 @@ The app uses public macOS APIs only. Device discovery, default input/output swit
 - System-wide real-time EQ requires a driver or audio plug-in. AudioRouter stores and displays EQ settings today.
 - Global shortcut support and programmatic opening of the SwiftUI `MenuBarExtra` popover are marked TODO. The MVP includes local app commands first.
 - Launch at login uses `SMAppService.mainApp` and may require a signed app bundle to work outside local development.
+- macOS controls menu bar item ordering and overflow. AudioRouter uses the smallest practical icon-only item, but public APIs cannot force a third-party menu bar item to remain pinned above all other items.
 
 ## Run
 
