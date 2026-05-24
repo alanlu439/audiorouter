@@ -61,7 +61,7 @@ cat >"$INFO_PLIST" <<PLIST
   <key>NSPrincipalClass</key>
   <string>NSApplication</string>
   <key>NSAudioCaptureUsageDescription</key>
-  <string>AudioRouter can use public Core Audio process taps to monitor app audio levels when you start a capture probe.</string>
+  <string>AudioRouter uses public Core Audio process taps to capture selected app audio for live routing and meters.</string>
 </dict>
 </plist>
 PLIST

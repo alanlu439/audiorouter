@@ -47,7 +47,7 @@ public final class ProcessTapManager {
                 AudioHardwareDestroyProcessTap(tapID)
                 return ProcessTapProbeResult(
                     status: .tapCreated,
-                    message: "Process tap permission is available. Full level metering still needs aggregate-device IO plumbing."
+                    message: "Process tap permission is available. Assign an app to an output to start the live routing engine."
                 )
             }
 

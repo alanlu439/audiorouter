@@ -14,7 +14,7 @@ public final class AudioRouterStore: ObservableObject {
     @Published public var inputMeter: Double = 0
     @Published public var soloSourceID: String?
     @Published public var selectedSourceID: String?
-    @Published public private(set) var meteringNote: String = "Live meters are unavailable until a process-tap capture path is active."
+    @Published public private(set) var meteringNote: String = "Live meters appear when a process-tap route is active."
     @Published public private(set) var processTapProbeMessage: String?
     @Published public var outputGroups: [OutputDeviceGroup] = [] {
         didSet { saveOutputGroups() }
@@ -32,6 +32,8 @@ public final class AudioRouterStore: ObservableObject {
     private var refreshTimer: Timer?
     private var meterTimer: Timer?
     private var deviceObservation: DevicePropertyObservation?
+    private var pendingVolumeTasks: [String: Task<Void, Never>] = [:]
+    private var pendingBalanceTasks: [String: Task<Void, Never>] = [:]
     private var meterPhase: Double = 0
     private var lastRefreshUsedDemoMode: Bool?
     private var cancellables: Set<AnyCancellable> = []
@@ -74,7 +76,7 @@ public final class AudioRouterStore: ObservableObject {
     }
 
     public var outputDevices: [AudioDevice] {
-        devices.filter { $0.kind == .output }
+        Self.routeOutputDevices(from: devices)
     }
 
     public var inputDevices: [AudioDevice] {
@@ -83,6 +85,26 @@ public final class AudioRouterStore: ObservableObject {
 
     public var currentOutput: AudioDevice? {
         outputDevices.first { $0.isDefault } ?? outputDevices.first
+    }
+
+    nonisolated public static func routeOutputDevices(from devices: [AudioDevice]) -> [AudioDevice] {
+        let outputs = devices.filter { $0.kind == .output && $0.isAlive }
+        let bluetoothAndSpeakers = outputs.filter { device in
+            device.transport == .bluetooth
+                || device.transport == .bluetoothLE
+                || device.transport == .builtIn
+        }
+
+        if bluetoothAndSpeakers.contains(where: { $0.transport == .builtIn }) {
+            return bluetoothAndSpeakers
+        }
+
+        if let defaultOutput = outputs.first(where: { $0.isDefault }),
+           !bluetoothAndSpeakers.contains(where: { $0.uid == defaultOutput.uid }) {
+            return ([defaultOutput] + bluetoothAndSpeakers).uniquedByUID()
+        }
+
+        return bluetoothAndSpeakers
     }
 
     public var currentInput: AudioDevice? {
@@ -106,24 +128,24 @@ public final class AudioRouterStore: ObservableObject {
     }
 
     public var liveMeteringAvailable: Bool {
-        !settings.demoMode && audioRoutingManager.supportsLiveProcessMeters
+        !settings.demoMode
+            && audioRoutingManager.supportsLiveProcessMeters
+            && audioSources.contains { source in
+                let route = audioRoutingManager.route(for: source.id)
+                return route.routeMode == .customOutput && route.status == .active
+            }
     }
 
     public func start() {
         refresh()
         startDeviceObservationIfNeeded()
         guard refreshTimer == nil else { return }
-        refreshTimer = Timer.scheduledTimer(withTimeInterval: 2.5, repeats: true) { [weak self] _ in
+        refreshTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.refresh(silent: true)
             }
         }
-        guard meterTimer == nil else { return }
-        meterTimer = Timer.scheduledTimer(withTimeInterval: 0.08, repeats: true) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                self?.tickMeters()
-            }
-        }
+        configureMeterTimer()
     }
 
     public func stop() {
@@ -131,6 +153,10 @@ public final class AudioRouterStore: ObservableObject {
         refreshTimer = nil
         meterTimer?.invalidate()
         meterTimer = nil
+        pendingVolumeTasks.values.forEach { $0.cancel() }
+        pendingVolumeTasks.removeAll()
+        pendingBalanceTasks.values.forEach { $0.cancel() }
+        pendingBalanceTasks.removeAll()
         deviceObservation?.cancel()
         deviceObservation = nil
     }
@@ -153,7 +179,7 @@ public final class AudioRouterStore: ObservableObject {
                 meteringNote = "Demo Mode uses animated meters for UI testing."
             } else {
                 startDeviceObservationIfNeeded()
-                meteringNote = processAudioMonitor.snapshot().meterMessage
+                meteringNote = processAudioMonitor.meterAvailabilityMessage
             }
             let currentOutputUIDs = Set(outputDevices.map(\.uid))
             for disconnectedUID in previousOutputUIDs.subtracting(currentOutputUIDs) {
@@ -162,7 +188,8 @@ public final class AudioRouterStore: ObservableObject {
             for reconnectedUID in currentOutputUIDs.subtracting(previousOutputUIDs) {
                 audioRoutingManager.handleDeviceReconnected(deviceID: reconnectedUID)
             }
-            audioSources = usingDemoMode ? demoSources : audioRoutingManager.getActiveAudioSources()
+            audioSources = usingDemoMode ? demoSources : focusedSources(from: audioRoutingManager.getActiveAudioSources())
+            configureMeterTimer()
             if let warning = audioRoutingManager.lastWarning {
                 unsupportedNote = warning
             }
@@ -208,16 +235,19 @@ public final class AudioRouterStore: ObservableObject {
         if settings.demoMode {
             return
         }
-        do {
-            if device.kind == .output {
-                try volumeManager.setOutputVolume(device: device, volume: clamped)
-            } else {
-                try volumeManager.setInputVolume(device: device, volume: clamped)
+        guard device.canSetVolume else {
+            lastError = AudioRouterError.unsupportedControl("\(device.kind.title) volume").localizedDescription
+            return
+        }
+        let taskKey = device.id
+        pendingVolumeTasks[taskKey]?.cancel()
+        pendingVolumeTasks[taskKey] = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 140_000_000)
+            guard !Task.isCancelled else { return }
+            await MainActor.run { [weak self] in
+                self?.commitDeviceVolume(device, volume: clamped)
+                self?.pendingVolumeTasks.removeValue(forKey: taskKey)
             }
-            refreshAfterDelay()
-        } catch {
-            lastError = error.localizedDescription
-            refreshAfterDelay(interval: 0.1)
         }
     }
 
@@ -241,9 +271,40 @@ public final class AudioRouterStore: ObservableObject {
         if settings.demoMode {
             return
         }
+        guard device.canSetBalance else {
+            lastError = AudioRouterError.unsupportedControl("\(device.kind.title) balance").localizedDescription
+            return
+        }
+        let taskKey = device.id
+        pendingBalanceTasks[taskKey]?.cancel()
+        pendingBalanceTasks[taskKey] = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 140_000_000)
+            guard !Task.isCancelled else { return }
+            await MainActor.run { [weak self] in
+                self?.commitDeviceBalance(device, balance: clamped)
+                self?.pendingBalanceTasks.removeValue(forKey: taskKey)
+            }
+        }
+    }
+
+    private func commitDeviceVolume(_ device: AudioDevice, volume: Double) {
         do {
-            try volumeManager.setBalance(device: device, balance: clamped)
-            refreshAfterDelay()
+            if device.kind == .output {
+                try volumeManager.setOutputVolume(device: device, volume: volume)
+            } else {
+                try volumeManager.setInputVolume(device: device, volume: volume)
+            }
+            refreshAfterDelay(interval: 0.45)
+        } catch {
+            lastError = error.localizedDescription
+            refreshAfterDelay(interval: 0.1)
+        }
+    }
+
+    private func commitDeviceBalance(_ device: AudioDevice, balance: Double) {
+        do {
+            try volumeManager.setBalance(device: device, balance: balance)
+            refreshAfterDelay(interval: 0.45)
         } catch {
             lastError = error.localizedDescription
             refreshAfterDelay(interval: 0.1)
@@ -329,6 +390,7 @@ public final class AudioRouterStore: ObservableObject {
             current.routeMode = route.routeMode
             current.followsSystemOutput = route.routeMode == .followSystemOutput
         }
+        configureMeterTimer()
         if let warning = audioRoutingManager.lastWarning {
             showUnsupportedNote(warning)
         }
@@ -360,7 +422,7 @@ public final class AudioRouterStore: ObservableObject {
         processTapProbeMessage = result.message
         switch result.status {
         case .tapCreated:
-            showUnsupportedNote("Process tap permission is available. Real level metering still needs the backend capture pipeline to read tap buffers.")
+            showUnsupportedNote("Process tap permission is available. Assign an app to an output to start the live routing engine.")
         case let .permissionDenied(message), let .unavailable(message):
             showUnsupportedNote(message)
         }
@@ -445,7 +507,18 @@ public final class AudioRouterStore: ObservableObject {
            outputGroups.contains(where: { $0.routeTargetID == outputID }) {
             return "Requires Audio Backend"
         }
-        return supportsTruePerAppRouting ? "Live" : "Requires Audio Backend"
+        switch route.status {
+        case .active:
+            return supportsTruePerAppRouting ? "Live" : "Working"
+        case .savedOnly:
+            return "Saved Only"
+        case .simulated:
+            return "Simulated"
+        case .requiresBackend:
+            return "Requires Audio Backend"
+        case .deviceMissing:
+            return "Device Missing"
+        }
     }
 
     public func routeStatusIsWarning(for source: AudioSource) -> Bool {
@@ -593,12 +666,38 @@ public final class AudioRouterStore: ObservableObject {
         try? data.write(to: outputGroupsURL, options: .atomic)
     }
 
+    private func configureMeterTimer() {
+        let shouldAnimate = settings.demoMode || liveMeteringAvailable
+        if shouldAnimate {
+            guard meterTimer == nil else { return }
+            meterTimer = Timer.scheduledTimer(withTimeInterval: 0.16, repeats: true) { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    self?.tickMeters()
+                }
+            }
+        } else {
+            meterTimer?.invalidate()
+            meterTimer = nil
+            clearMetersIfNeeded()
+        }
+    }
+
+    private func clearMetersIfNeeded() {
+        guard systemOutputMeter != 0
+            || inputMeter != 0
+            || sourceMeters.values.contains(where: { $0 != 0 })
+            || deviceMeters.values.contains(where: { $0 != 0 }) else {
+            return
+        }
+        systemOutputMeter = 0
+        inputMeter = 0
+        sourceMeters = Dictionary(uniqueKeysWithValues: audioSources.map { ($0.id, 0) })
+        deviceMeters = Dictionary(uniqueKeysWithValues: devices.map { ($0.id, 0) })
+    }
+
     private func tickMeters() {
-        guard settings.demoMode else {
-            systemOutputMeter = 0
-            inputMeter = 0
-            sourceMeters = Dictionary(uniqueKeysWithValues: audioSources.map { ($0.id, $0.currentLevel ?? 0) })
-            deviceMeters = Dictionary(uniqueKeysWithValues: devices.map { ($0.id, 0) })
+        if !settings.demoMode {
+            tickLiveMeters()
             return
         }
         meterPhase += 0.19
@@ -617,40 +716,42 @@ public final class AudioRouterStore: ObservableObject {
         })
     }
 
-    private var demoDevices: [AudioDevice] {
-        [
-            AudioDevice(audioObjectID: 10, uid: "demo-macbook", name: "MacBook Speakers", kind: .output, channelCount: 2, transport: .builtIn, isDefault: true, isAlive: true, volume: 0.72, balance: 0, sampleRate: 48000, canSetVolume: true, canSetMute: true, canSetBalance: true),
-            AudioDevice(audioObjectID: 11, uid: "demo-bluetooth", name: "Bluetooth Speaker", kind: .output, channelCount: 2, transport: .bluetooth, isDefault: false, isAlive: true, volume: 0.82, balance: -0.08, sampleRate: 44100, canSetVolume: true, canSetMute: true, canSetBalance: false),
-            AudioDevice(audioObjectID: 12, uid: "demo-airpods", name: "AirPods", kind: .output, channelCount: 2, transport: .bluetoothLE, isDefault: false, isAlive: true, volume: 0.64, balance: 0.04, sampleRate: 48000, canSetVolume: true, canSetMute: true, canSetBalance: true),
-            AudioDevice(audioObjectID: 13, uid: "demo-hdmi", name: "HDMI Output", kind: .output, channelCount: 2, transport: .hdmi, isDefault: false, isAlive: true, volume: 0.58, balance: 0, sampleRate: 48000, canSetVolume: false, canSetMute: false, canSetBalance: false),
-            AudioDevice(audioObjectID: 14, uid: "demo-usb", name: "USB Audio Interface", kind: .output, channelCount: 2, transport: .usb, isDefault: false, isAlive: true, volume: 0.76, balance: 0, sampleRate: 96000, canSetVolume: true, canSetMute: true, canSetBalance: true),
-            AudioDevice(audioObjectID: 15, uid: "demo-airplay", name: "AirPlay Speaker", kind: .output, channelCount: 2, transport: .airPlay, isDefault: false, isAlive: true, volume: 0.70, balance: nil, sampleRate: 44100, canSetVolume: true, canSetMute: true, canSetBalance: false),
-            AudioDevice(audioObjectID: 16, uid: "demo-mic", name: "MacBook Microphone", kind: .input, channelCount: 1, transport: .builtIn, isDefault: true, isAlive: true, volume: 0.66, sampleRate: 48000, canSetVolume: true, canSetMute: false, canSetBalance: false)
-        ]
+    private func tickLiveMeters() {
+        sourceMeters = Dictionary(uniqueKeysWithValues: audioSources.map { source in
+            let level = audioRoutingManager.currentLevel(for: source.id) ?? source.currentLevel ?? 0
+            return (source.id, level)
+        })
+        systemOutputMeter = sourceMeters.values.max() ?? 0
+        inputMeter = 0
+        deviceMeters = Dictionary(uniqueKeysWithValues: devices.map { device in
+            let routed = routedSources(to: device)
+            let level = routed.isEmpty
+                ? (device.isDefault ? systemOutputMeter : 0)
+                : min(1, routed.map { sourceMeters[$0.id] ?? 0 }.reduce(0, +) / Double(max(1, routed.count)))
+            return (device.id, device.kind == .input ? 0 : level)
+        })
     }
 
-    private var demoSources: [AudioSource] {
-        let sourceSpecs: [(String, String, String?, String?, Bool)] = [
-            ("system-sounds", "System Sounds", "com.apple.systemsounds", nil, false),
-            ("spotify", "Spotify", "com.spotify.client", nil, true),
-            ("safari", "Safari", "com.apple.Safari", "/Applications/Safari.app", true),
-            ("chrome", "Chrome", "com.google.Chrome", "/Applications/Google Chrome.app", true),
-            ("zoom", "Zoom", "us.zoom.xos", nil, true),
-            ("music", "Music", "com.apple.Music", "/System/Applications/Music.app", false),
-            ("microphone", "Microphone", "com.local.microphone", nil, true)
-        ]
+    private func focusedSources(from detectedSources: [AudioSource]) -> [AudioSource] {
+        Self.focusedSourceSpecs.map { spec in
+            let detectedSource = detectedSources.first { detected in
+                detected.bundleIdentifier == spec.bundleIdentifier
+                    || detected.id == spec.bundleIdentifier
+                    || detected.appName.localizedCaseInsensitiveContains(spec.matchName)
+            }
 
-        return sourceSpecs.map { id, name, bundleID, icon, active in
-            let route = audioRoutingManager.route(for: id)
+            let route = audioRoutingManager.route(for: spec.bundleIdentifier)
             return AudioSource(
-                id: id,
-                appName: name,
-                bundleIdentifier: bundleID,
-                processID: id == "system-sounds" ? 0 : Int32(abs(id.hashValue % 9000) + 100),
-                icon: icon,
-                isProducingAudio: active,
-                lastActiveTime: Date().addingTimeInterval(active ? -3 : -65),
-                currentLevel: active ? 0.7 : 0.1,
+                id: spec.bundleIdentifier,
+                appName: spec.displayName,
+                bundleIdentifier: spec.bundleIdentifier,
+                processID: detectedSource?.processID ?? 0,
+                audioObjectID: detectedSource?.audioObjectID,
+                icon: detectedSource?.icon ?? spec.iconPath,
+                isRunning: detectedSource?.isRunning ?? false,
+                isProducingAudio: detectedSource?.isProducingAudio ?? false,
+                lastActiveTime: detectedSource?.lastActiveTime ?? .distantPast,
+                currentLevel: detectedSource?.currentLevel,
                 volume: route.volume,
                 isMuted: route.isMuted,
                 routeMode: route.routeMode,
@@ -659,6 +760,49 @@ public final class AudioRouterStore: ObservableObject {
             )
         }
     }
+
+    private var demoDevices: [AudioDevice] {
+        [
+            AudioDevice(audioObjectID: 10, uid: "demo-macbook", name: "MacBook Speakers", kind: .output, channelCount: 2, transport: .builtIn, isDefault: true, isAlive: true, volume: 0.72, balance: 0, sampleRate: 48000, canSetVolume: true, canSetMute: true, canSetBalance: true),
+            AudioDevice(audioObjectID: 11, uid: "demo-bluetooth", name: "Bluetooth Speaker", kind: .output, channelCount: 2, transport: .bluetooth, isDefault: false, isAlive: true, volume: 0.82, balance: -0.08, sampleRate: 44100, canSetVolume: true, canSetMute: true, canSetBalance: false),
+            AudioDevice(audioObjectID: 12, uid: "demo-airpods", name: "AirPods", kind: .output, channelCount: 2, transport: .bluetoothLE, isDefault: false, isAlive: true, volume: 0.64, balance: 0.04, sampleRate: 48000, canSetVolume: true, canSetMute: true, canSetBalance: true),
+            AudioDevice(audioObjectID: 16, uid: "demo-mic", name: "MacBook Microphone", kind: .input, channelCount: 1, transport: .builtIn, isDefault: true, isAlive: true, volume: 0.66, sampleRate: 48000, canSetVolume: true, canSetMute: false, canSetBalance: false)
+        ]
+    }
+
+    private var demoSources: [AudioSource] {
+        Self.focusedSourceSpecs.map { spec in
+            let route = audioRoutingManager.route(for: spec.bundleIdentifier)
+            return AudioSource(
+                id: spec.bundleIdentifier,
+                appName: spec.displayName,
+                bundleIdentifier: spec.bundleIdentifier,
+                processID: Int32(abs(spec.bundleIdentifier.hashValue % 9000) + 100),
+                icon: spec.iconPath,
+                isProducingAudio: true,
+                lastActiveTime: Date().addingTimeInterval(-3),
+                currentLevel: 0.7,
+                volume: route.volume,
+                isMuted: route.isMuted,
+                routeMode: route.routeMode,
+                assignedOutputDeviceID: route.outputDeviceID,
+                followsSystemOutput: route.routeMode == .followSystemOutput
+            )
+        }
+    }
+
+    private struct FocusedSourceSpec {
+        let displayName: String
+        let bundleIdentifier: String
+        let matchName: String
+        let iconPath: String?
+    }
+
+    private static let focusedSourceSpecs: [FocusedSourceSpec] = [
+        FocusedSourceSpec(displayName: "Spotify", bundleIdentifier: "com.spotify.client", matchName: "spotify", iconPath: "/Applications/Spotify.app"),
+        FocusedSourceSpec(displayName: "Apple Music", bundleIdentifier: "com.apple.Music", matchName: "music", iconPath: "/System/Applications/Music.app"),
+        FocusedSourceSpec(displayName: "Chrome", bundleIdentifier: "com.google.Chrome", matchName: "chrome", iconPath: "/Applications/Google Chrome.app")
+    ]
 
     private func refreshAfterDelay(interval: TimeInterval = 0.35) {
         Task { @MainActor [weak self] in
@@ -714,6 +858,15 @@ public enum SettingsSection: String, CaseIterable, Identifiable {
         case .setups: return "square.stack.3d.up"
         case .shortcuts: return "keyboard"
         case .advanced: return "gearshape.2"
+        }
+    }
+}
+
+private extension Array where Element == AudioDevice {
+    func uniquedByUID() -> [AudioDevice] {
+        var seen: Set<String> = []
+        return filter { device in
+            seen.insert(device.uid).inserted
         }
     }
 }

@@ -222,14 +222,15 @@ private struct RouteLineCard: View {
 
     var body: some View {
         let route = store.route(for: source)
-        let requiresBackend = route.routeMode == .customOutput && !store.supportsTruePerAppRouting
+        let status = store.routeStatus(for: source)
+        let routeNeedsAttention = ["Requires Audio Backend", "Saved Only", "Device Missing", "Unsupported"].contains(status)
         HStack(spacing: 10) {
             Text(source.appName)
                 .font(.caption.weight(.semibold))
                 .lineLimit(1)
                 .frame(width: 74, alignment: .leading)
-            RouteLineShape(isDashed: requiresBackend)
-                .stroke(route.routeMode == .followSystemOutput ? Color.secondary : Color.teal, style: StrokeStyle(lineWidth: 2, dash: requiresBackend ? [6, 4] : []))
+            RouteLineShape(isDashed: routeNeedsAttention)
+                .stroke(route.routeMode == .followSystemOutput ? Color.secondary : Color.teal, style: StrokeStyle(lineWidth: 2, dash: routeNeedsAttention ? [6, 4] : []))
                 .frame(height: 18)
             Image(systemName: route.routeMode == .followSystemOutput ? "arrow.triangle.branch" : "arrow.right.circle.fill")
                 .foregroundStyle(route.routeMode == .followSystemOutput ? Color.secondary : Color.teal)
@@ -237,7 +238,7 @@ private struct RouteLineCard: View {
                 .font(.caption)
                 .lineLimit(1)
                 .frame(width: 110, alignment: .leading)
-            if requiresBackend {
+            if routeNeedsAttention {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundStyle(.orange)
             }

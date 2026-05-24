@@ -4,13 +4,8 @@ import Foundation
 public final class RunningAppService {
     private let likelyAudioBundleIDs: Set<String> = [
         "com.spotify.client",
-        "com.apple.Safari",
         "com.google.Chrome",
-        "us.zoom.xos",
-        "com.apple.Music",
-        "com.tinyspeck.slackmacgap",
-        "com.microsoft.teams2",
-        "com.apple.QuickTimePlayerX"
+        "com.apple.Music"
     ]
 
     public init() {}

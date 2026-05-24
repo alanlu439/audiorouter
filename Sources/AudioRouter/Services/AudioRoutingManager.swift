@@ -7,7 +7,9 @@ public final class AudioRoutingManager {
     private let fileURL: URL
     private var routesBySourceID: [String: AudioRoute] = [:]
     private var recentSourcesByID: [String: AudioSource] = [:]
+    private var lastLiveRouteAttemptBySourceID: [String: Date] = [:]
     private let recentWindow: TimeInterval = 120
+    private let liveRouteRetryInterval: TimeInterval = 8
 
     public convenience init() {
         self.init(
@@ -47,12 +49,17 @@ public final class AudioRoutingManager {
         let detected = (try? backend.listAudioSources()) ?? []
         for source in detected {
             var merged = source
-            let route = routesBySourceID[source.id] ?? AudioRoute(sourceAppID: source.id)
+            var route = routesBySourceID[source.id] ?? AudioRoute(sourceAppID: source.id)
+            attemptLiveRouteIfNeeded(source: source, route: &route, now: now)
             merged.volume = route.volume
             merged.isMuted = route.isMuted
             merged.assignedOutputDeviceID = route.outputDeviceID
             merged.routeMode = route.routeMode
             merged.followsSystemOutput = route.routeMode == .followSystemOutput
+            if let level = backend.currentLevel(sourceID: source.id) {
+                merged.currentLevel = level
+                merged.isProducingAudio = level > 0.015 || merged.isProducingAudio
+            }
             merged.lastActiveTime = now
             recentSourcesByID[source.id] = merged
         }
@@ -81,21 +88,26 @@ public final class AudioRoutingManager {
 
         do {
             try backend.routeSourceToDevice(sourceID: sourceID, deviceID: deviceID)
+            route.status = backend.supportsPerAppRouting ? .active : .requiresBackend
+            routesBySourceID[sourceID] = route
+            saveRoutes()
             lastWarning = nil
         } catch {
             route.status = .requiresBackend
             routesBySourceID[sourceID] = route
             saveRoutes()
-            lastWarning = "True per-app routing requires an audio routing backend. AudioRouter saved the route preference."
+            lastWarning = "\(error.localizedDescription) AudioRouter saved the route preference."
         }
     }
 
     public func resetSourceToSystemOutput(sourceID: String) {
+        try? backend.routeSourceToDevice(sourceID: sourceID, deviceID: nil)
         var route = route(for: sourceID)
         route.outputDeviceID = nil
         route.routeMode = .followSystemOutput
         route.status = .active
         routesBySourceID[sourceID] = route
+        lastLiveRouteAttemptBySourceID.removeValue(forKey: sourceID)
         saveRoutes()
     }
 
@@ -111,7 +123,7 @@ public final class AudioRoutingManager {
         do {
             try backend.setSourceVolume(sourceID: sourceID, volume: route.volume)
         } catch {
-            lastWarning = "Per-app volume is saved, but real per-app gain requires an audio routing backend."
+            lastWarning = "\(error.localizedDescription) AudioRouter saved the volume preference."
         }
     }
 
@@ -127,7 +139,7 @@ public final class AudioRoutingManager {
         do {
             try backend.muteSource(sourceID: sourceID, muted: muted)
         } catch {
-            lastWarning = "Per-app mute is saved, but real per-app mute requires an audio routing backend."
+            lastWarning = "\(error.localizedDescription) AudioRouter saved the mute preference."
         }
     }
 
@@ -137,7 +149,13 @@ public final class AudioRoutingManager {
             routesBySourceID = [:]
             return
         }
-        routesBySourceID = Dictionary(uniqueKeysWithValues: routes.map { ($0.sourceAppID, $0) })
+        routesBySourceID = Dictionary(routes.map { route in
+            var restored = route
+            if restored.routeMode == .customOutput {
+                restored.status = .savedOnly
+            }
+            return (restored.sourceAppID, restored)
+        }, uniquingKeysWith: { _, newest in newest })
     }
 
     public func handleDeviceDisconnected(deviceID: String) {
@@ -163,6 +181,37 @@ public final class AudioRoutingManager {
             return "Follow System Output"
         }
         return outputs.first(where: { $0.uid == outputDeviceID })?.name ?? "Missing Output"
+    }
+
+    public func currentLevel(for sourceID: String) -> Double? {
+        backend.currentLevel(sourceID: sourceID)
+    }
+
+    private func attemptLiveRouteIfNeeded(source: AudioSource, route: inout AudioRoute, now: Date) {
+        guard backend.supportsPerAppRouting,
+              route.routeMode == .customOutput,
+              let outputDeviceID = route.outputDeviceID,
+              route.status != .active else {
+            return
+        }
+        if let lastAttempt = lastLiveRouteAttemptBySourceID[source.id],
+           now.timeIntervalSince(lastAttempt) < liveRouteRetryInterval {
+            return
+        }
+        lastLiveRouteAttemptBySourceID[source.id] = now
+
+        do {
+            try backend.routeSourceToDevice(sourceID: source.id, deviceID: outputDeviceID)
+            route.status = .active
+            routesBySourceID[source.id] = route
+            saveRoutes()
+            lastWarning = nil
+        } catch {
+            route.status = .requiresBackend
+            routesBySourceID[source.id] = route
+            saveRoutes()
+            lastWarning = "\(error.localizedDescription) AudioRouter saved the route preference."
+        }
     }
 
     private func saveRoutes() {

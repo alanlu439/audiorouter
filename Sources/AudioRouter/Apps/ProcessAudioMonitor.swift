@@ -43,16 +43,19 @@ public final class ProcessAudioMonitor {
         runningAppService.identifyLikelyAudioApps()
     }
 
+    public var meterAvailabilityMessage: String {
+        processTapManager.isSupportedOnThisOS
+            ? "Live app detection uses CoreAudio process objects. Assign an app to an output to start process-tap routing and real meters."
+            : "Process-tap metering requires macOS 14.2 or newer."
+    }
+
     public func snapshot() -> ProcessAudioMonitorSnapshot {
         let coreAudioSources = (try? client.audioSources()) ?? []
         let sources = coreAudioSources.isEmpty ? identifyLikelyAudioApps() : coreAudioSources
-        let message = processTapManager.isSupportedOnThisOS
-            ? "Live app detection uses CoreAudio process objects. Level meters require a process-tap capture session and are shown only when available."
-            : "Process-tap metering requires macOS 14.2 or newer."
         return ProcessAudioMonitorSnapshot(
             sources: withSystemAudioSource(sources),
             processTapsSupported: processTapManager.isSupportedOnThisOS,
-            meterMessage: message
+            meterMessage: meterAvailabilityMessage
         )
     }
 

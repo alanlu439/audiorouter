@@ -17,7 +17,7 @@ struct AppAudioListView: View {
                 .foregroundStyle(.secondary)
 
             if !store.supportsTruePerAppRouting {
-                Text("True per-app routing requires an audio routing backend. This version saves routing preferences and clearly marks routes that are not live.")
+                Text("Live app routing needs macOS 14.2 or newer. AudioRouter saves route choices and clearly marks routes that are not live.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -121,10 +121,11 @@ struct AppAudioRowView: View {
                 }
                 .pickerStyle(.menu)
                 Spacer()
-                if route.routeMode == .customOutput && !store.supportsTruePerAppRouting {
-                    Text("Requires audio backend")
+                let status = store.routeStatus(for: source)
+                if route.routeMode == .customOutput && status != "Live" {
+                    Text(status)
                         .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(store.routeStatusIsWarning(for: source) ? .orange : .secondary)
                 }
             }
         }

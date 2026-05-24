@@ -12,12 +12,14 @@ public protocol AudioRoutingBackend {
     func routeSourceToDevice(sourceID: String, deviceID: String?) throws
     func setSourceVolume(sourceID: String, volume: Double) throws
     func muteSource(sourceID: String, muted: Bool) throws
+    func currentLevel(sourceID: String) -> Double?
 }
 
 public extension AudioRoutingBackend {
     var supportsPerAppVolume: Bool { supportsPerAppRouting }
     var supportsPerAppMute: Bool { supportsPerAppRouting }
     var supportsLiveProcessMeters: Bool { false }
+    func currentLevel(sourceID: String) -> Double? { nil }
 }
 
 public enum AudioRoutingBackendError: LocalizedError, Equatable {
