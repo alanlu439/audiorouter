@@ -4,7 +4,7 @@ set -euo pipefail
 MODE="${1:-run}"
 APP_NAME="AudioRouter"
 BUNDLE_ID="com.local.AudioRouter"
-MIN_SYSTEM_VERSION="14.0"
+MIN_SYSTEM_VERSION="14.2"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DIST_DIR="$ROOT_DIR/dist"
@@ -46,6 +46,8 @@ cat >"$INFO_PLIST" <<PLIST
   <string>$BUNDLE_ID</string>
   <key>CFBundleName</key>
   <string>$APP_NAME</string>
+  <key>CFBundleDisplayName</key>
+  <string>$APP_NAME</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleIconFile</key>
@@ -59,7 +61,7 @@ cat >"$INFO_PLIST" <<PLIST
   <key>NSPrincipalClass</key>
   <string>NSApplication</string>
   <key>NSAudioCaptureUsageDescription</key>
-  <string>AudioRouter can inspect currently active audio apps and show controls for app-level audio settings.</string>
+  <string>AudioRouter can use public Core Audio process taps to monitor app audio levels when you start a capture probe.</string>
 </dict>
 </plist>
 PLIST

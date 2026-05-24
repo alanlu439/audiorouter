@@ -55,6 +55,7 @@ public struct MenuBarPopoverView: View {
                     .lineLimit(1)
             }
             Spacer()
+            StatusLabel(text: store.settings.demoMode ? "Demo" : "Live", status: store.settings.demoMode ? .demo : .live)
             Button {
                 store.refresh()
             } label: {

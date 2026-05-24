@@ -15,6 +15,11 @@ struct MixerView: View {
             DockCard {
                 SectionHeader(title: "System Output", systemImage: "speaker.wave.2.fill")
                 MeterView(level: store.systemOutputMeter, barCount: 18, height: 24, color: .green)
+                if !store.settings.demoMode && !store.liveMeteringAvailable {
+                    Text(store.meteringNote)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 if let output = store.currentOutput {
                     VolumeSlider(
                         title: "Output",
@@ -71,11 +76,17 @@ private struct MixerSourceCard: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                StatusLabel(text: store.routeStatus(for: source), status: store.routeStatusIsWarning(for: source) ? .requiresDriver : .working)
+                StatusLabel(text: store.routeStatus(for: source), status: store.statusStyle(for: source))
             }
             MeterView(level: store.sourceMeters[source.id] ?? 0, color: source.isProducingAudio ? .green : .cyan)
+            if !store.settings.demoMode && !store.liveMeteringAvailable {
+                Text("Meter unavailable")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
             HStack {
                 Slider(value: Binding(get: { source.volume }, set: { store.setSourceVolume(source: source, volume: $0) }), in: 0...1.5)
+                    .disabled(!store.supportsPerAppVolume)
                 Text("\(Int((source.volume * 100).rounded()))%")
                     .font(.caption.monospacedDigit())
                     .frame(width: 42)
@@ -93,6 +104,7 @@ private struct MixerSourceCard: View {
                 }
             }
             .buttonStyle(.bordered)
+            .disabled(!store.supportsPerAppMute)
         }
         .overlay {
             RoundedRectangle(cornerRadius: 12, style: .continuous)

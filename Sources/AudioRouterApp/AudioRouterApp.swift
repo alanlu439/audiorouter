@@ -1,5 +1,5 @@
 import AppKit
-import AudioRouter
+import AudioRouterCore
 import SwiftUI
 
 @main

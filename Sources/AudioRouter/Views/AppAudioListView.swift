@@ -17,7 +17,7 @@ struct AppAudioListView: View {
                 .foregroundStyle(.secondary)
 
             if !store.supportsTruePerAppRouting {
-                Text("True per-app routing requires an audio routing driver. This version saves routing preferences and prepares the interface, but some routing features may be simulated.")
+                Text("True per-app routing requires an audio routing backend. This version saves routing preferences and clearly marks routes that are not live.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -60,6 +60,7 @@ struct AppAudioRowView: View {
                         .lineLimit(1)
                     HStack(spacing: 6) {
                         StatusBadge(text: source.activityLabel, isActive: source.isProducingAudio)
+                        StatusLabel(text: store.routeStatus(for: source), status: store.statusStyle(for: source))
                         Text(source.lastActiveTime.shortRelativeDescription)
                             .font(.caption2)
                             .foregroundStyle(.secondary)
@@ -78,7 +79,8 @@ struct AppAudioRowView: View {
                     Image(systemName: source.isMuted ? "speaker.slash.fill" : "speaker.wave.1.fill")
                 }
                 .buttonStyle(.borderless)
-                .help("Mute this audio source")
+                .disabled(!store.supportsPerAppMute)
+                .help(store.supportsPerAppMute ? "Mute this audio source" : "Per-app mute requires an audio backend.")
             }
 
             HStack(spacing: 10) {
@@ -92,6 +94,8 @@ struct AppAudioRowView: View {
                     ),
                     in: 0...1.5
                 )
+                .disabled(!store.supportsPerAppVolume)
+                .help(store.supportsPerAppVolume ? "Set source volume" : "Per-app gain requires an audio backend.")
                 Text("\((source.volume * 100).rounded().formatted(.number.precision(.fractionLength(0))))%")
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
@@ -108,11 +112,17 @@ struct AppAudioRowView: View {
                     ForEach(store.outputDevices) { device in
                         Text(device.name).tag(device.uid)
                     }
+                    if !store.outputGroups.isEmpty {
+                        Divider()
+                        ForEach(store.outputGroups) { group in
+                            Text("\(group.name) (Group)").tag(group.routeTargetID)
+                        }
+                    }
                 }
                 .pickerStyle(.menu)
                 Spacer()
-                if route.routeMode == .customDevice && !store.supportsTruePerAppRouting {
-                    Text("Routing requires audio driver")
+                if route.routeMode == .customOutput && !store.supportsTruePerAppRouting {
+                    Text("Requires audio backend")
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(.orange)
                 }

@@ -21,6 +21,7 @@ public struct SettingsView: View {
                 .padding(20)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
+        .navigationTitle("AudioRouter Settings")
         .preferredColorScheme(store.settings.theme.colorScheme)
     }
 }
@@ -189,14 +190,25 @@ private struct AdvancedSettingsView: View {
                 Text("Backend")
                     .font(.subheadline.weight(.semibold))
                 Spacer()
-                StatusLabel(text: store.routingBackendName, status: store.supportsTruePerAppRouting ? .working : .simulated)
+                StatusLabel(text: store.routingBackendName, status: .working)
             }
             Toggle("Demo Mode", isOn: demoModeBinding)
             Toggle("Show unsupported feature notes", isOn: unsupportedNotesBinding)
-            Text("Driver notes: true per-app routing, per-app gain, and system-wide EQ require a virtual audio routing driver. Public APIs keep this interface visual and save every route preference.")
+            Text("Backend notes: true per-app routing, per-app gain, output groups, and system-wide EQ require a virtual audio device or Audio Server Driver Plug-in. Public APIs keep this interface visual and save every route preference.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+            Button {
+                store.probeProcessTapPermission()
+            } label: {
+                Label("Probe Process Tap Permission", systemImage: "waveform.badge.magnifyingglass")
+            }
+            if let message = store.processTapProbeMessage {
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             Button {
                 showDebug.toggle()
             } label: {

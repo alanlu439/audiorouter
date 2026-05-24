@@ -14,6 +14,11 @@ public final class AudioRouterStore: ObservableObject {
     @Published public var inputMeter: Double = 0
     @Published public var soloSourceID: String?
     @Published public var selectedSourceID: String?
+    @Published public private(set) var meteringNote: String = "Live meters are unavailable until a process-tap capture path is active."
+    @Published public private(set) var processTapProbeMessage: String?
+    @Published public var outputGroups: [OutputDeviceGroup] = [] {
+        didSet { saveOutputGroups() }
+    }
 
     public let settings: AppSettingsStore
     public let eqManager: EQManager
@@ -23,19 +28,24 @@ public final class AudioRouterStore: ObservableObject {
     private let deviceManager: AudioDeviceManaging
     private let volumeManager: SystemVolumeManager
     private let audioRoutingManager: AudioRoutingManager
+    private let processAudioMonitor: ProcessAudioMonitor
     private var refreshTimer: Timer?
     private var meterTimer: Timer?
+    private var deviceObservation: DevicePropertyObservation?
     private var meterPhase: Double = 0
     private var lastRefreshUsedDemoMode: Bool?
     private var cancellables: Set<AnyCancellable> = []
+    private let outputGroupsURL: URL
 
     public init(
-        deviceManager: AudioDeviceManaging = AudioDeviceManager(),
+        deviceManager: AudioDeviceManaging = AudioDeviceService(),
         settings: AppSettingsStore = AppSettingsStore(),
         eqManager: EQManager = EQManager(),
         presetManager: PresetManager = PresetManager(),
         shortcutManager: ShortcutManager = ShortcutManager(),
-        audioRoutingManager: AudioRoutingManager = AudioRoutingManager()
+        audioRoutingManager: AudioRoutingManager = AudioRoutingManager(),
+        processAudioMonitor: ProcessAudioMonitor = ProcessAudioMonitor(),
+        outputGroupsURL: URL = try! AppSupport.fileURL(named: "output-groups.json")
     ) {
         self.deviceManager = deviceManager
         self.volumeManager = SystemVolumeManager(deviceManager: deviceManager)
@@ -44,6 +54,10 @@ public final class AudioRouterStore: ObservableObject {
         self.presetManager = presetManager
         self.shortcutManager = shortcutManager
         self.audioRoutingManager = audioRoutingManager
+        self.processAudioMonitor = processAudioMonitor
+        self.outputGroupsURL = outputGroupsURL
+        self.outputGroups = (try? Data(contentsOf: outputGroupsURL))
+            .flatMap { try? JSONDecoder().decode([OutputDeviceGroup].self, from: $0) } ?? []
 
         settings.objectWillChange
             .sink { [weak self] _ in self?.objectWillChange.send() }
@@ -83,8 +97,21 @@ public final class AudioRouterStore: ObservableObject {
         audioRoutingManager.supportsTruePerAppRouting
     }
 
+    public var supportsPerAppVolume: Bool {
+        audioRoutingManager.supportsPerAppVolume || settings.demoMode
+    }
+
+    public var supportsPerAppMute: Bool {
+        audioRoutingManager.supportsPerAppMute || settings.demoMode
+    }
+
+    public var liveMeteringAvailable: Bool {
+        !settings.demoMode && audioRoutingManager.supportsLiveProcessMeters
+    }
+
     public func start() {
         refresh()
+        startDeviceObservationIfNeeded()
         guard refreshTimer == nil else { return }
         refreshTimer = Timer.scheduledTimer(withTimeInterval: 2.5, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
@@ -104,6 +131,8 @@ public final class AudioRouterStore: ObservableObject {
         refreshTimer = nil
         meterTimer?.invalidate()
         meterTimer = nil
+        deviceObservation?.cancel()
+        deviceObservation = nil
     }
 
     public func refresh(silent: Bool = false) {
@@ -111,6 +140,8 @@ public final class AudioRouterStore: ObservableObject {
             let usingDemoMode = settings.demoMode
             let previousOutputUIDs = Set(outputDevices.map(\.uid))
             if usingDemoMode {
+                deviceObservation?.cancel()
+                deviceObservation = nil
                 if lastRefreshUsedDemoMode != true || devices.isEmpty {
                     devices = demoDevices
                 }
@@ -118,6 +149,12 @@ public final class AudioRouterStore: ObservableObject {
                 devices = try deviceManager.refreshDevices()
             }
             lastRefreshUsedDemoMode = usingDemoMode
+            if usingDemoMode {
+                meteringNote = "Demo Mode uses animated meters for UI testing."
+            } else {
+                startDeviceObservationIfNeeded()
+                meteringNote = processAudioMonitor.snapshot().meterMessage
+            }
             let currentOutputUIDs = Set(outputDevices.map(\.uid))
             for disconnectedUID in previousOutputUIDs.subtracting(currentOutputUIDs) {
                 audioRoutingManager.handleDeviceDisconnected(deviceID: disconnectedUID)
@@ -244,7 +281,12 @@ public final class AudioRouterStore: ObservableObject {
     }
 
     public func routeOutputName(for source: AudioSource) -> String {
-        audioRoutingManager.deviceName(for: route(for: source), outputs: outputDevices)
+        let route = route(for: source)
+        if let outputDeviceID = route.outputDeviceID,
+           let group = outputGroups.first(where: { $0.routeTargetID == outputDeviceID }) {
+            return group.name
+        }
+        return audioRoutingManager.deviceName(for: route, outputs: outputDevices)
     }
 
     public func setSourceVolume(source: AudioSource, volume: Double) {
@@ -284,7 +326,8 @@ public final class AudioRouterStore: ObservableObject {
         let route = audioRoutingManager.route(for: source.id)
         updateAudioSource(source.id) { current in
             current.assignedOutputDeviceID = route.outputDeviceID
-            current.followsSystemOutput = route.routeMode == .followSystem
+            current.routeMode = route.routeMode
+            current.followsSystemOutput = route.routeMode == .followSystemOutput
         }
         if let warning = audioRoutingManager.lastWarning {
             showUnsupportedNote(warning)
@@ -312,22 +355,101 @@ public final class AudioRouterStore: ObservableObject {
         applyPreset(presetManager.presets[index])
     }
 
+    public func probeProcessTapPermission() {
+        let result = processAudioMonitor.probeFirstAvailableProcessTap(from: audioSources)
+        processTapProbeMessage = result.message
+        switch result.status {
+        case .tapCreated:
+            showUnsupportedNote("Process tap permission is available. Real level metering still needs the backend capture pipeline to read tap buffers.")
+        case let .permissionDenied(message), let .unavailable(message):
+            showUnsupportedNote(message)
+        }
+    }
+
+    public func createOutputGroup() {
+        let deviceUIDs = Array(outputDevices.prefix(2).map(\.uid))
+        let volumes = Dictionary(uniqueKeysWithValues: deviceUIDs.map { uid in
+            (uid, outputDevices.first(where: { $0.uid == uid })?.volume ?? 1)
+        })
+        outputGroups.insert(
+            OutputDeviceGroup(
+                name: "Output Group \(outputGroups.count + 1)",
+                deviceUIDs: deviceUIDs,
+                perDeviceVolumes: volumes
+            ),
+            at: 0
+        )
+    }
+
+    public func renameOutputGroup(_ group: OutputDeviceGroup, to name: String) {
+        updateOutputGroup(group.id) { current in
+            current.name = name.isEmpty ? current.name : name
+        }
+    }
+
+    public func deleteOutputGroup(_ group: OutputDeviceGroup) {
+        outputGroups.removeAll { $0.id == group.id }
+        for source in audioSources where route(for: source).outputDeviceID == group.routeTargetID {
+            resetSourceToSystemOutput(source)
+        }
+    }
+
+    public func setOutputGroup(_ group: OutputDeviceGroup, includes device: AudioDevice, included: Bool) {
+        updateOutputGroup(group.id) { current in
+            if included {
+                if !current.deviceUIDs.contains(device.uid) {
+                    current.deviceUIDs.append(device.uid)
+                }
+                current.perDeviceVolumes[device.uid] = device.volume ?? current.perDeviceVolumes[device.uid] ?? 1
+            } else {
+                current.deviceUIDs.removeAll { $0 == device.uid }
+                current.perDeviceVolumes.removeValue(forKey: device.uid)
+            }
+        }
+    }
+
+    public func setOutputGroupVolume(_ group: OutputDeviceGroup, deviceUID: String, volume: Double) {
+        updateOutputGroup(group.id) { current in
+            current.perDeviceVolumes[deviceUID] = volume.clampedUnit
+        }
+        if let device = outputDevices.first(where: { $0.uid == deviceUID }), device.canSetVolume {
+            setDeviceVolume(device, volume: volume)
+        }
+    }
+
     public func routedSources(to device: AudioDevice) -> [AudioSource] {
         audioSources.filter { source in
-            route(for: source).routeMode == .customDevice && route(for: source).outputDeviceID == device.uid
+            let route = route(for: source)
+            if route.routeMode != .customOutput {
+                return false
+            }
+            if route.outputDeviceID == device.uid {
+                return true
+            }
+            return outputGroups
+                .first(where: { $0.routeTargetID == route.outputDeviceID })?
+                .deviceUIDs
+                .contains(device.uid) == true
         }
     }
 
     public func routeStatus(for source: AudioSource) -> String {
         let route = route(for: source)
-        if route.routeMode == .followSystem {
+        if settings.demoMode {
+            return route.routeMode == .followSystemOutput ? "Demo" : "Simulated"
+        }
+        if route.routeMode == .followSystemOutput {
             return "Working"
         }
-        return supportsTruePerAppRouting ? "Active" : "Requires Driver"
+        if let outputID = route.outputDeviceID,
+           outputGroups.contains(where: { $0.routeTargetID == outputID }) {
+            return "Requires Audio Backend"
+        }
+        return supportsTruePerAppRouting ? "Live" : "Requires Audio Backend"
     }
 
     public func routeStatusIsWarning(for source: AudioSource) -> Bool {
-        routeStatus(for: source) == "Requires Driver"
+        ["Requires Audio Backend", "Unsupported", "Device Missing"].contains(routeStatus(for: source))
     }
 
     public func saveCurrentSetup() {
@@ -380,10 +502,12 @@ public final class AudioRouterStore: ObservableObject {
             if let outputID = preset.appOutputAssignments[source.id] {
                 updated.assignedOutputDeviceID = outputID
                 updated.followsSystemOutput = false
+                updated.routeMode = .customOutput
                 audioRoutingManager.assignOutputDevice(sourceID: source.id, deviceID: outputID)
             } else {
                 updated.assignedOutputDeviceID = nil
                 updated.followsSystemOutput = true
+                updated.routeMode = .followSystemOutput
                 audioRoutingManager.resetSourceToSystemOutput(sourceID: source.id)
             }
             return updated
@@ -409,9 +533,11 @@ public final class AudioRouterStore: ObservableObject {
             source.isMuted = false
             source.assignedOutputDeviceID = nil
             source.followsSystemOutput = true
+            source.routeMode = .followSystemOutput
             audioRoutingManager.resetSourceToSystemOutput(sourceID: source.id)
             return source
         }
+        outputGroups.removeAll()
     }
 
     public func showUnsupportedNote(_ note: String) {
@@ -421,6 +547,19 @@ public final class AudioRouterStore: ObservableObject {
 
     public func dismissUnsupportedNote() {
         unsupportedNote = nil
+    }
+
+    func statusStyle(for source: AudioSource) -> RouteVisualStatus {
+        switch routeStatus(for: source) {
+        case "Live": return .live
+        case "Demo": return .demo
+        case "Simulated": return .simulated
+        case "Saved Only": return .savedOnly
+        case "Requires Audio Backend": return .requiresBackend
+        case "Device Missing": return .deviceMissing
+        case "Unsupported": return .unsupported
+        default: return .working
+        }
     }
 
     public var debugDeviceList: String {
@@ -435,7 +574,33 @@ public final class AudioRouterStore: ObservableObject {
         }
     }
 
+    private func updateOutputGroup(_ id: UUID, transform: (inout OutputDeviceGroup) -> Void) {
+        guard let index = outputGroups.firstIndex(where: { $0.id == id }) else { return }
+        transform(&outputGroups[index])
+    }
+
+    private func startDeviceObservationIfNeeded() {
+        guard !settings.demoMode, deviceObservation == nil else { return }
+        deviceObservation = deviceManager.observeDeviceChanges { [weak self] in
+            Task { @MainActor [weak self] in
+                self?.refresh(silent: true)
+            }
+        }
+    }
+
+    private func saveOutputGroups() {
+        guard let data = try? JSONEncoder().encode(outputGroups) else { return }
+        try? data.write(to: outputGroupsURL, options: .atomic)
+    }
+
     private func tickMeters() {
+        guard settings.demoMode else {
+            systemOutputMeter = 0
+            inputMeter = 0
+            sourceMeters = Dictionary(uniqueKeysWithValues: audioSources.map { ($0.id, $0.currentLevel ?? 0) })
+            deviceMeters = Dictionary(uniqueKeysWithValues: devices.map { ($0.id, 0) })
+            return
+        }
         meterPhase += 0.19
         systemOutputMeter = abs(sin(meterPhase * 0.72)) * 0.82 + 0.08
         inputMeter = abs(sin(meterPhase * 0.51 + 1.1)) * 0.65
@@ -485,10 +650,12 @@ public final class AudioRouterStore: ObservableObject {
                 icon: icon,
                 isProducingAudio: active,
                 lastActiveTime: Date().addingTimeInterval(active ? -3 : -65),
+                currentLevel: active ? 0.7 : 0.1,
                 volume: route.volume,
                 isMuted: route.isMuted,
+                routeMode: route.routeMode,
                 assignedOutputDeviceID: route.outputDeviceID,
-                followsSystemOutput: route.routeMode == .followSystem
+                followsSystemOutput: route.routeMode == .followSystemOutput
             )
         }
     }

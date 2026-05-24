@@ -1,4 +1,4 @@
-import AudioRouter
+import AudioRouterCore
 import Foundation
 
 func runChecks() throws {
@@ -6,6 +6,7 @@ func runChecks() throws {
     try checkPresetPersistence()
     checkShortcutPersistence()
     checkDeviceModelIDs()
+    checkRouteBackwardCompatibility()
     try checkRoutingManagerRoutesAndFallback()
 }
 
@@ -75,6 +76,15 @@ func checkDeviceModelIDs() {
     precondition(output.id != input.id, "Input and output identities must not collide")
 }
 
+func checkRouteBackwardCompatibility() {
+    let json = """
+    [{"sourceAppID":"spotify","outputDeviceID":"speaker","volume":0.8,"isMuted":false,"routeMode":"customDevice"}]
+    """
+    let routes = try! JSONDecoder().decode([AudioRoute].self, from: Data(json.utf8))
+    precondition(routes.first?.routeMode == .customOutput, "Old customDevice route mode should migrate")
+    precondition(routes.first?.status == .requiresBackend, "Migrated custom routes should be backend-required by default")
+}
+
 func checkRoutingManagerRoutesAndFallback() throws {
     let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -86,18 +96,19 @@ func checkRoutingManagerRoutesAndFallback() throws {
     manager.assignOutputDevice(sourceID: "spotify", deviceID: "speaker")
 
     let customRoute = manager.route(for: "spotify")
-    precondition(customRoute.routeMode == .customDevice, "Route should be custom after output assignment")
+    precondition(customRoute.routeMode == .customOutput, "Route should be custom after output assignment")
+    precondition(customRoute.status == .requiresBackend, "Public backend routes should be marked backend-required")
     precondition(customRoute.outputDeviceID == "speaker", "Route did not save the selected output")
 
     let reloaded = AudioRoutingManager(backend: FakeRoutingBackend(), fileURL: fileURL)
     precondition(reloaded.route(for: "spotify").outputDeviceID == "speaker", "Route did not persist")
 
     reloaded.handleDeviceDisconnected(deviceID: "speaker")
-    precondition(reloaded.route(for: "spotify").routeMode == .followSystem, "Disconnected route should fall back")
+    precondition(reloaded.route(for: "spotify").routeMode == .followSystemOutput, "Disconnected route should fall back")
 }
 
 private final class FakeRoutingBackend: AudioRoutingBackend {
-    let supportsPerAppRouting = true
+    let supportsPerAppRouting = false
     let backendName = "Fake"
 
     func listAudioSources() throws -> [AudioSource] {

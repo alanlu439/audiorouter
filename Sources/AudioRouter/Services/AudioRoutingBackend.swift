@@ -2,6 +2,9 @@ import Foundation
 
 public protocol AudioRoutingBackend {
     var supportsPerAppRouting: Bool { get }
+    var supportsPerAppVolume: Bool { get }
+    var supportsPerAppMute: Bool { get }
+    var supportsLiveProcessMeters: Bool { get }
     var backendName: String { get }
 
     func listAudioSources() throws -> [AudioSource]
@@ -9,6 +12,12 @@ public protocol AudioRoutingBackend {
     func routeSourceToDevice(sourceID: String, deviceID: String?) throws
     func setSourceVolume(sourceID: String, volume: Double) throws
     func muteSource(sourceID: String, muted: Bool) throws
+}
+
+public extension AudioRoutingBackend {
+    var supportsPerAppVolume: Bool { supportsPerAppRouting }
+    var supportsPerAppMute: Bool { supportsPerAppRouting }
+    var supportsLiveProcessMeters: Bool { false }
 }
 
 public enum AudioRoutingBackendError: LocalizedError, Equatable {

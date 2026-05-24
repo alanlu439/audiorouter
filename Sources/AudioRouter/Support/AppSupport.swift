@@ -1,7 +1,7 @@
 import Foundation
 
-enum AppSupport {
-    static func fileURL(named filename: String) throws -> URL {
+public enum AppSupport {
+    public static func fileURL(named filename: String) throws -> URL {
         let base = try FileManager.default.url(
             for: .applicationSupportDirectory,
             in: .userDomainMask,

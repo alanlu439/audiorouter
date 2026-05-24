@@ -54,7 +54,7 @@ struct RoutingDashboardView: View {
 
     private var routeColumn: some View {
         VStack(alignment: .leading, spacing: 10) {
-            SectionHeader(title: "Routes", systemImage: "arrow.left.and.right", trailing: store.supportsTruePerAppRouting ? "Live" : "Simulated")
+            SectionHeader(title: "Routes", systemImage: "arrow.left.and.right", trailing: store.supportsTruePerAppRouting ? "Live" : "Requires Backend")
             ForEach(store.audioSources) { source in
                 Button {
                     store.selectedSourceID = source.id
@@ -116,15 +116,24 @@ private struct SourceRoutingCard: View {
                     Text(source.appName)
                         .font(.headline)
                         .lineLimit(1)
+                    Text(source.debugLabel)
+                        .font(.caption2.monospaced())
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
                     Text("Last active \(source.lastActiveTime.shortRelativeDescription)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                StatusLabel(text: store.routeStatus(for: source), status: store.routeStatusIsWarning(for: source) ? .requiresDriver : .working)
+                StatusLabel(text: store.routeStatus(for: source), status: store.statusStyle(for: source))
             }
 
             MeterView(level: store.sourceMeters[source.id] ?? 0, barCount: 12, color: source.isProducingAudio ? .green : .cyan)
+            if !store.settings.demoMode && !store.liveMeteringAvailable {
+                Text("Meter unavailable")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
 
             HStack {
                 Button {
@@ -133,6 +142,8 @@ private struct SourceRoutingCard: View {
                     Image(systemName: source.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
                 }
                 .buttonStyle(.bordered)
+                .disabled(!store.supportsPerAppMute)
+                .help(store.supportsPerAppMute ? "Mute this source" : "Per-app mute requires an audio backend.")
                 Button {
                     store.toggleSolo(source: source)
                 } label: {
@@ -154,6 +165,12 @@ private struct SourceRoutingCard: View {
             Text("Follow System Output").tag("")
             ForEach(store.outputDevices) { device in
                 Text(device.name).tag(device.uid)
+            }
+            if !store.outputGroups.isEmpty {
+                Divider()
+                ForEach(store.outputGroups) { group in
+                    Text("\(group.name) (Group)").tag(group.routeTargetID)
+                }
             }
         }
         .pickerStyle(.menu)
@@ -189,6 +206,8 @@ private struct VolumeLine: View {
             Image(systemName: "slider.horizontal.3")
                 .foregroundStyle(.secondary)
             Slider(value: Binding(get: { source.volume }, set: { store.setSourceVolume(source: source, volume: $0) }), in: 0...1.5)
+                .disabled(!store.supportsPerAppVolume)
+                .help(store.supportsPerAppVolume ? "Set source volume" : "Per-app gain requires an audio backend.")
             Text("\(Int((source.volume * 100).rounded()))%")
                 .font(.caption.monospacedDigit())
                 .frame(width: 42, alignment: .trailing)
@@ -203,21 +222,22 @@ private struct RouteLineCard: View {
 
     var body: some View {
         let route = store.route(for: source)
+        let requiresBackend = route.routeMode == .customOutput && !store.supportsTruePerAppRouting
         HStack(spacing: 10) {
             Text(source.appName)
                 .font(.caption.weight(.semibold))
                 .lineLimit(1)
                 .frame(width: 74, alignment: .leading)
-            RouteLineShape(isDashed: route.routeMode == .customDevice && !store.supportsTruePerAppRouting)
-                .stroke(route.routeMode == .followSystem ? Color.secondary : Color.teal, style: StrokeStyle(lineWidth: 2, dash: route.routeMode == .customDevice && !store.supportsTruePerAppRouting ? [6, 4] : []))
+            RouteLineShape(isDashed: requiresBackend)
+                .stroke(route.routeMode == .followSystemOutput ? Color.secondary : Color.teal, style: StrokeStyle(lineWidth: 2, dash: requiresBackend ? [6, 4] : []))
                 .frame(height: 18)
-            Image(systemName: route.routeMode == .followSystem ? "arrow.triangle.branch" : "arrow.right.circle.fill")
-                .foregroundStyle(route.routeMode == .followSystem ? Color.secondary : Color.teal)
+            Image(systemName: route.routeMode == .followSystemOutput ? "arrow.triangle.branch" : "arrow.right.circle.fill")
+                .foregroundStyle(route.routeMode == .followSystemOutput ? Color.secondary : Color.teal)
             Text(store.routeOutputName(for: source))
                 .font(.caption)
                 .lineLimit(1)
                 .frame(width: 110, alignment: .leading)
-            if route.routeMode == .customDevice && !store.supportsTruePerAppRouting {
+            if requiresBackend {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundStyle(.orange)
             }
@@ -264,9 +284,7 @@ private struct RouteControlCard: View {
                     Label("Delete Route", systemImage: "trash")
                 }
             }
-            if store.routeStatusIsWarning(for: source) {
-                StatusLabel(text: "Requires Driver", status: .requiresDriver)
-            }
+            StatusLabel(text: store.routeStatus(for: source), status: store.statusStyle(for: source))
         }
     }
 }
@@ -291,6 +309,35 @@ private struct OutputRoutingCard: View {
                 StatusLabel(text: device.isAlive ? "Connected" : "Device Missing", status: device.isAlive ? .working : .deviceMissing)
             }
             MeterView(level: store.deviceMeters[device.id] ?? 0, barCount: 12, color: .teal)
+            if !store.settings.demoMode && !store.liveMeteringAvailable {
+                Text("Meter unavailable")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+            VolumeSlider(
+                title: "Volume",
+                value: device.volume,
+                isEnabled: device.canSetVolume,
+                systemImage: device.kind.systemImage,
+                onChange: { store.setDeviceVolume(device, volume: $0) }
+            )
+            HStack {
+                Button {
+                    store.setDeviceMuted(device, isMuted: !(device.isMuted ?? false))
+                } label: {
+                    Label((device.isMuted ?? false) ? "Muted" : "Mute", systemImage: (device.isMuted ?? false) ? "speaker.slash.fill" : "speaker.wave.1.fill")
+                }
+                .disabled(!device.canSetMute)
+                Slider(
+                    value: Binding(
+                        get: { device.balance ?? 0 },
+                        set: { store.setDeviceBalance(device, balance: $0) }
+                    ),
+                    in: -1...1
+                )
+                .disabled(!device.canSetBalance)
+                .help(device.canSetBalance ? "Set output balance" : "Balance is not supported by this device.")
+            }
             HStack {
                 Text(device.sampleRateDescription)
                     .font(.caption)

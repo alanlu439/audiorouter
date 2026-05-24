@@ -20,7 +20,9 @@ final class CoreAudioClient {
         var devices: [AudioDevice] = []
         for deviceID in deviceIDs {
             let uid = (try? stringProperty(deviceID, selector: kAudioDevicePropertyDeviceUID)) ?? "device-\(deviceID)"
-            let name = (try? stringProperty(deviceID, selector: kAudioObjectPropertyName)) ?? "Audio Device \(deviceID)"
+            let name = (try? stringProperty(deviceID, selector: kAudioDevicePropertyDeviceNameCFString))
+                ?? (try? stringProperty(deviceID, selector: kAudioObjectPropertyName))
+                ?? "Audio Device \(deviceID)"
             let transportValue = (try? uint32Property(deviceID, selector: kAudioDevicePropertyTransportType)) ?? 0
             let alive = ((try? uint32Property(deviceID, selector: kAudioDevicePropertyDeviceIsAlive)) ?? 1) != 0
             let transport = transport(from: transportValue)
@@ -96,7 +98,9 @@ final class CoreAudioClient {
                 appName: name,
                 bundleIdentifier: bundleID,
                 processID: pid,
+                audioObjectID: processID,
                 icon: runningApp?.bundleURL?.path,
+                isRunning: runningApp != nil,
                 isProducingAudio: isRunningOutput
             )
         }

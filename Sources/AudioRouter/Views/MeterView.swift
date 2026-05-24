@@ -45,16 +45,22 @@ struct StatusLabel: View {
 
 enum RouteVisualStatus {
     case working
+    case live
+    case demo
+    case savedOnly
     case simulated
-    case requiresDriver
+    case requiresBackend
     case unsupported
     case deviceMissing
 
     var systemImage: String {
         switch self {
         case .working: return "checkmark.circle.fill"
+        case .live: return "waveform.circle.fill"
+        case .demo: return "play.circle.fill"
+        case .savedOnly: return "tray.and.arrow.down.fill"
         case .simulated: return "sparkles"
-        case .requiresDriver: return "exclamationmark.triangle.fill"
+        case .requiresBackend: return "exclamationmark.triangle.fill"
         case .unsupported: return "nosign"
         case .deviceMissing: return "questionmark.circle.fill"
         }
@@ -63,8 +69,11 @@ enum RouteVisualStatus {
     var foreground: Color {
         switch self {
         case .working: return .green
+        case .live: return .mint
+        case .demo: return .cyan
+        case .savedOnly: return .yellow
         case .simulated: return .cyan
-        case .requiresDriver: return .orange
+        case .requiresBackend: return .orange
         case .unsupported, .deviceMissing: return .red
         }
     }

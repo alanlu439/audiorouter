@@ -61,7 +61,7 @@ struct EQView: View {
                 StatusLabel(text: showBefore ? "Before" : eqManager.state.selectedPreset.rawValue, status: showBefore ? .simulated : .working)
             }
 
-            Text("EQ settings are saved. Real-time system-wide EQ requires a driver-backed audio engine.")
+            Text("EQ settings are saved. Real-time system-wide EQ requires an audio routing backend with a processing graph.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

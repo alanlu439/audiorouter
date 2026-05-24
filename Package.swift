@@ -8,12 +8,12 @@ let package = Package(
         .macOS(.v14)
     ],
     products: [
-        .executable(name: "AudioRouter", targets: ["AudioRouterApp"]),
+        .executable(name: "AudioRouter", targets: ["AudioRouter"]),
         .executable(name: "AudioRouterChecks", targets: ["AudioRouterChecks"])
     ],
     targets: [
         .target(
-            name: "AudioRouter",
+            name: "AudioRouterCore",
             path: "Sources/AudioRouter",
             linkerSettings: [
                 .linkedFramework("AppKit"),
@@ -23,13 +23,13 @@ let package = Package(
             ]
         ),
         .executableTarget(
-            name: "AudioRouterApp",
-            dependencies: ["AudioRouter"],
+            name: "AudioRouter",
+            dependencies: ["AudioRouterCore"],
             path: "Sources/AudioRouterApp"
         ),
         .executableTarget(
             name: "AudioRouterChecks",
-            dependencies: ["AudioRouter"],
+            dependencies: ["AudioRouterCore"],
             path: "Tests/AudioRouterChecks"
         )
     ]
