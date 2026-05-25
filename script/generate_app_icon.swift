@@ -50,15 +50,23 @@ try writeICNS(from: outputDirectory, to: outputDirectory.deletingLastPathCompone
 
 func drawIcon(in rect: CGRect) {
     let cornerRadius = rect.width * 0.225
-    let bounds = rect.insetBy(dx: rect.width * 0.035, dy: rect.height * 0.035)
+    let outerInset = rect.width * 0.035
+    let borderWidth = max(2, (rect.width * 0.06).rounded(.toNearestOrAwayFromZero))
+    let bounds = rect.insetBy(dx: outerInset, dy: outerInset)
+    let borderBounds = bounds.insetBy(dx: borderWidth / 2, dy: borderWidth / 2)
     let backgroundPath = NSBezierPath(roundedRect: bounds, xRadius: cornerRadius, yRadius: cornerRadius)
+    let borderPath = NSBezierPath(
+        roundedRect: borderBounds,
+        xRadius: max(0, cornerRadius - borderWidth / 2),
+        yRadius: max(0, cornerRadius - borderWidth / 2)
+    )
 
     NSColor(calibratedRed: 0.045, green: 0.055, blue: 0.065, alpha: 1).setFill()
     backgroundPath.fill()
 
     NSColor(calibratedRed: 0.20, green: 0.82, blue: 0.78, alpha: 1).setStroke()
-    backgroundPath.lineWidth = max(2, rect.width * 0.028)
-    backgroundPath.stroke()
+    borderPath.lineWidth = borderWidth
+    borderPath.stroke()
 
     let text = "AU" as NSString
     let font = NSFont.systemFont(ofSize: rect.width * 0.34, weight: .bold)

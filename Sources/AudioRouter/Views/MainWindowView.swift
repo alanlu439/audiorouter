@@ -19,10 +19,9 @@ public struct MainWindowView: View {
             .navigationTitle("AudioRouter")
         } detail: {
             SettingsDetailView(section: store.selectedSettingsSection, store: store)
-                .padding(20)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
-        .preferredColorScheme(store.settings.theme.colorScheme)
+        .preferredColorScheme(store.settings.effectiveColorScheme)
     }
 }
 

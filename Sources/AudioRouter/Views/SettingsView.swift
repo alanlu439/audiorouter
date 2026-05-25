@@ -18,11 +18,10 @@ public struct SettingsView: View {
             .listStyle(.sidebar)
         } detail: {
             SettingsDetailView(section: store.selectedSettingsSection, store: store)
-                .padding(20)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .navigationTitle("AudioRouter Settings")
-        .preferredColorScheme(store.settings.theme.colorScheme)
+        .preferredColorScheme(store.settings.effectiveColorScheme)
     }
 }
 
@@ -31,26 +30,35 @@ struct SettingsDetailView: View {
     @ObservedObject var store: AudioRouterStore
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                switch section {
-                case .dashboard:
-                    RoutingDashboardView(store: store)
-                case .mixer:
-                    MixerView(store: store)
-                case .devices:
-                    DevicesView(store: store)
-                case .eq:
-                    EQView(eqManager: store.eqManager)
-                case .setups:
-                    PresetsView(store: store)
-                case .shortcuts:
-                    ShortcutsSettingsView(store: store)
-                case .advanced:
-                    AdvancedSettingsView(store: store)
+        GeometryReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    switch section {
+                    case .dashboard:
+                        RoutingDashboardView(store: store)
+                    case .mixer:
+                        MixerView(store: store)
+                    case .devices:
+                        DevicesView(store: store)
+                    case .eq:
+                        EQView(eqManager: store.eqManager)
+                    case .setups:
+                        PresetsView(store: store)
+                    case .shortcuts:
+                        ShortcutsSettingsView(store: store)
+                    case .advanced:
+                        AdvancedSettingsView(store: store)
+                    }
                 }
+                .padding(14)
+                .frame(
+                    minWidth: proxy.size.width,
+                    minHeight: proxy.size.height,
+                    alignment: .topLeading
+                )
             }
-            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .scrollIndicators(.visible)
+            .background(Color(red: 0.035, green: 0.037, blue: 0.042))
         }
     }
 }
@@ -63,12 +71,7 @@ private struct GeneralSettingsView: View {
             SectionHeader(title: "General", systemImage: "gearshape")
             Toggle("Launch at login", isOn: launchAtLoginBinding)
             Toggle("Show app in Dock", isOn: showInDockBinding)
-            Picker("Theme", selection: themeBinding) {
-                ForEach(AudioRouterTheme.allCases) { theme in
-                    Text(theme.rawValue).tag(theme)
-                }
-            }
-            .pickerStyle(.segmented)
+            DarkAppearanceRow()
         }
     }
 
@@ -86,12 +89,6 @@ private struct GeneralSettingsView: View {
         )
     }
 
-    private var themeBinding: Binding<AudioRouterTheme> {
-        Binding(
-            get: { store.settings.theme },
-            set: { store.settings.theme = $0 }
-        )
-    }
 }
 
 private struct ShortcutsSettingsView: View {
@@ -182,12 +179,7 @@ private struct AdvancedSettingsView: View {
                 SectionHeader(title: "Advanced", systemImage: "slider.horizontal.3")
                 Toggle("Launch at login", isOn: launchAtLoginBinding)
                 Toggle("Show app in Dock", isOn: showInDockBinding)
-                Picker("Theme", selection: themeBinding) {
-                    ForEach(AudioRouterTheme.allCases) { theme in
-                        Text(theme.rawValue).tag(theme)
-                    }
-                }
-                .pickerStyle(.segmented)
+                DarkAppearanceRow()
                 Divider()
                 Toggle("Demo Mode", isOn: demoModeBinding)
                 Toggle("Show unsupported feature notes", isOn: unsupportedNotesBinding)
@@ -255,10 +247,21 @@ private struct AdvancedSettingsView: View {
         )
     }
 
-    private var themeBinding: Binding<AudioRouterTheme> {
-        Binding(
-            get: { store.settings.theme },
-            set: { store.settings.theme = $0 }
-        )
+}
+
+private struct DarkAppearanceRow: View {
+    var body: some View {
+        HStack {
+            Label("Appearance", systemImage: "moon.fill")
+                .font(.subheadline.weight(.semibold))
+            Spacer()
+            Text("Dark")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(.secondary.opacity(0.12), in: Capsule())
+        }
+        .help("AudioRouter uses a fixed dark appearance for console readability.")
     }
 }

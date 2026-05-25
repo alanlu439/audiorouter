@@ -10,11 +10,7 @@ public enum AudioRouterTheme: String, Codable, CaseIterable, Identifiable {
     public var id: String { rawValue }
 
     public var colorScheme: ColorScheme? {
-        switch self {
-        case .system: return nil
-        case .light: return .light
-        case .dark: return .dark
-        }
+        .dark
     }
 }
 
@@ -40,11 +36,15 @@ public final class AppSettingsStore: ObservableObject {
 
     private let defaults: UserDefaults
 
+    public var effectiveColorScheme: ColorScheme {
+        .dark
+    }
+
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         launchAtLogin = defaults.bool(forKey: Keys.launchAtLogin)
         showInDock = defaults.object(forKey: Keys.showInDock) as? Bool ?? true
-        theme = defaults.string(forKey: Keys.theme).flatMap(AudioRouterTheme.init(rawValue:)) ?? .system
+        theme = defaults.string(forKey: Keys.theme).flatMap(AudioRouterTheme.init(rawValue:)) ?? .dark
         showUnsupportedNotes = defaults.object(forKey: Keys.showUnsupportedNotes) as? Bool ?? true
         demoMode = defaults.bool(forKey: Keys.demoMode)
     }
@@ -61,13 +61,18 @@ public final class AppSettingsStore: ObservableObject {
     }
 
     public func applyActivationPolicy() {
+        applyAppearance()
         NSApp.setActivationPolicy(showInDock ? .regular : .accessory)
+    }
+
+    public func applyAppearance() {
+        NSApp.appearance = NSAppearance(named: .darkAqua)
     }
 
     public func reset() {
         launchAtLogin = false
         showInDock = true
-        theme = .system
+        theme = .dark
         showUnsupportedNotes = true
         demoMode = false
         applyActivationPolicy()

@@ -15,6 +15,7 @@ APP_RESOURCES="$APP_CONTENTS/Resources"
 APP_BINARY="$APP_MACOS/$APP_NAME"
 INFO_PLIST="$APP_CONTENTS/Info.plist"
 ICON_SOURCE="$ROOT_DIR/Resources/AppIcon.icns"
+RELEASE_ZIP="$DIST_DIR/$APP_NAME-macOS.zip"
 
 cd "$ROOT_DIR"
 
@@ -24,8 +25,8 @@ mkdir -p "$CLANG_MODULE_CACHE_PATH" "$SWIFTPM_CACHE_PATH"
 
 pkill -x "$APP_NAME" >/dev/null 2>&1 || true
 
-swift build
-BUILD_BINARY="$(swift build --show-bin-path)/$APP_NAME"
+swift build --disable-sandbox
+BUILD_BINARY="$(swift build --disable-sandbox --show-bin-path)/$APP_NAME"
 
 rm -rf "$APP_BUNDLE"
 mkdir -p "$APP_MACOS" "$APP_RESOURCES"
@@ -66,11 +67,21 @@ cat >"$INFO_PLIST" <<PLIST
 </plist>
 PLIST
 
+/usr/bin/codesign --force --deep --sign - "$APP_BUNDLE" >/dev/null
+
 open_app() {
   /usr/bin/open -n "$APP_BUNDLE"
 }
 
 case "$MODE" in
+  bundle|--bundle)
+    echo "$APP_BUNDLE"
+    ;;
+  package|--package)
+    rm -f "$RELEASE_ZIP"
+    COPYFILE_DISABLE=1 /usr/bin/ditto --norsrc -c -k --keepParent "$APP_BUNDLE" "$RELEASE_ZIP"
+    echo "$RELEASE_ZIP"
+    ;;
   run)
     open_app
     ;;
@@ -88,10 +99,10 @@ case "$MODE" in
   --verify|verify)
     open_app
     sleep 1
-    pgrep -x "$APP_NAME" >/dev/null
+    [[ "$(/usr/bin/osascript -e "application id \"$BUNDLE_ID\" is running")" == "true" ]]
     ;;
   *)
-    echo "usage: $0 [run|--debug|--logs|--telemetry|--verify]" >&2
+    echo "usage: $0 [run|bundle|package|--debug|--logs|--telemetry|--verify]" >&2
     exit 2
     ;;
 esac

@@ -4,12 +4,16 @@ struct AudioRouterLogo: View {
     var size: CGFloat = 38
 
     var body: some View {
+        let cornerRadius = size * 0.22
+        let borderWidth = max(2, (size * 0.06).rounded(.toNearestOrAwayFromZero))
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+
         ZStack {
-            RoundedRectangle(cornerRadius: size * 0.22, style: .continuous)
+            shape
                 .fill(.black.gradient)
                 .overlay {
-                    RoundedRectangle(cornerRadius: size * 0.22, style: .continuous)
-                        .stroke(.teal, lineWidth: max(1.5, size * 0.055))
+                    shape
+                        .strokeBorder(.teal, lineWidth: borderWidth)
                 }
             Text("AU")
                 .font(.system(size: size * 0.34, weight: .black, design: .rounded))

@@ -10,12 +10,24 @@ struct MeterView: View {
         HStack(spacing: 3) {
             ForEach(0..<barCount, id: \.self) { index in
                 Capsule()
-                    .fill(indexLevel(index) <= level ? color : Color.secondary.opacity(0.16))
+                    .fill(color.opacity(indexLevel(index) <= level ? 0.95 : 0.20))
+                    .overlay {
+                        Capsule()
+                            .stroke(Color.white.opacity(indexLevel(index) <= level ? 0.10 : 0.05), lineWidth: 0.5)
+                    }
                     .frame(width: 5, height: heightForBar(index))
-                    .animation(.easeOut(duration: 0.14), value: level)
+                    .shadow(color: color.opacity(indexLevel(index) <= level ? 0.35 : 0), radius: 3)
             }
         }
-        .frame(height: height)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 4)
+        .frame(height: height + 8)
+        .background(Color.black.opacity(0.22), in: Capsule())
+        .overlay {
+            Capsule()
+                .stroke(Color.white.opacity(0.10), lineWidth: 1)
+        }
+        .animation(.easeOut(duration: 0.18), value: level)
         .accessibilityLabel("Audio level")
     }
 

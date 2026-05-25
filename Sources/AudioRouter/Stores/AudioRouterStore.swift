@@ -43,7 +43,7 @@ public final class AudioRouterStore: ObservableObject {
     private let outputGroupsURL: URL
     private let refreshInterval: TimeInterval = 10
     private let meterInterval: TimeInterval = 0.24
-    private let meterPublishThreshold = 0.018
+    private let meterPublishThreshold = 0.012
 
     public init(
         deviceManager: AudioDeviceManaging = AudioDeviceService(),
@@ -988,18 +988,37 @@ public final class AudioRouterStore: ObservableObject {
         sources: [String: Double],
         devices: [String: Double]
     ) {
-        if shouldPublishMeterValue(systemOutputMeter, systemOutput) {
-            systemOutputMeter = systemOutput
+        let smoothedSystemOutput = smoothedMeterValue(from: systemOutputMeter, to: systemOutput)
+        let smoothedInput = smoothedMeterValue(from: inputMeter, to: input)
+        let smoothedSources = smoothedMeterDictionary(from: sourceMeters, to: sources)
+        let smoothedDevices = smoothedMeterDictionary(from: deviceMeters, to: devices)
+
+        if shouldPublishMeterValue(systemOutputMeter, smoothedSystemOutput) {
+            systemOutputMeter = smoothedSystemOutput
         }
-        if shouldPublishMeterValue(inputMeter, input) {
-            inputMeter = input
+        if shouldPublishMeterValue(inputMeter, smoothedInput) {
+            inputMeter = smoothedInput
         }
-        if shouldPublishMeterDictionary(sourceMeters, sources) {
-            sourceMeters = sources
+        if shouldPublishMeterDictionary(sourceMeters, smoothedSources) {
+            sourceMeters = smoothedSources
         }
-        if shouldPublishMeterDictionary(deviceMeters, devices) {
-            deviceMeters = devices
+        if shouldPublishMeterDictionary(deviceMeters, smoothedDevices) {
+            deviceMeters = smoothedDevices
         }
+    }
+
+    private func smoothedMeterValue(from oldValue: Double, to newValue: Double) -> Double {
+        if oldValue == 0 || newValue == 0 {
+            return newValue
+        }
+        let blend = newValue > oldValue ? 0.62 : 0.36
+        return oldValue + (newValue - oldValue) * blend
+    }
+
+    private func smoothedMeterDictionary(from oldValue: [String: Double], to newValue: [String: Double]) -> [String: Double] {
+        Dictionary(uniqueKeysWithValues: newValue.map { entry in
+            (entry.key, smoothedMeterValue(from: oldValue[entry.key] ?? 0, to: entry.value))
+        })
     }
 
     private func shouldPublishMeterValue(_ oldValue: Double, _ newValue: Double) -> Bool {

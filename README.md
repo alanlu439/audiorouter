@@ -2,6 +2,16 @@
 
 AudioRouter is a native SwiftUI macOS menu-bar app for visual audio control. It manages real Core Audio devices, attempts live app-to-output routing through public process taps on supported macOS versions, and keeps unsupported routing features clearly labeled instead of pretending they are live.
 
+## Download
+
+Download the latest build here:
+
+[Download AudioRouter for macOS](https://github.com/alanlu439/audiorouter/releases/latest/download/AudioRouter-macOS.zip)
+
+That link always points to the newest GitHub release asset when a new release is published.
+
+Note: the current public build is not Apple-notarized yet. macOS may ask you to approve it the first time you open it from Downloads.
+
 ## What Works Now
 
 - Menu bar popover, main visual dashboard, and AudioRouter Settings window.
@@ -83,9 +93,9 @@ The 10-band EQ UI, presets, curve preview, and Custom preset are saved settings.
 
 The generated app bundle includes `NSAudioCaptureUsageDescription`. AudioRouter does not use private TCC APIs. The Advanced screen has a process-tap probe button, and assigning an app to an output can also start a public Core Audio tap attempt so macOS can handle permission naturally.
 
-## Quick Start
+## Build From Source
 
-AudioRouter is currently distributed from source.
+Use this path if you want to build AudioRouter locally instead of using the release download.
 
 Requirements:
 
@@ -139,7 +149,9 @@ AudioRouter only shows Spotify, Apple Music, and Chrome as source apps in this M
 swift build
 swift run AudioRouterChecks
 ./script/build_and_run.sh --verify
+./script/build_and_run.sh --package
 plutil -lint dist/AudioRouter.app/Contents/Info.plist
+codesign --verify --deep --strict dist/AudioRouter.app
 ```
 
 This Command Line Tools install does not include `XCTest` or Swift's `Testing` module, so the package includes `AudioRouterChecks` as a small executable check suite for persistence, routing status, shortcuts, and model behavior.

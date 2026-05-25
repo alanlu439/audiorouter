@@ -4,94 +4,104 @@ struct RoutingDashboardView: View {
     @ObservedObject var store: AudioRouterStore
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            dashboardHeader
-            BackendStatusPanel(store: store, compact: true, showActions: false)
-            if let note = store.unsupportedNote {
-                SupportNote(note: note) {
-                    store.dismissUnsupportedNote()
+        StudioConsoleFrame {
+            VStack(alignment: .leading, spacing: 14) {
+                consoleHeader
+                consoleStatusRail
+
+                if let note = store.unsupportedNote {
+                    SupportNote(note: note) {
+                        store.dismissUnsupportedNote()
+                    }
                 }
+
+                consoleSurface
             }
-            HStack(alignment: .top, spacing: 14) {
-                sourceColumn
-                routeColumn
-                outputColumn
-            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
-    private var dashboardHeader: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Routing Dashboard")
-                    .font(.largeTitle.weight(.bold))
-                Text("Drag a source onto an output, or use each source dropdown.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+    private var consoleHeader: some View {
+        HStack(spacing: 14) {
+            AudioRouterLogo(size: 44)
+
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(spacing: 10) {
+                    Text("Live Routing Console")
+                        .font(.title2.weight(.semibold))
+                    StudioLEDLabel(text: store.backendReadinessTitle, status: store.backendReadinessState.visualStatus)
+                }
+
+                HStack(spacing: 8) {
+                    Text("AudioRouter")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Text("MAIN OUT")
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(StudioPalette.amber)
+                    Text(store.currentOutput?.name ?? "No system output")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
             }
+
             Spacer()
+
+            Button {
+                store.refresh()
+            } label: {
+                Image(systemName: "arrow.clockwise")
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+            .help("Refresh")
+
             Picker("Mode", selection: demoBinding) {
-                Text("Live Mode").tag(false)
-                Text("Demo Mode").tag(true)
+                Text("Live").tag(false)
+                Text("Demo").tag(true)
             }
             .pickerStyle(.segmented)
-            .frame(width: 240)
+            .frame(width: 154)
+        }
+        .padding(14)
+        .background(StudioPalette.header, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(StudioPalette.stroke, lineWidth: 1)
         }
     }
 
-    private var sourceColumn: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            SectionHeader(title: "Audio Sources", systemImage: "app.connected.to.app.below.fill", trailing: "\(store.audioSources.count)")
-            ForEach(store.audioSources) { source in
-                SourceRoutingCard(source: source, store: store)
-                    .draggable(source.id)
-                    .onTapGesture {
-                        store.selectedSourceID = source.id
-                    }
-            }
+    private var consoleStatusRail: some View {
+        HStack(spacing: 8) {
+            StudioMetricTile(title: "Sources", value: "\(store.audioSources.count)", systemImage: "app.connected.to.app.below.fill", tint: StudioPalette.blue)
+            StudioMetricTile(title: "Outputs", value: "\(store.outputDevices.count)", systemImage: "speaker.wave.2.fill", tint: StudioPalette.teal)
+            StudioMetricTile(title: "Live", value: "\(store.activeLiveRouteCount)", systemImage: "waveform.circle.fill", tint: StudioPalette.green)
+            StudioMetricTile(title: "Saved", value: "\(store.savedCustomRouteCount)", systemImage: "tray.and.arrow.down.fill", tint: StudioPalette.amber)
+            StudioBackendStrip(store: store)
         }
-        .frame(minWidth: 260, maxWidth: 320, alignment: .top)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private var routeColumn: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            SectionHeader(title: "Routes", systemImage: "arrow.left.and.right", trailing: store.backendReadinessTitle)
-            ForEach(store.audioSources) { source in
-                Button {
-                    store.selectedSourceID = source.id
-                } label: {
-                    RouteLineCard(source: source, store: store, isSelected: store.selectedSourceID == source.id)
-                }
-                .buttonStyle(.plain)
+    @ViewBuilder
+    private var consoleSurface: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: 14) {
+                StudioPatchBayPanel(store: store)
+                    .frame(minWidth: 650, maxWidth: .infinity, alignment: .top)
+                StudioOutputRackPanel(store: store)
+                    .frame(width: 328, alignment: .top)
             }
-            if let source = selectedSource {
-                RouteControlCard(source: source, store: store)
-            }
-        }
-        .frame(minWidth: 250, maxWidth: 330, alignment: .top)
-    }
+            .frame(maxWidth: .infinity, alignment: .topLeading)
 
-    private var outputColumn: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            SectionHeader(title: "Output Devices", systemImage: "speaker.wave.2.fill", trailing: "\(store.outputDevices.count)")
-            ForEach(store.outputDevices) { device in
-                OutputRoutingCard(device: device, store: store)
-                    .dropDestination(for: String.self) { sourceIDs, _ in
-                        guard let sourceID = sourceIDs.first,
-                              let source = store.audioSources.first(where: { $0.id == sourceID }) else {
-                            return false
-                        }
-                        store.assignSourceOutput(source: source, uid: device.uid)
-                        store.selectedSourceID = source.id
-                        return true
-                    }
+            VStack(alignment: .leading, spacing: 14) {
+                StudioPatchBayPanel(store: store)
+                StudioOutputRackPanel(store: store)
             }
+            .frame(maxWidth: .infinity, alignment: .topLeading)
         }
-        .frame(minWidth: 260, maxWidth: 340, alignment: .top)
-    }
-
-    private var selectedSource: AudioSource? {
-        store.selectedSourceID.flatMap { id in store.audioSources.first { $0.id == id } }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 
     private var demoBinding: Binding<Bool> {
@@ -105,82 +115,381 @@ struct RoutingDashboardView: View {
     }
 }
 
-private struct SourceRoutingCard: View {
-    let source: AudioSource
+private enum StudioPalette {
+    static let console = Color(red: 0.045, green: 0.047, blue: 0.052)
+    static let header = Color(red: 0.075, green: 0.079, blue: 0.088)
+    static let panel = Color(red: 0.060, green: 0.063, blue: 0.070)
+    static let strip = Color(red: 0.086, green: 0.089, blue: 0.096)
+    static let inset = Color(red: 0.026, green: 0.028, blue: 0.032)
+    static let stroke = Color.white.opacity(0.085)
+    static let strongStroke = Color.white.opacity(0.15)
+    static let green = Color(red: 0.35, green: 0.95, blue: 0.55)
+    static let amber = Color(red: 1.0, green: 0.70, blue: 0.28)
+    static let teal = Color(red: 0.24, green: 0.86, blue: 0.80)
+    static let blue = Color(red: 0.43, green: 0.65, blue: 1.0)
+    static let red = Color(red: 1.0, green: 0.32, blue: 0.32)
+}
+
+private struct StudioConsoleFrame<Content: View>: View {
+    let content: Content
+
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
+    }
+
+    var body: some View {
+        content
+            .padding(14)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .background(StudioPalette.console, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .overlay(alignment: .top) {
+                Rectangle()
+                    .fill(StudioPalette.strongStroke)
+                    .frame(height: 1)
+                    .padding(.horizontal, 12)
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .stroke(StudioPalette.strongStroke, lineWidth: 1)
+            }
+    }
+}
+
+private struct StudioMetricTile: View {
+    let title: String
+    let value: String
+    let systemImage: String
+    let tint: Color
+
+    var body: some View {
+        HStack(spacing: 9) {
+            StudioLED(color: tint)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(value)
+                    .font(.callout.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .monospacedDigit()
+                Text(title.uppercased())
+                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .foregroundStyle(.secondary)
+            }
+
+            Image(systemName: systemImage)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(tint.opacity(0.85))
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(StudioPalette.inset, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .stroke(StudioPalette.stroke, lineWidth: 1)
+        }
+    }
+}
+
+private struct StudioBackendStrip: View {
     @ObservedObject var store: AudioRouterStore
 
     var body: some View {
-        DockCard {
-            HStack(spacing: 10) {
-                AppSourceIcon(source: source)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(source.appName)
-                        .font(.headline)
-                        .lineLimit(1)
-                    Text(source.debugLabel)
-                        .font(.caption2.monospaced())
-                        .foregroundStyle(.tertiary)
-                        .lineLimit(1)
-                    Text("Last active \(source.lastActiveTime.shortRelativeDescription)")
-                        .font(.caption)
+        HStack(spacing: 9) {
+            StudioLED(color: store.backendReadinessState.visualStatus.foreground)
+            Text("ENGINE")
+                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                .foregroundStyle(.secondary)
+            Text(store.backendReadinessDetail)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 9)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(StudioPalette.inset, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .stroke(StudioPalette.stroke, lineWidth: 1)
+        }
+    }
+}
+
+private struct StudioLED: View {
+    let color: Color
+
+    var body: some View {
+        Circle()
+            .fill(color)
+            .frame(width: 8, height: 8)
+            .shadow(color: color.opacity(0.65), radius: 4)
+    }
+}
+
+private struct StudioLEDLabel: View {
+    let text: String
+    let status: RouteVisualStatus
+
+    var body: some View {
+        HStack(spacing: 6) {
+            StudioLED(color: status.foreground)
+            Text(text.uppercased())
+                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                .foregroundStyle(status.foreground)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(StudioPalette.inset, in: Capsule())
+        .overlay {
+            Capsule()
+                .stroke(status.foreground.opacity(0.30), lineWidth: 1)
+        }
+    }
+}
+
+private struct StudioPanel<Content: View>: View {
+    let title: String
+    let systemImage: String
+    let trailing: String?
+    let content: Content
+
+    init(
+        title: String,
+        systemImage: String,
+        trailing: String? = nil,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.title = title
+        self.systemImage = systemImage
+        self.trailing = trailing
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 9) {
+                Image(systemName: systemImage)
+                    .foregroundStyle(StudioPalette.amber)
+                Text(title.uppercased())
+                    .font(.system(size: 12, weight: .heavy, design: .monospaced))
+                    .tracking(1.2)
+                Spacer()
+                if let trailing {
+                    Text(trailing)
+                        .font(.caption.weight(.medium))
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
                 }
-                Spacer()
-                StatusLabel(text: store.routeStatus(for: source), status: store.statusStyle(for: source))
             }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(StudioPalette.header)
 
-            MeterView(level: store.sourceMeters[source.id] ?? 0, barCount: 12, color: source.isProducingAudio ? .green : .cyan)
-            if !store.settings.demoMode && !store.liveMeteringAvailable {
-                Text("Meter unavailable")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
-            }
-            if let diagnostic = store.routeDiagnostic(for: source) {
-                Text(diagnostic)
-                    .font(.caption2)
-                    .foregroundStyle(store.routeStatusIsWarning(for: source) ? .orange : .secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+            Rectangle()
+                .fill(StudioPalette.stroke)
+                .frame(height: 1)
 
-            HStack {
-                Button {
-                    store.setSourceMuted(source: source, isMuted: !source.isMuted)
-                } label: {
-                    Image(systemName: source.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+            content
+                .padding(10)
+        }
+        .background(StudioPalette.panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .overlay {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(StudioPalette.strongStroke, lineWidth: 1)
+        }
+    }
+}
+
+private struct StudioPatchBayPanel: View {
+    @ObservedObject var store: AudioRouterStore
+
+    var body: some View {
+        StudioPanel(
+            title: "Patch Bay",
+            systemImage: "point.3.connected.trianglepath.dotted",
+            trailing: store.routeSummaryText
+        ) {
+            VStack(spacing: 7) {
+                StudioPatchBayHeader()
+
+                ForEach(store.audioSources) { source in
+                    StudioChannelStrip(source: source, store: store)
+                        .draggable(source.id)
                 }
-                .buttonStyle(.bordered)
-                .disabled(!store.supportsPerAppMute)
-                .help(store.supportsPerAppMute ? "Mute this source" : "Per-app mute requires an audio backend.")
-                Button {
-                    store.toggleSolo(source: source)
-                } label: {
-                    Text(store.soloSourceID == source.id ? "Solo On" : "Solo")
-                }
-                .buttonStyle(.bordered)
-                Spacer()
-                Toggle("Follow System Output", isOn: followSystemBinding)
-                    .toggleStyle(.switch)
-            }
 
-            VolumeLine(source: source, store: store)
-            outputPicker
+                if let selectedSource {
+                    Divider()
+                        .overlay(StudioPalette.stroke)
+                        .padding(.vertical, 4)
+                    StudioRouteInspector(source: selectedSource, store: store)
+                }
+            }
         }
     }
 
-    private var outputPicker: some View {
-        Picker("Assigned Output", selection: outputSelection) {
-            Text("Follow System Output").tag("")
-            ForEach(store.outputDevices) { device in
-                Text(device.name).tag(device.uid)
+    private var selectedSource: AudioSource? {
+        store.selectedSourceID.flatMap { id in store.audioSources.first { $0.id == id } }
+    }
+}
+
+private struct StudioPatchBayHeader: View {
+    var body: some View {
+        HStack(spacing: 12) {
+            Text("CHANNEL")
+                .frame(minWidth: 162, maxWidth: 220, alignment: .leading)
+            Text("METER")
+                .frame(width: 106, alignment: .leading)
+            Text("BUS / OUTPUT")
+                .frame(minWidth: 210, maxWidth: .infinity, alignment: .leading)
+            Text("GAIN")
+                .frame(width: 172, alignment: .leading)
+        }
+        .font(.system(size: 9, weight: .bold, design: .monospaced))
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, 11)
+        .padding(.vertical, 5)
+    }
+}
+
+private struct StudioChannelStrip: View {
+    let source: AudioSource
+    @ObservedObject var store: AudioRouterStore
+
+    private var isSelected: Bool {
+        store.selectedSourceID == source.id
+    }
+
+    private var visualStatus: RouteVisualStatus {
+        store.statusStyle(for: source)
+    }
+
+    var body: some View {
+        Button {
+            store.selectedSourceID = source.id
+        } label: {
+            HStack(spacing: 12) {
+                channelIdentity
+                    .frame(minWidth: 162, maxWidth: 220, alignment: .leading)
+
+                StudioSegmentMeter(
+                    level: store.sourceMeters[source.id] ?? 0,
+                    segmentCount: 12,
+                    tint: source.isProducingAudio ? StudioPalette.green : StudioPalette.teal
+                )
+                .frame(width: 106, alignment: .leading)
+
+                routeAssignment
+                    .frame(minWidth: 210, maxWidth: .infinity, alignment: .leading)
+
+                gainControls
+                    .frame(width: 172, alignment: .leading)
             }
-            if !store.outputGroups.isEmpty {
-                Divider()
-                ForEach(store.outputGroups) { group in
-                    Text("\(group.name) (Group)").tag(group.routeTargetID)
-                }
+            .padding(.horizontal, 11)
+            .padding(.vertical, 10)
+            .background(channelBackground, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+            .overlay(alignment: .leading) {
+                Rectangle()
+                    .fill(visualStatus.foreground)
+                    .frame(width: 3)
+                    .clipShape(RoundedRectangle(cornerRadius: 2, style: .continuous))
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .stroke(isSelected ? StudioPalette.amber.opacity(0.95) : StudioPalette.stroke, lineWidth: isSelected ? 1.5 : 1)
             }
         }
-        .pickerStyle(.menu)
+        .buttonStyle(.plain)
+        .contextMenu {
+            Button("Follow System Output") {
+                store.resetSourceToSystemOutput(source)
+            }
+            Button(source.isMuted ? "Unmute" : "Mute") {
+                store.setSourceMuted(source: source, isMuted: !source.isMuted)
+            }
+        }
+    }
+
+    private var channelIdentity: some View {
+        HStack(spacing: 10) {
+            AppSourceIcon(source: source)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(source.appName)
+                        .font(.subheadline.weight(.semibold))
+                        .lineLimit(1)
+                    StudioLED(color: source.isProducingAudio ? StudioPalette.green : StudioPalette.amber.opacity(0.75))
+                }
+                Text(source.debugLabel)
+                    .font(.caption2.monospaced())
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
+            }
+        }
+    }
+
+    private var routeAssignment: some View {
+        HStack(spacing: 10) {
+            StudioRouteCable(status: visualStatus, followsSystem: source.followsSystemOutput)
+                .frame(width: 68)
+
+            Picker("Output", selection: outputSelection) {
+                Text("Follow System").tag("")
+                ForEach(store.outputDevices) { device in
+                    Text(device.name).tag(device.uid)
+                }
+                if !store.outputGroups.isEmpty {
+                    Divider()
+                    ForEach(store.outputGroups) { group in
+                        Text("\(group.name) (Group)").tag(group.routeTargetID)
+                    }
+                }
+            }
+            .labelsHidden()
+            .pickerStyle(.menu)
+            .controlSize(.small)
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            StudioLEDLabel(text: store.routeStatus(for: source), status: visualStatus)
+        }
+    }
+
+    private var gainControls: some View {
+        HStack(spacing: 8) {
+            Button {
+                store.setSourceMuted(source: source, isMuted: !source.isMuted)
+            } label: {
+                Image(systemName: source.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+            }
+            .buttonStyle(.borderless)
+            .foregroundStyle(source.isMuted ? StudioPalette.red : StudioPalette.green)
+            .disabled(!store.supportsPerAppMute)
+            .help(store.supportsPerAppMute ? "Mute this source" : "Per-app mute requires an audio backend.")
+
+            Slider(
+                value: Binding(
+                    get: { source.volume },
+                    set: { store.setSourceVolume(source: source, volume: $0) }
+                ),
+                in: 0...1.5
+            )
+            .disabled(!store.supportsPerAppVolume)
+            .help(store.supportsPerAppVolume ? "Set source volume" : "Per-app gain requires an audio backend.")
+
+            Text("\(Int((source.volume * 100).rounded()))")
+                .font(.system(size: 11, weight: .bold, design: .monospaced))
+                .foregroundStyle(StudioPalette.amber)
+                .frame(width: 28, alignment: .trailing)
+        }
+    }
+
+    private var channelBackground: Color {
+        if isSelected {
+            return StudioPalette.strip.opacity(0.95)
+        }
+        if store.routeStatusIsWarning(for: source) {
+            return Color.orange.opacity(0.10)
+        }
+        return StudioPalette.strip.opacity(0.74)
     }
 
     private var outputSelection: Binding<String> {
@@ -191,96 +500,114 @@ private struct SourceRoutingCard: View {
             }
         )
     }
+}
 
-    private var followSystemBinding: Binding<Bool> {
-        Binding(
-            get: { source.followsSystemOutput },
-            set: { follows in
-                if follows {
-                    store.resetSourceToSystemOutput(source)
+private struct StudioRouteCable: View {
+    let status: RouteVisualStatus
+    let followsSystem: Bool
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Circle()
+                .stroke(status.foreground.opacity(0.9), lineWidth: 2)
+                .frame(width: 9, height: 9)
+            Capsule()
+                .fill(status.foreground.opacity(followsSystem ? 0.35 : 0.95))
+                .frame(height: followsSystem ? 2 : 4)
+            Image(systemName: followsSystem ? "arrow.triangle.branch" : "arrow.right")
+                .font(.system(size: 10, weight: .heavy))
+                .foregroundStyle(status.foreground)
+        }
+    }
+}
+
+private struct StudioSegmentMeter: View {
+    let level: Double
+    var segmentCount: Int = 12
+    var tint: Color = StudioPalette.green
+
+    var body: some View {
+        GeometryReader { proxy in
+            let clampedLevel = max(0, min(1, level))
+
+            HStack(spacing: 3) {
+                ForEach(0..<segmentCount, id: \.self) { index in
+                    let threshold = Double(index + 1) / Double(segmentCount)
+                    RoundedRectangle(cornerRadius: 2, style: .continuous)
+                        .fill(segmentColor(for: threshold).opacity(threshold <= clampedLevel ? 0.95 : 0.20))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 2, style: .continuous)
+                                .stroke(Color.white.opacity(threshold <= clampedLevel ? 0.12 : 0.05), lineWidth: 0.5)
+                        }
+                        .shadow(
+                            color: segmentColor(for: threshold).opacity(threshold <= clampedLevel ? 0.45 : 0),
+                            radius: 3
+                        )
                 }
             }
-        )
-    }
-}
-
-private struct VolumeLine: View {
-    let source: AudioSource
-    @ObservedObject var store: AudioRouterStore
-
-    var body: some View {
-        HStack {
-            Image(systemName: "slider.horizontal.3")
-                .foregroundStyle(.secondary)
-            Slider(value: Binding(get: { source.volume }, set: { store.setSourceVolume(source: source, volume: $0) }), in: 0...1.5)
-                .disabled(!store.supportsPerAppVolume)
-                .help(store.supportsPerAppVolume ? "Set source volume" : "Per-app gain requires an audio backend.")
-            Text("\(Int((source.volume * 100).rounded()))%")
-                .font(.caption.monospacedDigit())
-                .frame(width: 42, alignment: .trailing)
-        }
-    }
-}
-
-private struct RouteLineCard: View {
-    let source: AudioSource
-    @ObservedObject var store: AudioRouterStore
-    let isSelected: Bool
-
-    var body: some View {
-        let route = store.route(for: source)
-        let status = store.routeStatus(for: source)
-        let routeNeedsAttention = ["Requires Audio Backend", "Saved Only", "Device Missing", "Unsupported"].contains(status)
-        HStack(spacing: 10) {
-            Text(source.appName)
-                .font(.caption.weight(.semibold))
-                .lineLimit(1)
-                .frame(width: 74, alignment: .leading)
-            RouteLineShape(isDashed: routeNeedsAttention)
-                .stroke(route.routeMode == .followSystemOutput ? Color.secondary : Color.teal, style: StrokeStyle(lineWidth: 2, dash: routeNeedsAttention ? [6, 4] : []))
-                .frame(height: 18)
-            Image(systemName: route.routeMode == .followSystemOutput ? "arrow.triangle.branch" : "arrow.right.circle.fill")
-                .foregroundStyle(route.routeMode == .followSystemOutput ? Color.secondary : Color.teal)
-            Text(store.routeOutputName(for: source))
-                .font(.caption)
-                .lineLimit(1)
-                .frame(width: 110, alignment: .leading)
-            if routeNeedsAttention {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.orange)
+            .padding(.horizontal, 5)
+            .padding(.vertical, 5)
+            .frame(width: proxy.size.width, height: proxy.size.height)
+            .background {
+                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                    .fill(StudioPalette.inset.opacity(0.92))
+                    .overlay(tint.opacity(0.06))
             }
+            .overlay(alignment: .trailing) {
+                if clampedLevel > 0.92 {
+                    Capsule()
+                        .fill(StudioPalette.red)
+                        .frame(width: 3)
+                        .padding(.vertical, 4)
+                        .padding(.trailing, 4)
+                        .shadow(color: StudioPalette.red.opacity(0.7), radius: 4)
+                }
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                    .stroke(StudioPalette.strongStroke, lineWidth: 1)
+            }
+            .animation(.easeOut(duration: 0.18), value: clampedLevel)
         }
-        .padding(10)
-        .background(isSelected ? Color.teal.opacity(0.14) : Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .frame(height: 24)
+        .accessibilityLabel("Audio level")
+    }
+
+    private func segmentColor(for threshold: Double) -> Color {
+        if threshold > 0.88 {
+            return StudioPalette.red
+        }
+        if threshold > 0.68 {
+            return StudioPalette.amber
+        }
+        return tint
     }
 }
 
-private struct RouteLineShape: Shape {
-    let isDashed: Bool
-
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        path.move(to: CGPoint(x: rect.minX, y: rect.midY))
-        path.addCurve(
-            to: CGPoint(x: rect.maxX, y: rect.midY),
-            control1: CGPoint(x: rect.midX * 0.55, y: rect.minY),
-            control2: CGPoint(x: rect.midX * 1.35, y: rect.maxY)
-        )
-        return path
-    }
-}
-
-private struct RouteControlCard: View {
+private struct StudioRouteInspector: View {
     let source: AudioSource
     @ObservedObject var store: AudioRouterStore
 
     var body: some View {
-        DockCard {
-            SectionHeader(title: "Route Controls", systemImage: "slider.horizontal.3")
-            Text("\(source.appName) -> \(store.routeOutputName(for: source))")
-                .font(.subheadline.weight(.semibold))
-            VolumeLine(source: source, store: store)
-            HStack {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                StudioLED(color: store.statusStyle(for: source).foreground)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("\(source.appName) -> \(store.routeOutputName(for: source))")
+                        .font(.subheadline.weight(.semibold))
+                    Text("SELECTED CHANNEL")
+                        .font(.system(size: 9, weight: .bold, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                StudioLEDLabel(text: store.routeStatus(for: source), status: store.statusStyle(for: source))
+            }
+
+            if let diagnostic = store.routeDiagnostic(for: source) {
+                StudioDiagnosticBanner(text: diagnostic, isWarning: store.routeStatusIsWarning(for: source))
+            }
+
+            HStack(spacing: 8) {
                 Button {
                     store.resetSourceToSystemOutput(source)
                 } label: {
@@ -291,90 +618,168 @@ private struct RouteControlCard: View {
                 } label: {
                     Label("Delete Route", systemImage: "trash")
                 }
+                Spacer()
+                Toggle("Solo", isOn: soloBinding)
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
             }
-            StatusLabel(text: store.routeStatus(for: source), status: store.statusStyle(for: source))
-            if let diagnostic = store.routeDiagnostic(for: source) {
-                Text(diagnostic)
-                    .font(.caption)
-                    .foregroundStyle(store.routeStatusIsWarning(for: source) ? .orange : .secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+            .controlSize(.small)
+        }
+        .padding(10)
+        .background(StudioPalette.inset, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .stroke(StudioPalette.stroke, lineWidth: 1)
+        }
+    }
+
+    private var soloBinding: Binding<Bool> {
+        Binding(
+            get: { store.soloSourceID == source.id },
+            set: { enabled in
+                if enabled != (store.soloSourceID == source.id) {
+                    store.toggleSolo(source: source)
+                }
+            }
+        )
+    }
+}
+
+private struct StudioDiagnosticBanner: View {
+    let text: String
+    let isWarning: Bool
+
+    var body: some View {
+        Label(text, systemImage: isWarning ? "exclamationmark.triangle.fill" : "info.circle.fill")
+            .font(.caption)
+            .foregroundStyle(isWarning ? StudioPalette.amber : .secondary)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 7)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background((isWarning ? StudioPalette.amber : Color.secondary).opacity(0.10), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+    }
+}
+
+private struct StudioOutputRackPanel: View {
+    @ObservedObject var store: AudioRouterStore
+
+    var body: some View {
+        StudioPanel(
+            title: "Output Rack",
+            systemImage: "slider.vertical.3",
+            trailing: "\(store.outputDevices.count)"
+        ) {
+            VStack(spacing: 8) {
+                ForEach(store.outputDevices) { device in
+                    StudioOutputModule(device: device, store: store)
+                        .dropDestination(for: String.self) { sourceIDs, _ in
+                            guard let sourceID = sourceIDs.first,
+                                  let source = store.audioSources.first(where: { $0.id == sourceID }) else {
+                                return false
+                            }
+                            store.assignSourceOutput(source: source, uid: device.uid)
+                            store.selectedSourceID = source.id
+                            return true
+                        }
+                }
             }
         }
     }
 }
 
-private struct OutputRoutingCard: View {
+private struct StudioOutputModule: View {
     let device: AudioDevice
     @ObservedObject var store: AudioRouterStore
 
     var body: some View {
-        DockCard {
+        VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {
                 DeviceIcon(device: device)
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: 2) {
                     Text(device.name)
-                        .font(.headline)
+                        .font(.subheadline.weight(.semibold))
                         .lineLimit(1)
                     Text(device.typeDescription)
-                        .font(.caption)
+                        .font(.caption2)
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
                 }
                 Spacer()
-                StatusLabel(text: device.isAlive ? "Connected" : "Device Missing", status: device.isAlive ? .working : .deviceMissing)
+                StudioLEDLabel(
+                    text: device.isDefault ? "Main" : (device.isAlive ? "Ready" : "Missing"),
+                    status: device.isAlive ? .working : .deviceMissing
+                )
             }
-            MeterView(level: store.deviceMeters[device.id] ?? 0, barCount: 12, color: .teal)
-            if !store.settings.demoMode && !store.liveMeteringAvailable {
-                Text("Meter unavailable")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
-            }
+
+            StudioSegmentMeter(level: store.deviceMeters[device.id] ?? 0, segmentCount: 14, tint: StudioPalette.teal)
+
             VolumeSlider(
-                title: "Volume",
+                title: "Vol",
                 value: device.volume,
                 isEnabled: device.canSetVolume,
                 systemImage: device.kind.systemImage,
                 onChange: { store.setDeviceVolume(device, volume: $0) }
             )
-            HStack {
+            .controlSize(.small)
+
+            HStack(spacing: 8) {
                 Button {
                     store.setDeviceMuted(device, isMuted: !(device.isMuted ?? false))
                 } label: {
-                    Label((device.isMuted ?? false) ? "Muted" : "Mute", systemImage: (device.isMuted ?? false) ? "speaker.slash.fill" : "speaker.wave.1.fill")
+                    Image(systemName: (device.isMuted ?? false) ? "speaker.slash.fill" : "speaker.wave.1.fill")
                 }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
                 .disabled(!device.canSetMute)
-                Slider(
-                    value: Binding(
-                        get: { device.balance ?? 0 },
-                        set: { store.setDeviceBalance(device, balance: $0) }
-                    ),
-                    in: -1...1
-                )
-                .disabled(!device.canSetBalance)
-                .help(device.canSetBalance ? "Set output balance" : "Balance is not supported by this device.")
-            }
-            HStack {
-                Text(device.sampleRateDescription)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Button(device.isDefault ? "System Output" : "Set System") {
+
+                Button(device.isDefault ? "System" : "Set System") {
                     store.setDefaultDevice(device)
                 }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
                 .disabled(device.isDefault)
+
+                Spacer()
+
+                Text(device.sampleRateDescription)
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(.tertiary)
             }
-            let routed = store.routedSources(to: device)
-            if routed.isEmpty {
-                Text("Drop sources here")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } else {
-                VStack(alignment: .leading, spacing: 4) {
-                    ForEach(routed) { source in
-                        Label(source.appName, systemImage: "app.fill")
-                            .font(.caption)
-                    }
+
+            routedSources
+        }
+        .padding(10)
+        .background(device.isDefault ? StudioPalette.teal.opacity(0.12) : StudioPalette.strip.opacity(0.76), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(device.isDefault ? StudioPalette.teal.opacity(0.85) : StudioPalette.stroke)
+                .frame(height: 2)
+                .clipShape(RoundedRectangle(cornerRadius: 2, style: .continuous))
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .stroke(device.isDefault ? StudioPalette.teal.opacity(0.70) : StudioPalette.stroke, lineWidth: device.isDefault ? 1.5 : 1)
+        }
+    }
+
+    @ViewBuilder
+    private var routedSources: some View {
+        let routed = store.routedSources(to: device)
+        if routed.isEmpty {
+            Label("No apps assigned", systemImage: "tray")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        } else {
+            HStack(spacing: 6) {
+                ForEach(routed) { source in
+                    Label(source.appName, systemImage: "app.fill")
+                        .font(.caption2.weight(.medium))
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 4)
+                        .background(StudioPalette.teal.opacity(0.13), in: Capsule())
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 }

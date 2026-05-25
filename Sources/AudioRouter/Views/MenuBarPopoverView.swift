@@ -41,7 +41,7 @@ public struct MenuBarPopoverView: View {
                 .padding(16)
             }
         }
-        .preferredColorScheme(store.settings.theme.colorScheme)
+        .preferredColorScheme(store.settings.effectiveColorScheme)
     }
 
     private var header: some View {
