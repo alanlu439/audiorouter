@@ -24,6 +24,7 @@ Note: the current public build is not Apple-notarized yet. macOS may ask you to 
 - Experimental live per-app routes on macOS 14.2+ using public Core Audio process taps, transient aggregate devices, and an IO callback.
 - Per-route volume, mute, and live meters while an experimental process-tap route is active.
 - Backend readiness panel in the popover, dashboard, and Advanced settings so the app shows whether routes are ready, live, saved, or waiting for playback.
+- Custom route apps: add running apps from the visual picker or browse for an installed `.app`, then assign that app to an output.
 - Persistent route preferences, EQ settings, shortcuts, setup cards, and visual output groups.
 - Live Mode for real device control, and Demo Mode for UI testing with mock apps/devices/meters.
 
@@ -81,7 +82,7 @@ When the experimental route starts successfully, the UI marks it “Live.” If 
 The backend readiness panel is the fastest way to see what to do next:
 
 - `Devices`: confirms connected Bluetooth outputs and the system speaker are available.
-- `Focused Apps`: confirms Spotify, Apple Music, or Chrome has a Core Audio process object while playing audio.
+- `Route Apps`: confirms configured route apps have Core Audio process objects while playing audio.
 - `Process Taps`: shows whether the public capture path is available on this macOS version.
 - `Custom Routes`: shows whether any selected app-to-output route is live or saved for retry.
 
@@ -116,16 +117,17 @@ The script builds the SwiftPM product, stages `dist/AudioRouter.app`, writes the
 1. Connect your Bluetooth speaker, AirPods, or other output device in macOS first.
 2. Open AudioRouter from the menu bar.
 3. Keep the app in Live Mode.
-4. Start playback in Spotify, Apple Music, or Chrome.
-5. In the Routing Dashboard, pick an output from that app's output dropdown, or drag the app card onto an output device card.
-6. When macOS asks for System Audio Recording permission, allow AudioRouter.
-7. If a route starts successfully, the route badge changes to `Live` and the meter begins moving.
-8. Use the per-app volume and mute controls on the source card to adjust that route.
-9. Use `Follow System Output` to remove a custom route and send the app back to the normal system output.
+4. Start playback in Spotify, Apple Music, Chrome, or another app you added.
+5. To add another source, open the Routing Dashboard, click `Add App`, pick a running app, or browse for an installed `.app`.
+6. Pick an output from that app's output dropdown, or drag the app card onto an output device card.
+7. When macOS asks for System Audio Recording permission, allow AudioRouter.
+8. If a route starts successfully, the route badge changes to `Live` and the meter begins moving.
+9. Use the per-app volume and mute controls on the source card to adjust that route.
+10. Use `Follow System Output` to remove a custom route and send the app back to the normal system output.
 
 If the backend panel says `Saved Only`, leave the source app playing, click Refresh, then assign the output again. If it says `Requires Backend`, the chosen app/device pair could not be made live through public Core Audio process taps, but the route preference is saved for a future routing backend.
 
-AudioRouter only shows Spotify, Apple Music, and Chrome as source apps in this MVP. Output choices are connected Bluetooth devices plus the built-in/system speaker.
+AudioRouter starts with Spotify, Apple Music, and Chrome as source apps. You can add more apps from the Routing Dashboard. Output choices are connected Bluetooth devices plus the built-in/system speaker.
 
 ## Status Badges
 

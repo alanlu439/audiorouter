@@ -5,6 +5,7 @@ import Foundation
 public final class AudioRouterStore: ObservableObject {
     @Published public private(set) var devices: [AudioDevice] = []
     @Published public private(set) var audioSources: [AudioSource] = []
+    @Published public private(set) var availableAppCandidates: [AudioSource] = []
     @Published public private(set) var lastError: String?
     @Published public private(set) var unsupportedNote: String?
     @Published public var selectedSettingsSection: SettingsSection = .dashboard
@@ -41,6 +42,8 @@ public final class AudioRouterStore: ObservableObject {
     private var lastRefreshUsedDemoMode: Bool?
     private var cancellables: Set<AnyCancellable> = []
     private let outputGroupsURL: URL
+    private let appSourcesURL: URL
+    private var userSourceSpecs: [FocusedSourceSpec]
     private let refreshInterval: TimeInterval = 10
     private let meterInterval: TimeInterval = 0.24
     private let meterPublishThreshold = 0.012
@@ -53,7 +56,8 @@ public final class AudioRouterStore: ObservableObject {
         shortcutManager: ShortcutManager = ShortcutManager(),
         audioRoutingManager: AudioRoutingManager = AudioRoutingManager(),
         processAudioMonitor: ProcessAudioMonitor = ProcessAudioMonitor(),
-        outputGroupsURL: URL = try! AppSupport.fileURL(named: "output-groups.json")
+        outputGroupsURL: URL = try! AppSupport.fileURL(named: "output-groups.json"),
+        appSourcesURL: URL = try! AppSupport.fileURL(named: "audio-sources.json")
     ) {
         self.deviceManager = deviceManager
         self.volumeManager = SystemVolumeManager(deviceManager: deviceManager)
@@ -64,6 +68,8 @@ public final class AudioRouterStore: ObservableObject {
         self.audioRoutingManager = audioRoutingManager
         self.processAudioMonitor = processAudioMonitor
         self.outputGroupsURL = outputGroupsURL
+        self.appSourcesURL = appSourcesURL
+        self.userSourceSpecs = Self.loadUserSourceSpecs(from: appSourcesURL)
         self.outputGroups = (try? Data(contentsOf: outputGroupsURL))
             .flatMap { try? JSONDecoder().decode([OutputDeviceGroup].self, from: $0) } ?? []
 
@@ -207,12 +213,12 @@ public final class AudioRouterStore: ObservableObject {
             return "Connect a Bluetooth output or use the built-in speaker, then refresh."
         }
         if routeableSourceCount == 0 {
-            return "Play audio in Spotify, Apple Music, or Chrome, then refresh to make the source routeable."
+            return "Play audio in a configured app, then refresh to make the source routeable."
         }
         if savedCustomRouteCount > 0 {
             return "Saved routes are ready to retry when their app audio becomes available."
         }
-        return "Device control is live. App routes can be attempted when a focused source is producing audio."
+        return "Device control is live. App routes can be attempted when a configured source is producing audio."
     }
 
     public var backendReadinessItems: [BackendReadinessItem] {
@@ -261,10 +267,10 @@ public final class AudioRouterStore: ObservableObject {
             ),
             BackendReadinessItem(
                 id: "sources",
-                title: "Focused Apps",
+                title: "Route Apps",
                 detail: routeableSourceCount > 0
                     ? "\(routeableSourceCount) app\(routeableSourceCount == 1 ? "" : "s") exposing Core Audio output"
-                    : "Spotify, Apple Music, and Chrome are waiting for playback",
+                    : "\(configuredSourceSpecs.count) configured app\(configuredSourceSpecs.count == 1 ? "" : "s") waiting for playback",
                 state: sourceState
             ),
             BackendReadinessItem(
@@ -356,6 +362,7 @@ public final class AudioRouterStore: ObservableObject {
             if refreshedSources != audioSources {
                 audioSources = refreshedSources
             }
+            updateAvailableAppCandidates()
             configureMeterTimer()
             if let warning = audioRoutingManager.lastWarning, unsupportedNote != warning {
                 unsupportedNote = warning
@@ -515,6 +522,69 @@ public final class AudioRouterStore: ObservableObject {
             return group.name
         }
         return audioRoutingManager.deviceName(for: route, outputs: outputDevices)
+    }
+
+    public var routeAppDisplayNames: [String] {
+        configuredSourceSpecs.map(\.displayName)
+    }
+
+    public func isUserAddedRouteApp(_ source: AudioSource) -> Bool {
+        userSourceSpecs.contains { $0.bundleIdentifier == source.id }
+    }
+
+    public func refreshAppCandidates() {
+        updateAvailableAppCandidates()
+    }
+
+    public func addRouteApp(source: AudioSource) {
+        guard let bundleIdentifier = source.bundleIdentifier, !bundleIdentifier.isEmpty else {
+            showUnsupportedNote("That app does not expose a stable bundle identifier, so AudioRouter cannot save it as a route source.")
+            return
+        }
+        addRouteAppSpec(
+            FocusedSourceSpec(
+                displayName: source.appName,
+                bundleIdentifier: bundleIdentifier,
+                matchName: source.appName,
+                iconPath: source.icon
+            )
+        )
+    }
+
+    public func addRouteApp(bundleURL: URL) {
+        guard bundleURL.pathExtension == "app",
+              let bundle = Bundle(url: bundleURL),
+              let bundleIdentifier = bundle.bundleIdentifier,
+              !bundleIdentifier.isEmpty else {
+            showUnsupportedNote("Choose a valid macOS .app bundle with a bundle identifier.")
+            return
+        }
+
+        let displayName = bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String
+            ?? bundle.object(forInfoDictionaryKey: "CFBundleName") as? String
+            ?? bundleURL.deletingPathExtension().lastPathComponent
+
+        addRouteAppSpec(
+            FocusedSourceSpec(
+                displayName: displayName,
+                bundleIdentifier: bundleIdentifier,
+                matchName: displayName,
+                iconPath: bundleURL.path
+            )
+        )
+    }
+
+    public func removeRouteApp(_ source: AudioSource) {
+        guard isUserAddedRouteApp(source) else { return }
+        userSourceSpecs.removeAll { $0.bundleIdentifier == source.id }
+        saveUserSourceSpecs()
+        audioRoutingManager.resetSourceToSystemOutput(sourceID: source.id)
+        if selectedSourceID == source.id {
+            selectedSourceID = audioSources.first { $0.id != source.id }?.id
+        }
+        audioSources.removeAll { $0.id == source.id }
+        sourceMeters.removeValue(forKey: source.id)
+        refresh(silent: true)
     }
 
     public func setSourceVolume(source: AudioSource, volume: Double) {
@@ -903,6 +973,57 @@ public final class AudioRouterStore: ObservableObject {
         try? data.write(to: outputGroupsURL, options: .atomic)
     }
 
+    private func addRouteAppSpec(_ spec: FocusedSourceSpec) {
+        let normalized = spec.normalized
+        guard !configuredSourceSpecs.contains(where: { $0.bundleIdentifier == normalized.bundleIdentifier }) else {
+            selectedSourceID = normalized.bundleIdentifier
+            showUnsupportedNote("\(normalized.displayName) is already in the routing dashboard.")
+            return
+        }
+
+        userSourceSpecs.append(normalized)
+        saveUserSourceSpecs()
+        selectedSourceID = normalized.bundleIdentifier
+        refresh(silent: true)
+    }
+
+    private func updateAvailableAppCandidates() {
+        let configuredIDs = Set(configuredSourceSpecs.map(\.bundleIdentifier))
+        let candidates = processAudioMonitor.listRunningApps()
+            .filter { source in
+                guard let bundleIdentifier = source.bundleIdentifier else { return false }
+                return !configuredIDs.contains(bundleIdentifier)
+            }
+            .uniquedBySourceBundle()
+            .sorted { $0.appName.localizedCaseInsensitiveCompare($1.appName) == .orderedAscending }
+
+        if candidates != availableAppCandidates {
+            availableAppCandidates = candidates
+        }
+    }
+
+    private func saveUserSourceSpecs() {
+        guard let data = try? JSONEncoder().encode(userSourceSpecs) else { return }
+        try? data.write(to: appSourcesURL, options: .atomic)
+    }
+
+    private static func loadUserSourceSpecs(from url: URL) -> [FocusedSourceSpec] {
+        guard let data = try? Data(contentsOf: url),
+              let specs = try? JSONDecoder().decode([FocusedSourceSpec].self, from: data) else {
+            return []
+        }
+        let defaultIDs = Set(defaultSourceSpecs.map(\.bundleIdentifier))
+        var seen = Set<String>()
+        return specs.compactMap { spec in
+            let normalized = spec.normalized
+            guard !defaultIDs.contains(normalized.bundleIdentifier),
+                  seen.insert(normalized.bundleIdentifier).inserted else {
+                return nil
+            }
+            return normalized
+        }
+    }
+
     private func configureMeterTimer() {
         let shouldAnimate = settings.demoMode || liveMeteringAvailable
         if shouldAnimate {
@@ -1035,7 +1156,7 @@ public final class AudioRouterStore: ObservableObject {
     }
 
     private func focusedSources(from detectedSources: [AudioSource]) -> [AudioSource] {
-        Self.focusedSourceSpecs.map { spec in
+        configuredSourceSpecs.map { spec in
             let detectedSource = detectedSources.first { detected in
                 detected.bundleIdentifier == spec.bundleIdentifier
                     || detected.id == spec.bundleIdentifier
@@ -1073,7 +1194,7 @@ public final class AudioRouterStore: ObservableObject {
     }
 
     private var demoSources: [AudioSource] {
-        Self.focusedSourceSpecs.map { spec in
+        configuredSourceSpecs.map { spec in
             let route = audioRoutingManager.route(for: spec.bundleIdentifier)
             return AudioSource(
                 id: spec.bundleIdentifier,
@@ -1093,14 +1214,36 @@ public final class AudioRouterStore: ObservableObject {
         }
     }
 
-    private struct FocusedSourceSpec {
+    private var configuredSourceSpecs: [FocusedSourceSpec] {
+        var seen = Set<String>()
+        return (Self.defaultSourceSpecs + userSourceSpecs).compactMap { spec in
+            let normalized = spec.normalized
+            guard seen.insert(normalized.bundleIdentifier).inserted else { return nil }
+            return normalized
+        }
+    }
+
+    private struct FocusedSourceSpec: Codable, Hashable {
         let displayName: String
         let bundleIdentifier: String
         let matchName: String
         let iconPath: String?
+
+        var normalized: FocusedSourceSpec {
+            FocusedSourceSpec(
+                displayName: displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    ? bundleIdentifier
+                    : displayName.trimmingCharacters(in: .whitespacesAndNewlines),
+                bundleIdentifier: bundleIdentifier.trimmingCharacters(in: .whitespacesAndNewlines),
+                matchName: matchName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    ? displayName
+                    : matchName.trimmingCharacters(in: .whitespacesAndNewlines),
+                iconPath: iconPath
+            )
+        }
     }
 
-    private static let focusedSourceSpecs: [FocusedSourceSpec] = [
+    private static let defaultSourceSpecs: [FocusedSourceSpec] = [
         FocusedSourceSpec(displayName: "Spotify", bundleIdentifier: "com.spotify.client", matchName: "spotify", iconPath: "/Applications/Spotify.app"),
         FocusedSourceSpec(displayName: "Apple Music", bundleIdentifier: "com.apple.Music", matchName: "music", iconPath: "/System/Applications/Music.app"),
         FocusedSourceSpec(displayName: "Chrome", bundleIdentifier: "com.google.Chrome", matchName: "chrome", iconPath: "/Applications/Google Chrome.app")
@@ -1172,6 +1315,16 @@ private extension Array where Element == AudioDevice {
         var seen: Set<String> = []
         return filter { device in
             seen.insert(device.uid).inserted
+        }
+    }
+}
+
+private extension Array where Element == AudioSource {
+    func uniquedBySourceBundle() -> [AudioSource] {
+        var seen: Set<String> = []
+        return filter { source in
+            guard let bundleIdentifier = source.bundleIdentifier else { return false }
+            return seen.insert(bundleIdentifier).inserted
         }
     }
 }

@@ -4,6 +4,7 @@ set -euo pipefail
 MODE="${1:-run}"
 APP_NAME="AudioRouter"
 BUNDLE_ID="com.local.AudioRouter"
+APP_VERSION="0.1.1"
 MIN_SYSTEM_VERSION="14.2"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -56,7 +57,7 @@ cat >"$INFO_PLIST" <<PLIST
   <key>CFBundleVersion</key>
   <string>1</string>
   <key>CFBundleShortVersionString</key>
-  <string>0.1.0</string>
+  <string>$APP_VERSION</string>
   <key>LSMinimumSystemVersion</key>
   <string>$MIN_SYSTEM_VERSION</string>
   <key>NSPrincipalClass</key>

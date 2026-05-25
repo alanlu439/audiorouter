@@ -1,6 +1,7 @@
 import AudioRouterCore
 import Foundation
 
+@MainActor
 func runChecks() throws {
     checkEQPresets()
     try checkPresetPersistence()
@@ -9,6 +10,7 @@ func runChecks() throws {
     checkFocusedOutputFiltering()
     checkRouteBackwardCompatibility()
     try checkRoutingManagerRoutesAndFallback()
+    try checkCustomRouteAppPersistence()
 }
 
 func checkEQPresets() {
@@ -120,6 +122,62 @@ func checkRoutingManagerRoutesAndFallback() throws {
     precondition(reloaded.route(for: "spotify").routeMode == .followSystemOutput, "Disconnected route should fall back")
 }
 
+@MainActor
+func checkCustomRouteAppPersistence() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+
+    let fakeAppURL = directory.appendingPathComponent("WaveLab.app", isDirectory: true)
+    let contentsURL = fakeAppURL.appendingPathComponent("Contents", isDirectory: true)
+    try FileManager.default.createDirectory(at: contentsURL, withIntermediateDirectories: true)
+    let plist: [String: String] = [
+        "CFBundleIdentifier": "com.example.WaveLab",
+        "CFBundleName": "WaveLab",
+        "CFBundlePackageType": "APPL"
+    ]
+    let plistData = try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
+    try plistData.write(to: contentsURL.appendingPathComponent("Info.plist"))
+
+    let settingsSuite = UserDefaults(suiteName: "AudioRouterChecks-\(UUID().uuidString)")!
+    let settings = AppSettingsStore(defaults: settingsSuite)
+    settings.demoMode = true
+
+    let appSourcesURL = directory.appendingPathComponent("app-sources.json")
+    let routesURL = directory.appendingPathComponent("routes.json")
+    let outputGroupsURL = directory.appendingPathComponent("output-groups.json")
+    let store = AudioRouterStore(
+        settings: settings,
+        audioRoutingManager: AudioRoutingManager(backend: FakeRoutingBackend(), fileURL: routesURL),
+        outputGroupsURL: outputGroupsURL,
+        appSourcesURL: appSourcesURL
+    )
+
+    store.addRouteApp(bundleURL: fakeAppURL)
+    precondition(store.routeAppDisplayNames.contains("WaveLab"), "Added app should appear in route app list")
+    precondition(store.audioSources.contains { $0.bundleIdentifier == "com.example.WaveLab" }, "Added app should appear as an audio source")
+
+    let countAfterFirstAdd = store.routeAppDisplayNames.count
+    store.addRouteApp(bundleURL: fakeAppURL)
+    precondition(store.routeAppDisplayNames.count == countAfterFirstAdd, "Adding the same app twice should not duplicate it")
+
+    let reloadedSettings = AppSettingsStore(defaults: settingsSuite)
+    reloadedSettings.demoMode = true
+    let reloaded = AudioRouterStore(
+        settings: reloadedSettings,
+        audioRoutingManager: AudioRoutingManager(backend: FakeRoutingBackend(), fileURL: routesURL),
+        outputGroupsURL: outputGroupsURL,
+        appSourcesURL: appSourcesURL
+    )
+    precondition(reloaded.routeAppDisplayNames.contains("WaveLab"), "Added route app should persist")
+
+    reloaded.refresh()
+    guard let customSource = reloaded.audioSources.first(where: { $0.bundleIdentifier == "com.example.WaveLab" }) else {
+        preconditionFailure("Reloaded route app should become a source")
+    }
+    reloaded.removeRouteApp(customSource)
+    precondition(!reloaded.routeAppDisplayNames.contains("WaveLab"), "Removed route app should leave the configured list")
+}
+
 private final class FakeRoutingBackend: AudioRoutingBackend {
     let supportsPerAppRouting = false
     let backendName = "Fake"
@@ -158,7 +216,9 @@ private final class FakeRoutingBackend: AudioRoutingBackend {
 }
 
 do {
-    try runChecks()
+    try MainActor.assumeIsolated {
+        try runChecks()
+    }
     print("AudioRouter checks passed")
 } catch {
     fputs("AudioRouter checks failed: \(error)\n", stderr)

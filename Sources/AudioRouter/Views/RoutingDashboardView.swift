@@ -1,4 +1,6 @@
+import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct RoutingDashboardView: View {
     @ObservedObject var store: AudioRouterStore
@@ -302,6 +304,7 @@ private struct StudioPanel<Content: View>: View {
 
 private struct StudioPatchBayPanel: View {
     @ObservedObject var store: AudioRouterStore
+    @State private var isAddingApp = false
 
     var body: some View {
         StudioPanel(
@@ -310,6 +313,10 @@ private struct StudioPatchBayPanel: View {
             trailing: store.routeSummaryText
         ) {
             VStack(spacing: 7) {
+                StudioPatchBayActions(store: store) {
+                    isAddingApp = true
+                }
+
                 StudioPatchBayHeader()
 
                 ForEach(store.audioSources) { source in
@@ -325,10 +332,204 @@ private struct StudioPatchBayPanel: View {
                 }
             }
         }
+        .sheet(isPresented: $isAddingApp) {
+            AddRouteAppSheet(store: store)
+        }
     }
 
     private var selectedSource: AudioSource? {
         store.selectedSourceID.flatMap { id in store.audioSources.first { $0.id == id } }
+    }
+}
+
+private struct StudioPatchBayActions: View {
+    @ObservedObject var store: AudioRouterStore
+    let onAddApp: () -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Label("\(store.routeAppDisplayNames.count) route app\(store.routeAppDisplayNames.count == 1 ? "" : "s")", systemImage: "app.badge")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            Spacer()
+
+            Button {
+                store.refresh()
+            } label: {
+                Label("Refresh", systemImage: "arrow.clockwise")
+            }
+
+            Button {
+                onAddApp()
+            } label: {
+                Label("Add App", systemImage: "plus.app.fill")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(StudioPalette.teal)
+        }
+        .controlSize(.small)
+        .padding(.horizontal, 11)
+        .padding(.vertical, 8)
+        .background(StudioPalette.inset.opacity(0.70), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .stroke(StudioPalette.stroke, lineWidth: 1)
+        }
+    }
+}
+
+private struct AddRouteAppSheet: View {
+    @ObservedObject var store: AudioRouterStore
+    @Environment(\.dismiss) private var dismiss
+    @State private var searchText = ""
+
+    private var filteredCandidates: [AudioSource] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return store.availableAppCandidates }
+        return store.availableAppCandidates.filter { source in
+            source.appName.localizedCaseInsensitiveContains(query)
+                || (source.bundleIdentifier?.localizedCaseInsensitiveContains(query) ?? false)
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 12) {
+                Image(systemName: "plus.app.fill")
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundStyle(StudioPalette.teal)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Add Route App")
+                        .font(.title3.weight(.semibold))
+                    Text("Choose any app you want to appear as a routable source.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+            }
+
+            TextField("Search running apps", text: $searchText)
+                .textFieldStyle(.roundedBorder)
+
+            HStack(spacing: 8) {
+                Button {
+                    store.refreshAppCandidates()
+                } label: {
+                    Label("Refresh Running Apps", systemImage: "arrow.clockwise")
+                }
+
+                Button {
+                    chooseAppBundle()
+                } label: {
+                    Label("Browse Applications", systemImage: "folder")
+                }
+
+                Spacer()
+            }
+            .controlSize(.small)
+
+            Divider()
+                .overlay(StudioPalette.stroke)
+
+            ScrollView {
+                LazyVStack(spacing: 8) {
+                    if filteredCandidates.isEmpty {
+                        VStack(spacing: 8) {
+                            Image(systemName: "app.dashed")
+                                .font(.system(size: 28))
+                                .foregroundStyle(.secondary)
+                            Text("No running apps available to add")
+                                .font(.subheadline.weight(.semibold))
+                            Text("Open the app you want to route, click Refresh, or browse for an installed .app.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 28)
+                    } else {
+                        ForEach(filteredCandidates) { source in
+                            AddRouteAppRow(source: source, store: store)
+                        }
+                    }
+                }
+            }
+            .frame(minHeight: 260)
+        }
+        .padding(18)
+        .frame(width: 520)
+        .frame(minHeight: 430)
+        .background(StudioPalette.console)
+        .preferredColorScheme(.dark)
+        .onAppear {
+            store.refreshAppCandidates()
+        }
+    }
+
+    private func chooseAppBundle() {
+        let panel = NSOpenPanel()
+        panel.title = "Choose an app to route"
+        panel.prompt = "Add App"
+        panel.directoryURL = URL(fileURLWithPath: "/Applications", isDirectory: true)
+        panel.allowedContentTypes = [.applicationBundle]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        guard panel.runModal() == .OK,
+              let url = panel.url else {
+            return
+        }
+        store.addRouteApp(bundleURL: url)
+    }
+}
+
+private struct AddRouteAppRow: View {
+    let source: AudioSource
+    @ObservedObject var store: AudioRouterStore
+
+    var body: some View {
+        HStack(spacing: 10) {
+            AppSourceIcon(source: source)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(source.appName)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+                Text(source.bundleIdentifier ?? "No bundle identifier")
+                    .font(.caption2.monospaced())
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            Button {
+                store.addRouteApp(source: source)
+            } label: {
+                Label("Add", systemImage: "plus")
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .disabled(source.bundleIdentifier == nil)
+            .help(source.bundleIdentifier == nil ? "AudioRouter needs a bundle identifier to save this app." : "Add this app to the routing dashboard.")
+        }
+        .padding(10)
+        .background(StudioPalette.strip.opacity(0.78), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .stroke(StudioPalette.stroke, lineWidth: 1)
+        }
     }
 }
 
@@ -405,6 +606,12 @@ private struct StudioChannelStrip: View {
             }
             Button(source.isMuted ? "Unmute" : "Mute") {
                 store.setSourceMuted(source: source, isMuted: !source.isMuted)
+            }
+            if store.isUserAddedRouteApp(source) {
+                Divider()
+                Button("Remove App from Dashboard", role: .destructive) {
+                    store.removeRouteApp(source)
+                }
             }
         }
     }
@@ -617,6 +824,13 @@ private struct StudioRouteInspector: View {
                     store.resetSourceToSystemOutput(source)
                 } label: {
                     Label("Delete Route", systemImage: "trash")
+                }
+                if store.isUserAddedRouteApp(source) {
+                    Button(role: .destructive) {
+                        store.removeRouteApp(source)
+                    } label: {
+                        Label("Remove App", systemImage: "minus.circle")
+                    }
                 }
                 Spacer()
                 Toggle("Solo", isOn: soloBinding)
