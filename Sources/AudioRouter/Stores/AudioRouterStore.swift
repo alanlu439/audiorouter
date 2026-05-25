@@ -34,10 +34,16 @@ public final class AudioRouterStore: ObservableObject {
     private var deviceObservation: DevicePropertyObservation?
     private var pendingVolumeTasks: [String: Task<Void, Never>] = [:]
     private var pendingBalanceTasks: [String: Task<Void, Never>] = [:]
+    private var pendingSourceVolumeTasks: [String: Task<Void, Never>] = [:]
+    private var pendingSourceVolumes: [String: Double] = [:]
+    private var pendingRefreshTask: Task<Void, Never>?
     private var meterPhase: Double = 0
     private var lastRefreshUsedDemoMode: Bool?
     private var cancellables: Set<AnyCancellable> = []
     private let outputGroupsURL: URL
+    private let refreshInterval: TimeInterval = 10
+    private let meterInterval: TimeInterval = 0.24
+    private let meterPublishThreshold = 0.018
 
     public init(
         deviceManager: AudioDeviceManaging = AudioDeviceService(),
@@ -280,7 +286,7 @@ public final class AudioRouterStore: ObservableObject {
         refresh()
         startDeviceObservationIfNeeded()
         guard refreshTimer == nil else { return }
-        refreshTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
+        refreshTimer = Timer.scheduledTimer(withTimeInterval: refreshInterval, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.refresh(silent: true)
             }
@@ -297,6 +303,14 @@ public final class AudioRouterStore: ObservableObject {
         pendingVolumeTasks.removeAll()
         pendingBalanceTasks.values.forEach { $0.cancel() }
         pendingBalanceTasks.removeAll()
+        for (sourceID, volume) in pendingSourceVolumes {
+            audioRoutingManager.setSourceVolume(sourceID: sourceID, volume: volume, persist: true)
+        }
+        pendingSourceVolumes.removeAll()
+        pendingSourceVolumeTasks.values.forEach { $0.cancel() }
+        pendingSourceVolumeTasks.removeAll()
+        pendingRefreshTask?.cancel()
+        pendingRefreshTask = nil
         deviceObservation?.cancel()
         deviceObservation = nil
     }
@@ -305,21 +319,31 @@ public final class AudioRouterStore: ObservableObject {
         do {
             let usingDemoMode = settings.demoMode
             let previousOutputUIDs = Set(outputDevices.map(\.uid))
+            let refreshedDevices: [AudioDevice]
             if usingDemoMode {
                 deviceObservation?.cancel()
                 deviceObservation = nil
                 if lastRefreshUsedDemoMode != true || devices.isEmpty {
-                    devices = demoDevices
+                    refreshedDevices = demoDevices
+                } else {
+                    refreshedDevices = devices
                 }
             } else {
-                devices = try deviceManager.refreshDevices()
+                refreshedDevices = try deviceManager.refreshDevices()
+            }
+            if refreshedDevices != devices {
+                devices = refreshedDevices
             }
             lastRefreshUsedDemoMode = usingDemoMode
+            let nextMeteringNote: String
             if usingDemoMode {
-                meteringNote = "Demo Mode uses animated meters for UI testing."
+                nextMeteringNote = "Demo Mode uses animated meters for UI testing."
             } else {
                 startDeviceObservationIfNeeded()
-                meteringNote = processAudioMonitor.meterAvailabilityMessage
+                nextMeteringNote = processAudioMonitor.meterAvailabilityMessage
+            }
+            if meteringNote != nextMeteringNote {
+                meteringNote = nextMeteringNote
             }
             let currentOutputUIDs = Set(outputDevices.map(\.uid))
             for disconnectedUID in previousOutputUIDs.subtracting(currentOutputUIDs) {
@@ -328,9 +352,12 @@ public final class AudioRouterStore: ObservableObject {
             for reconnectedUID in currentOutputUIDs.subtracting(previousOutputUIDs) {
                 audioRoutingManager.handleDeviceReconnected(deviceID: reconnectedUID)
             }
-            audioSources = usingDemoMode ? demoSources : focusedSources(from: audioRoutingManager.getActiveAudioSources())
+            let refreshedSources = usingDemoMode ? demoSources : focusedSources(from: audioRoutingManager.getActiveAudioSources())
+            if refreshedSources != audioSources {
+                audioSources = refreshedSources
+            }
             configureMeterTimer()
-            if let warning = audioRoutingManager.lastWarning {
+            if let warning = audioRoutingManager.lastWarning, unsupportedNote != warning {
                 unsupportedNote = warning
             }
             if !silent {
@@ -492,10 +519,12 @@ public final class AudioRouterStore: ObservableObject {
 
     public func setSourceVolume(source: AudioSource, volume: Double) {
         selectedSourceID = source.id
-        audioRoutingManager.setSourceVolume(sourceID: source.id, volume: volume)
+        let clamped = max(0, min(1.5, volume))
+        audioRoutingManager.setSourceVolume(sourceID: source.id, volume: clamped, persist: false)
         updateAudioSource(source.id) { current in
-            current.volume = max(0, min(1.5, volume))
+            current.volume = clamped
         }
+        scheduleSourceVolumeCommit(sourceID: source.id, volume: clamped)
         if let warning = audioRoutingManager.lastWarning {
             showUnsupportedNote(warning)
         }
@@ -841,6 +870,20 @@ public final class AudioRouterStore: ObservableObject {
         }
     }
 
+    private func scheduleSourceVolumeCommit(sourceID: String, volume: Double) {
+        pendingSourceVolumes[sourceID] = volume
+        pendingSourceVolumeTasks[sourceID]?.cancel()
+        pendingSourceVolumeTasks[sourceID] = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 220_000_000)
+            guard !Task.isCancelled else { return }
+            await MainActor.run { [weak self] in
+                self?.audioRoutingManager.setSourceVolume(sourceID: sourceID, volume: volume, persist: true)
+                self?.pendingSourceVolumes.removeValue(forKey: sourceID)
+                self?.pendingSourceVolumeTasks.removeValue(forKey: sourceID)
+            }
+        }
+    }
+
     private func updateOutputGroup(_ id: UUID, transform: (inout OutputDeviceGroup) -> Void) {
         guard let index = outputGroups.firstIndex(where: { $0.id == id }) else { return }
         transform(&outputGroups[index])
@@ -850,7 +893,7 @@ public final class AudioRouterStore: ObservableObject {
         guard !settings.demoMode, deviceObservation == nil else { return }
         deviceObservation = deviceManager.observeDeviceChanges { [weak self] in
             Task { @MainActor [weak self] in
-                self?.refresh(silent: true)
+                self?.refreshAfterDelay(interval: 0.25)
             }
         }
     }
@@ -864,7 +907,7 @@ public final class AudioRouterStore: ObservableObject {
         let shouldAnimate = settings.demoMode || liveMeteringAvailable
         if shouldAnimate {
             guard meterTimer == nil else { return }
-            meterTimer = Timer.scheduledTimer(withTimeInterval: 0.16, repeats: true) { [weak self] _ in
+            meterTimer = Timer.scheduledTimer(withTimeInterval: meterInterval, repeats: true) { [weak self] _ in
                 Task { @MainActor [weak self] in
                     self?.tickMeters()
                 }
@@ -895,35 +938,81 @@ public final class AudioRouterStore: ObservableObject {
             return
         }
         meterPhase += 0.19
-        systemOutputMeter = abs(sin(meterPhase * 0.72)) * 0.82 + 0.08
-        inputMeter = abs(sin(meterPhase * 0.51 + 1.1)) * 0.65
-        sourceMeters = Dictionary(uniqueKeysWithValues: audioSources.map { source in
+        let nextSystemOutputMeter = abs(sin(meterPhase * 0.72)) * 0.82 + 0.08
+        let nextInputMeter = abs(sin(meterPhase * 0.51 + 1.1)) * 0.65
+        let nextSourceMeters = Dictionary(uniqueKeysWithValues: audioSources.map { source in
             let seed = Double(abs(source.id.hashValue % 100)) / 31.0
             let activeBoost = source.isProducingAudio ? 0.35 : 0.10
             let level = source.isMuted ? 0 : min(1, abs(sin(meterPhase + seed)) * 0.55 + activeBoost)
             return (source.id, level)
         })
-        deviceMeters = Dictionary(uniqueKeysWithValues: devices.map { device in
+        let nextDeviceMeters = Dictionary(uniqueKeysWithValues: devices.map { device in
             let routed = routedSources(to: device)
-            let base = routed.isEmpty ? (device.isDefault ? systemOutputMeter : 0.14) : min(1, routed.map { sourceMeters[$0.id] ?? 0 }.reduce(0, +) / Double(max(1, routed.count)) + 0.12)
-            return (device.id, device.kind == .input ? inputMeter : base)
+            let base = routed.isEmpty
+                ? (device.isDefault ? nextSystemOutputMeter : 0.14)
+                : min(1, routed.map { nextSourceMeters[$0.id] ?? 0 }.reduce(0, +) / Double(max(1, routed.count)) + 0.12)
+            return (device.id, device.kind == .input ? nextInputMeter : base)
         })
+        publishMeters(
+            systemOutput: nextSystemOutputMeter,
+            input: nextInputMeter,
+            sources: nextSourceMeters,
+            devices: nextDeviceMeters
+        )
     }
 
     private func tickLiveMeters() {
-        sourceMeters = Dictionary(uniqueKeysWithValues: audioSources.map { source in
+        let nextSourceMeters = Dictionary(uniqueKeysWithValues: audioSources.map { source in
             let level = audioRoutingManager.currentLevel(for: source.id) ?? source.currentLevel ?? 0
             return (source.id, level)
         })
-        systemOutputMeter = sourceMeters.values.max() ?? 0
-        inputMeter = 0
-        deviceMeters = Dictionary(uniqueKeysWithValues: devices.map { device in
+        let nextSystemOutputMeter = nextSourceMeters.values.max() ?? 0
+        let nextDeviceMeters = Dictionary(uniqueKeysWithValues: devices.map { device in
             let routed = routedSources(to: device)
             let level = routed.isEmpty
-                ? (device.isDefault ? systemOutputMeter : 0)
-                : min(1, routed.map { sourceMeters[$0.id] ?? 0 }.reduce(0, +) / Double(max(1, routed.count)))
+                ? (device.isDefault ? nextSystemOutputMeter : 0)
+                : min(1, routed.map { nextSourceMeters[$0.id] ?? 0 }.reduce(0, +) / Double(max(1, routed.count)))
             return (device.id, device.kind == .input ? 0 : level)
         })
+        publishMeters(
+            systemOutput: nextSystemOutputMeter,
+            input: 0,
+            sources: nextSourceMeters,
+            devices: nextDeviceMeters
+        )
+    }
+
+    private func publishMeters(
+        systemOutput: Double,
+        input: Double,
+        sources: [String: Double],
+        devices: [String: Double]
+    ) {
+        if shouldPublishMeterValue(systemOutputMeter, systemOutput) {
+            systemOutputMeter = systemOutput
+        }
+        if shouldPublishMeterValue(inputMeter, input) {
+            inputMeter = input
+        }
+        if shouldPublishMeterDictionary(sourceMeters, sources) {
+            sourceMeters = sources
+        }
+        if shouldPublishMeterDictionary(deviceMeters, devices) {
+            deviceMeters = devices
+        }
+    }
+
+    private func shouldPublishMeterValue(_ oldValue: Double, _ newValue: Double) -> Bool {
+        abs(oldValue - newValue) >= meterPublishThreshold
+            || (oldValue != 0 && newValue == 0)
+            || (oldValue == 0 && newValue != 0)
+    }
+
+    private func shouldPublishMeterDictionary(_ oldValue: [String: Double], _ newValue: [String: Double]) -> Bool {
+        guard Set(oldValue.keys) == Set(newValue.keys) else { return true }
+        return newValue.contains { entry in
+            shouldPublishMeterValue(oldValue[entry.key] ?? 0, entry.value)
+        }
     }
 
     private func focusedSources(from detectedSources: [AudioSource]) -> [AudioSource] {
@@ -999,9 +1088,12 @@ public final class AudioRouterStore: ObservableObject {
     ]
 
     private func refreshAfterDelay(interval: TimeInterval = 0.35) {
-        Task { @MainActor [weak self] in
+        pendingRefreshTask?.cancel()
+        pendingRefreshTask = Task { @MainActor [weak self] in
             try? await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
+            guard !Task.isCancelled else { return }
             self?.refresh(silent: true)
+            self?.pendingRefreshTask = nil
         }
     }
 

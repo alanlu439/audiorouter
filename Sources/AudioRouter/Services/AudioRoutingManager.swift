@@ -111,14 +111,16 @@ public final class AudioRoutingManager {
         saveRoutes()
     }
 
-    public func setSourceVolume(sourceID: String, volume: Double) {
+    public func setSourceVolume(sourceID: String, volume: Double, persist: Bool = true) {
         var route = route(for: sourceID)
         route.volume = max(0, min(1.5, volume))
         if !backend.supportsPerAppVolume {
             route.status = route.routeMode == .customOutput ? .requiresBackend : .savedOnly
         }
         routesBySourceID[sourceID] = route
-        saveRoutes()
+        if persist {
+            saveRoutes()
+        }
 
         do {
             try backend.setSourceVolume(sourceID: sourceID, volume: route.volume)

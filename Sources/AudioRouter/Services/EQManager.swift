@@ -4,6 +4,7 @@ public final class EQManager: ObservableObject {
     @Published public private(set) var state: EQState
     private let defaults: UserDefaults
     private let key = "AudioRouter.EQState"
+    private var pendingSaveWorkItem: DispatchWorkItem?
 
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -13,6 +14,10 @@ public final class EQManager: ObservableObject {
         } else {
             state = EQState()
         }
+    }
+
+    deinit {
+        save()
     }
 
     public func applyPreset(_ preset: EQPreset) {
@@ -26,7 +31,7 @@ public final class EQManager: ObservableObject {
         guard state.bands.indices.contains(index) else { return }
         state.bands[index] = max(-12, min(12, gain))
         state.selectedPreset = .custom
-        save()
+        scheduleSave()
     }
 
     public func reset() {
@@ -39,8 +44,19 @@ public final class EQManager: ObservableObject {
     }
 
     private func save() {
+        pendingSaveWorkItem?.cancel()
+        pendingSaveWorkItem = nil
         if let data = try? JSONEncoder().encode(state) {
             defaults.set(data, forKey: key)
         }
+    }
+
+    private func scheduleSave() {
+        pendingSaveWorkItem?.cancel()
+        let workItem = DispatchWorkItem { [weak self] in
+            self?.save()
+        }
+        pendingSaveWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: workItem)
     }
 }
