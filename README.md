@@ -13,6 +13,7 @@ AudioRouter is a native SwiftUI macOS menu-bar app for visual audio control. It 
 - Running audio-capable app discovery through Core Audio process objects, with a running-app fallback.
 - Experimental live per-app routes on macOS 14.2+ using public Core Audio process taps, transient aggregate devices, and an IO callback.
 - Per-route volume, mute, and live meters while an experimental process-tap route is active.
+- Backend readiness panel in the popover, dashboard, and Advanced settings so the app shows whether routes are ready, live, saved, or waiting for playback.
 - Persistent route preferences, EQ settings, shortcuts, setup cards, and visual output groups.
 - Live Mode for real device control, and Demo Mode for UI testing with mock apps/devices/meters.
 
@@ -67,6 +68,13 @@ A production-grade version still needs a dedicated audio backend for reliability
 
 When the experimental route starts successfully, the UI marks it “Live.” If macOS denies capture, the app is not producing a tap-able stream, or the aggregate route cannot start, AudioRouter saves the desired route and marks it “Requires Audio Backend.” Output groups are also visual route targets today; actual simultaneous multi-output playback requires the same backend layer.
 
+The backend readiness panel is the fastest way to see what to do next:
+
+- `Devices`: confirms connected Bluetooth outputs and the system speaker are available.
+- `Focused Apps`: confirms Spotify, Apple Music, or Chrome has a Core Audio process object while playing audio.
+- `Process Taps`: shows whether the public capture path is available on this macOS version.
+- `Custom Routes`: shows whether any selected app-to-output route is live or saved for retry.
+
 ## EQ And Effects
 
 The 10-band EQ UI, presets, curve preview, and Custom preset are saved settings. Public Core Audio device APIs do not apply arbitrary system-wide or per-app EQ. EQ is marked as UI-only until a backend processing graph exists.
@@ -104,6 +112,8 @@ The script builds the SwiftPM product, stages `dist/AudioRouter.app`, writes the
 7. If a route starts successfully, the route badge changes to `Live` and the meter begins moving.
 8. Use the per-app volume and mute controls on the source card to adjust that route.
 9. Use `Follow System Output` to remove a custom route and send the app back to the normal system output.
+
+If the backend panel says `Saved Only`, leave the source app playing, click Refresh, then assign the output again. If it says `Requires Backend`, the chosen app/device pair could not be made live through public Core Audio process taps, but the route preference is saved for a future routing backend.
 
 AudioRouter only shows Spotify, Apple Music, and Chrome as source apps in this MVP. Output choices are connected Bluetooth devices plus the built-in/system speaker.
 

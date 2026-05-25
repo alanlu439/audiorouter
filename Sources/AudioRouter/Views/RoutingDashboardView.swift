@@ -6,6 +6,7 @@ struct RoutingDashboardView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             dashboardHeader
+            BackendStatusPanel(store: store, compact: true, showActions: false)
             if let note = store.unsupportedNote {
                 SupportNote(note: note) {
                     store.dismissUnsupportedNote()
@@ -54,7 +55,7 @@ struct RoutingDashboardView: View {
 
     private var routeColumn: some View {
         VStack(alignment: .leading, spacing: 10) {
-            SectionHeader(title: "Routes", systemImage: "arrow.left.and.right", trailing: store.supportsTruePerAppRouting ? "Live" : "Requires Backend")
+            SectionHeader(title: "Routes", systemImage: "arrow.left.and.right", trailing: store.backendReadinessTitle)
             ForEach(store.audioSources) { source in
                 Button {
                     store.selectedSourceID = source.id
@@ -133,6 +134,12 @@ private struct SourceRoutingCard: View {
                 Text("Meter unavailable")
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(.secondary)
+            }
+            if let diagnostic = store.routeDiagnostic(for: source) {
+                Text(diagnostic)
+                    .font(.caption2)
+                    .foregroundStyle(store.routeStatusIsWarning(for: source) ? .orange : .secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             HStack {
@@ -286,6 +293,12 @@ private struct RouteControlCard: View {
                 }
             }
             StatusLabel(text: store.routeStatus(for: source), status: store.statusStyle(for: source))
+            if let diagnostic = store.routeDiagnostic(for: source) {
+                Text(diagnostic)
+                    .font(.caption)
+                    .foregroundStyle(store.routeStatusIsWarning(for: source) ? .orange : .secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 }

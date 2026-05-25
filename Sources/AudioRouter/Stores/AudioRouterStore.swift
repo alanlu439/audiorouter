@@ -136,6 +136,146 @@ public final class AudioRouterStore: ObservableObject {
             }
     }
 
+    public var activeLiveRouteCount: Int {
+        guard !settings.demoMode else { return 0 }
+        return audioSources.filter { source in
+            let route = audioRoutingManager.route(for: source.id)
+            return route.routeMode == .customOutput && route.status == .active
+        }.count
+    }
+
+    public var savedCustomRouteCount: Int {
+        audioSources.filter { source in
+            let route = audioRoutingManager.route(for: source.id)
+            return route.routeMode == .customOutput && route.status != .active
+        }.count
+    }
+
+    public var routeableSourceCount: Int {
+        audioSources.filter { $0.audioObjectID != nil }.count
+    }
+
+    public var backendReadinessState: BackendReadinessState {
+        if settings.demoMode {
+            return .demo
+        }
+        if activeLiveRouteCount > 0 {
+            return .live
+        }
+        if !audioRoutingManager.supportsTruePerAppRouting {
+            return .unsupported
+        }
+        if routeableSourceCount > 0 && !outputDevices.isEmpty {
+            return .ready
+        }
+        if savedCustomRouteCount > 0 {
+            return .savedOnly
+        }
+        return .working
+    }
+
+    public var backendReadinessTitle: String {
+        switch backendReadinessState {
+        case .live:
+            return activeLiveRouteCount == 1 ? "1 Live Route" : "\(activeLiveRouteCount) Live Routes"
+        case .ready:
+            return "Ready"
+        case .working:
+            return "Available"
+        default:
+            return backendReadinessState.badgeTitle
+        }
+    }
+
+    public var backendReadinessDetail: String {
+        if settings.demoMode {
+            return "Demo data is active; switch to Live Mode for real devices and route attempts."
+        }
+        if activeLiveRouteCount > 0 {
+            return "Process-tap routing is rendering selected app audio to chosen outputs."
+        }
+        if !audioRoutingManager.supportsTruePerAppRouting {
+            return "System device control works; live app routing needs macOS 14.2 or newer."
+        }
+        if outputDevices.isEmpty {
+            return "Connect a Bluetooth output or use the built-in speaker, then refresh."
+        }
+        if routeableSourceCount == 0 {
+            return "Play audio in Spotify, Apple Music, or Chrome, then refresh to make the source routeable."
+        }
+        if savedCustomRouteCount > 0 {
+            return "Saved routes are ready to retry when their app audio becomes available."
+        }
+        return "Device control is live. App routes can be attempted when a focused source is producing audio."
+    }
+
+    public var backendReadinessItems: [BackendReadinessItem] {
+        let outputState: BackendReadinessState = outputDevices.isEmpty ? .deviceMissing : .working
+        let sourceState: BackendReadinessState
+        if settings.demoMode {
+            sourceState = .demo
+        } else if routeableSourceCount > 0 {
+            sourceState = .working
+        } else {
+            sourceState = .savedOnly
+        }
+
+        let tapState: BackendReadinessState
+        if settings.demoMode {
+            tapState = .demo
+        } else if activeLiveRouteCount > 0 {
+            tapState = .live
+        } else if audioRoutingManager.supportsTruePerAppRouting {
+            tapState = .ready
+        } else {
+            tapState = .unsupported
+        }
+
+        let routeState: BackendReadinessState
+        if settings.demoMode {
+            routeState = .demo
+        } else if activeLiveRouteCount > 0 {
+            routeState = .live
+        } else if savedCustomRouteCount > 0 {
+            routeState = .savedOnly
+        } else if audioRoutingManager.supportsTruePerAppRouting {
+            routeState = .ready
+        } else {
+            routeState = .requiresBackend
+        }
+
+        return [
+            BackendReadinessItem(
+                id: "devices",
+                title: "Devices",
+                detail: outputDevices.isEmpty
+                    ? "No route outputs loaded"
+                    : "\(outputDevices.count) route output\(outputDevices.count == 1 ? "" : "s") available",
+                state: outputState
+            ),
+            BackendReadinessItem(
+                id: "sources",
+                title: "Focused Apps",
+                detail: routeableSourceCount > 0
+                    ? "\(routeableSourceCount) app\(routeableSourceCount == 1 ? "" : "s") exposing Core Audio output"
+                    : "Spotify, Apple Music, and Chrome are waiting for playback",
+                state: sourceState
+            ),
+            BackendReadinessItem(
+                id: "process-taps",
+                title: "Process Taps",
+                detail: meteringNote,
+                state: tapState
+            ),
+            BackendReadinessItem(
+                id: "routes",
+                title: "Custom Routes",
+                detail: routeSummaryText,
+                state: routeState
+            )
+        ]
+    }
+
     public func start() {
         refresh()
         startDeviceObservationIfNeeded()
@@ -518,6 +658,60 @@ public final class AudioRouterStore: ObservableObject {
             return "Requires Audio Backend"
         case .deviceMissing:
             return "Device Missing"
+        }
+    }
+
+    public var routeSummaryText: String {
+        if settings.demoMode {
+            return "Demo routes are simulated for UI testing"
+        }
+        if activeLiveRouteCount > 0 {
+            return activeLiveRouteCount == 1
+                ? "1 route is live"
+                : "\(activeLiveRouteCount) routes are live"
+        }
+        if savedCustomRouteCount > 0 {
+            return savedCustomRouteCount == 1
+                ? "1 saved route is waiting to retry"
+                : "\(savedCustomRouteCount) saved routes are waiting to retry"
+        }
+        return "No custom app routes are active"
+    }
+
+    public func routeDiagnostic(for source: AudioSource) -> String? {
+        guard !settings.demoMode else {
+            return "Demo route only."
+        }
+
+        let route = route(for: source)
+        guard route.routeMode == .customOutput else {
+            return source.audioObjectID == nil
+                ? "Start playback to make this source routeable."
+                : nil
+        }
+
+        if let outputID = route.outputDeviceID,
+           outputGroups.contains(where: { $0.routeTargetID == outputID }) {
+            return "Output groups are saved targets; real group playback needs the future routing backend."
+        }
+
+        switch route.status {
+        case .active:
+            return nil
+        case .savedOnly:
+            return "Saved route. Start playback and refresh; AudioRouter will retry the live route."
+        case .simulated:
+            return "Simulated route. Switch to Live Mode to use Core Audio."
+        case .requiresBackend:
+            if !audioRoutingManager.supportsTruePerAppRouting {
+                return "This macOS version cannot use Core Audio process taps."
+            }
+            if source.audioObjectID == nil {
+                return "Start playback in \(source.appName), refresh, then assign the output again."
+            }
+            return audioRoutingManager.lastWarning ?? "The public process-tap route could not start for this app/device."
+        case .deviceMissing:
+            return "The assigned output is disconnected."
         }
     }
 

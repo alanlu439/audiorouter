@@ -16,11 +16,12 @@ struct AppAudioListView: View {
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
 
-            if !store.supportsTruePerAppRouting {
-                Text("Live app routing needs macOS 14.2 or newer. AudioRouter saves route choices and clearly marks routes that are not live.")
+            HStack(spacing: 8) {
+                StatusLabel(text: store.backendReadinessTitle, status: store.backendReadinessState.visualStatus)
+                Text(store.backendReadinessDetail)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .lineLimit(2)
             }
 
             if store.audioSources.isEmpty {
@@ -127,6 +128,12 @@ struct AppAudioRowView: View {
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(store.routeStatusIsWarning(for: source) ? .orange : .secondary)
                 }
+            }
+            if let diagnostic = store.routeDiagnostic(for: source) {
+                Text(diagnostic)
+                    .font(.caption2)
+                    .foregroundStyle(store.routeStatusIsWarning(for: source) ? .orange : .secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }

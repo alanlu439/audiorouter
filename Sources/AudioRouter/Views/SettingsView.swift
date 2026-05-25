@@ -175,60 +175,51 @@ private struct AdvancedSettingsView: View {
     @State private var showDebug = false
 
     var body: some View {
-        DockCard {
-            SectionHeader(title: "Advanced", systemImage: "slider.horizontal.3")
-            Toggle("Launch at login", isOn: launchAtLoginBinding)
-            Toggle("Show app in Dock", isOn: showInDockBinding)
-            Picker("Theme", selection: themeBinding) {
-                ForEach(AudioRouterTheme.allCases) { theme in
-                    Text(theme.rawValue).tag(theme)
+        VStack(alignment: .leading, spacing: 16) {
+            BackendStatusPanel(store: store)
+
+            DockCard {
+                SectionHeader(title: "Advanced", systemImage: "slider.horizontal.3")
+                Toggle("Launch at login", isOn: launchAtLoginBinding)
+                Toggle("Show app in Dock", isOn: showInDockBinding)
+                Picker("Theme", selection: themeBinding) {
+                    ForEach(AudioRouterTheme.allCases) { theme in
+                        Text(theme.rawValue).tag(theme)
+                    }
                 }
-            }
-            .pickerStyle(.segmented)
-            Divider()
-            HStack {
-                Text("Backend")
-                    .font(.subheadline.weight(.semibold))
-                Spacer()
-                StatusLabel(text: store.routingBackendName, status: .working)
-            }
-            Toggle("Demo Mode", isOn: demoModeBinding)
-            Toggle("Show unsupported feature notes", isOn: unsupportedNotesBinding)
-            Text("Backend notes: true per-app routing, per-app gain, output groups, and system-wide EQ require a virtual audio device or Audio Server Driver Plug-in. Public APIs keep this interface visual and save every route preference.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            Button {
-                store.probeProcessTapPermission()
-            } label: {
-                Label("Probe Process Tap Permission", systemImage: "waveform.badge.magnifyingglass")
-            }
-            if let message = store.processTapProbeMessage {
-                Text(message)
+                .pickerStyle(.segmented)
+                Divider()
+                Toggle("Demo Mode", isOn: demoModeBinding)
+                Toggle("Show unsupported feature notes", isOn: unsupportedNotesBinding)
+                Text("True per-app routing and EQ work only when AudioRouter can capture an app stream and render it to a selected output. Routes that cannot start are saved and retried instead of being shown as live.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-            }
-            Button {
-                showDebug.toggle()
-            } label: {
-                Label("Debug Audio Device List", systemImage: "list.bullet.rectangle")
-            }
-            if showDebug {
-                ScrollView(.horizontal) {
-                    Text(store.debugDeviceList.isEmpty ? "No devices loaded." : store.debugDeviceList)
-                        .font(.caption.monospaced())
-                        .textSelection(.enabled)
-                        .padding(10)
                 }
-                .frame(maxHeight: 180)
-                .background(.black.opacity(0.12), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-            }
-            Divider()
-            Button(role: .destructive) {
-                store.resetAllSettings()
-            } label: {
-                Label("Reset All Settings", systemImage: "arrow.counterclockwise")
+
+            DockCard {
+                SectionHeader(title: "Diagnostics", systemImage: "list.bullet.rectangle")
+                Button {
+                    showDebug.toggle()
+                } label: {
+                    Label("Debug Audio Device List", systemImage: "list.bullet.rectangle")
+                }
+                if showDebug {
+                    ScrollView(.horizontal) {
+                        Text(store.debugDeviceList.isEmpty ? "No devices loaded." : store.debugDeviceList)
+                            .font(.caption.monospaced())
+                            .textSelection(.enabled)
+                            .padding(10)
+                    }
+                    .frame(maxHeight: 180)
+                    .background(.black.opacity(0.12), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                }
+                Divider()
+                Button(role: .destructive) {
+                    store.resetAllSettings()
+                } label: {
+                    Label("Reset All Settings", systemImage: "arrow.counterclockwise")
+                }
             }
         }
     }

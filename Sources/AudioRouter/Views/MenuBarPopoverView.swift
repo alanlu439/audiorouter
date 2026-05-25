@@ -19,6 +19,7 @@ public struct MenuBarPopoverView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
                     header
+                    BackendStatusPanel(store: store, compact: true, showActions: false)
 
                     if let note = store.unsupportedNote {
                         SupportNote(note: note) {
@@ -55,7 +56,7 @@ public struct MenuBarPopoverView: View {
                     .lineLimit(1)
             }
             Spacer()
-            StatusLabel(text: store.settings.demoMode ? "Demo" : "Live", status: store.settings.demoMode ? .demo : .live)
+            StatusLabel(text: store.backendReadinessTitle, status: store.backendReadinessState.visualStatus)
             Button {
                 store.refresh()
             } label: {
