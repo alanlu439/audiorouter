@@ -25,6 +25,7 @@ public final class AudioRouterStore: ObservableObject {
     public let eqManager: EQManager
     public let presetManager: PresetManager
     public let shortcutManager: ShortcutManager
+    public let updateManager: UpdateManager
 
     private let deviceManager: AudioDeviceManaging
     private let volumeManager: SystemVolumeManager
@@ -54,6 +55,7 @@ public final class AudioRouterStore: ObservableObject {
         eqManager: EQManager = EQManager(),
         presetManager: PresetManager = PresetManager(),
         shortcutManager: ShortcutManager = ShortcutManager(),
+        updateManager: UpdateManager? = nil,
         audioRoutingManager: AudioRoutingManager = AudioRoutingManager(),
         processAudioMonitor: ProcessAudioMonitor = ProcessAudioMonitor(),
         outputGroupsURL: URL = try! AppSupport.fileURL(named: "output-groups.json"),
@@ -65,6 +67,7 @@ public final class AudioRouterStore: ObservableObject {
         self.eqManager = eqManager
         self.presetManager = presetManager
         self.shortcutManager = shortcutManager
+        self.updateManager = updateManager ?? UpdateManager()
         self.audioRoutingManager = audioRoutingManager
         self.processAudioMonitor = processAudioMonitor
         self.outputGroupsURL = outputGroupsURL
@@ -83,6 +86,9 @@ public final class AudioRouterStore: ObservableObject {
             .sink { [weak self] _ in self?.objectWillChange.send() }
             .store(in: &cancellables)
         shortcutManager.objectWillChange
+            .sink { [weak self] _ in self?.objectWillChange.send() }
+            .store(in: &cancellables)
+        self.updateManager.objectWillChange
             .sink { [weak self] _ in self?.objectWillChange.send() }
             .store(in: &cancellables)
     }
@@ -291,6 +297,7 @@ public final class AudioRouterStore: ObservableObject {
     public func start() {
         refresh()
         startDeviceObservationIfNeeded()
+        updateManager.checkAutomaticallyIfNeeded(enabled: settings.automaticallyCheckForUpdates)
         guard refreshTimer == nil else { return }
         refreshTimer = Timer.scheduledTimer(withTimeInterval: refreshInterval, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
@@ -377,6 +384,18 @@ public final class AudioRouterStore: ObservableObject {
 
     public func applyActivationPolicy() {
         settings.applyActivationPolicy()
+    }
+
+    public func checkForUpdates() {
+        updateManager.checkForUpdates()
+    }
+
+    public func openUpdateDownload() {
+        updateManager.openLatestDownload()
+    }
+
+    public func openLatestRelease() {
+        updateManager.openLatestRelease()
     }
 
     public func setDefaultDevice(_ device: AudioDevice) {
@@ -782,6 +801,10 @@ public final class AudioRouterStore: ObservableObject {
             return "Demo route only."
         }
 
+        if let preciseFailure = routeFailureReason(for: source) {
+            return preciseFailure
+        }
+
         let route = route(for: source)
         guard route.routeMode == .customOutput else {
             return source.audioObjectID == nil
@@ -814,13 +837,151 @@ public final class AudioRouterStore: ObservableObject {
         }
     }
 
+    public func routeFailureReason(for source: AudioSource) -> String? {
+        guard !settings.demoMode else { return nil }
+        let route = route(for: source)
+        if route.routeMode == .followSystemOutput {
+            return source.audioObjectID == nil ? "App is configured, but AudioRouter has not seen playable audio from it yet." : nil
+        }
+        if let message = audioRoutingManager.routeMessage(for: source.id),
+           route.status != .active {
+            return message
+        }
+        if let outputID = route.outputDeviceID,
+           outputGroups.contains(where: { $0.routeTargetID == outputID }) {
+            return "Output group selected. Multi-output playback requires a production audio backend."
+        }
+        if route.outputDeviceID == nil {
+            return "No output is selected for this custom route."
+        }
+        if let outputID = route.outputDeviceID,
+           outputDevices.first(where: { $0.uid == outputID }) == nil {
+            return "Assigned output is missing or disconnected."
+        }
+        if !audioRoutingManager.supportsTruePerAppRouting {
+            return "This macOS/backend cannot start a live process-tap route."
+        }
+        if source.audioObjectID == nil {
+            return "Start playback in \(source.appName), then refresh so macOS exposes its audio process."
+        }
+        if !source.isProducingAudio && route.status != .active {
+            return "\(source.appName) is not producing audio right now."
+        }
+        return nil
+    }
+
+    public func routeHealthItems(for source: AudioSource) -> [RouteHealthItem] {
+        let route = route(for: source)
+        let outputName = routeOutputName(for: source)
+        let outputExists = route.routeMode == .followSystemOutput
+            || route.outputDeviceID.flatMap { outputID in
+                outputDevices.first { $0.uid == outputID }?.uid
+                    ?? outputGroups.first { $0.routeTargetID == outputID }?.routeTargetID
+            } != nil
+
+        return [
+            RouteHealthItem(
+                id: "configured",
+                title: "App configured",
+                detail: source.bundleIdentifier ?? source.id,
+                state: .working
+            ),
+            RouteHealthItem(
+                id: "running",
+                title: "App running",
+                detail: source.isRunning ? "Process \(source.processID)" : "Open the app to route it",
+                state: source.isRunning ? .working : .savedOnly
+            ),
+            RouteHealthItem(
+                id: "audio-object",
+                title: "Audio detected",
+                detail: source.audioObjectID == nil ? "Start playback, then refresh" : "Core Audio process object available",
+                state: source.audioObjectID == nil ? .savedOnly : .working
+            ),
+            RouteHealthItem(
+                id: "playback",
+                title: "Playback activity",
+                detail: source.isProducingAudio ? "Audio is active" : "No live audio level yet",
+                state: source.isProducingAudio ? .live : .savedOnly
+            ),
+            RouteHealthItem(
+                id: "output",
+                title: "Assigned output",
+                detail: outputName,
+                state: outputExists ? .working : .deviceMissing
+            ),
+            RouteHealthItem(
+                id: "backend",
+                title: "Routing backend",
+                detail: audioRoutingManager.supportsTruePerAppRouting ? "Process taps available" : "Requires routing backend",
+                state: audioRoutingManager.supportsTruePerAppRouting ? .ready : .requiresBackend
+            ),
+            RouteHealthItem(
+                id: "route",
+                title: "Route status",
+                detail: routeStatus(for: source),
+                state: routeHealthState(for: source)
+            )
+        ]
+    }
+
+    private func routeHealthState(for source: AudioSource) -> BackendReadinessState {
+        switch routeStatus(for: source) {
+        case "Live": return .live
+        case "Working": return .working
+        case "Saved Only": return .savedOnly
+        case "Simulated": return .demo
+        case "Requires Audio Backend": return .requiresBackend
+        case "Device Missing": return .deviceMissing
+        default: return .ready
+        }
+    }
+
     public func routeStatusIsWarning(for source: AudioSource) -> Bool {
         ["Requires Audio Backend", "Unsupported", "Device Missing"].contains(routeStatus(for: source))
     }
 
     public func saveCurrentSetup() {
-        let preset = AudioPreset(
-            name: "Setup \(presetManager.presets.count + 1)",
+        presetManager.savePreset(currentSetupPreset(name: "Setup \(presetManager.presets.count + 1)"))
+    }
+
+    public func saveSuggestedSetup(_ kind: SuggestedSetupKind) {
+        var preset = currentSetupPreset(name: kind.rawValue)
+        switch kind {
+        case .deskSpeakers:
+            let builtInOutput = outputDevices.first { $0.transport == .builtIn } ?? currentOutput
+            preset.outputDeviceUID = builtInOutput?.uid
+            preset.systemVolume = builtInOutput?.volume ?? 0.72
+            preset.eqPreset = .flat
+        case .airPodsCall:
+            let bluetoothOutput = outputDevices.first { $0.name.localizedCaseInsensitiveContains("airpods") }
+                ?? outputDevices.first { $0.transport == .bluetoothLE || $0.transport == .bluetooth }
+                ?? currentOutput
+            preset.outputDeviceUID = bluetoothOutput?.uid
+            preset.inputDeviceUID = currentInput?.uid
+            preset.systemVolume = bluetoothOutput?.volume ?? 0.64
+            preset.eqPreset = .podcast
+        case .musicToBluetooth:
+            let bluetoothOutput = outputDevices.first { $0.transport == .bluetooth || $0.transport == .bluetoothLE } ?? currentOutput
+            preset.outputDeviceUID = bluetoothOutput?.uid
+            preset.eqPreset = .music
+            if let bluetoothUID = bluetoothOutput?.uid {
+                for source in audioSources where source.appName.localizedCaseInsensitiveContains("music")
+                    || source.appName.localizedCaseInsensitiveContains("spotify") {
+                    preset.appOutputAssignments[source.id] = bluetoothUID
+                }
+            }
+        case .focusMode:
+            preset.systemMuted = currentOutput?.isMuted ?? false
+            preset.eqPreset = .podcast
+            preset.mutedApps = Dictionary(uniqueKeysWithValues: audioSources.map { ($0.id, true) })
+        }
+        presetManager.savePreset(preset)
+    }
+
+    private func currentSetupPreset(name: String) -> AudioPreset {
+        AudioPreset(
+            name: name,
             outputDeviceUID: currentOutput?.uid,
             inputDeviceUID: currentInput?.uid,
             systemVolume: currentOutput?.volume,
@@ -833,7 +994,6 @@ public final class AudioRouterStore: ObservableObject {
             }),
             eqPreset: eqManager.state.selectedPreset
         )
-        presetManager.savePreset(preset)
     }
 
     public func applyPreset(_ preset: AudioPreset) {

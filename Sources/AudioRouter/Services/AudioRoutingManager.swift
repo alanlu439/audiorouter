@@ -8,6 +8,7 @@ public final class AudioRoutingManager {
     private var routesBySourceID: [String: AudioRoute] = [:]
     private var recentSourcesByID: [String: AudioSource] = [:]
     private var lastLiveRouteAttemptBySourceID: [String: Date] = [:]
+    private var routeMessagesBySourceID: [String: String] = [:]
     private let recentWindow: TimeInterval = 120
     private let liveRouteRetryInterval: TimeInterval = 8
 
@@ -91,12 +92,17 @@ public final class AudioRoutingManager {
             route.status = backend.supportsPerAppRouting ? .active : .requiresBackend
             routesBySourceID[sourceID] = route
             saveRoutes()
+            routeMessagesBySourceID[sourceID] = backend.supportsPerAppRouting
+                ? "Route is live."
+                : "This backend cannot render app audio to a separate output."
             lastWarning = nil
         } catch {
             route.status = .requiresBackend
             routesBySourceID[sourceID] = route
             saveRoutes()
-            lastWarning = "\(error.localizedDescription) AudioRouter saved the route preference."
+            let message = "\(error.localizedDescription) AudioRouter saved the route preference."
+            routeMessagesBySourceID[sourceID] = message
+            lastWarning = message
         }
     }
 
@@ -108,6 +114,7 @@ public final class AudioRoutingManager {
         route.status = .active
         routesBySourceID[sourceID] = route
         lastLiveRouteAttemptBySourceID.removeValue(forKey: sourceID)
+        routeMessagesBySourceID[sourceID] = "Source follows the current system output."
         saveRoutes()
     }
 
@@ -165,6 +172,7 @@ public final class AudioRoutingManager {
         guard !affected.isEmpty else { return }
         for route in affected {
             resetSourceToSystemOutput(sourceID: route.sourceAppID)
+            routeMessagesBySourceID[route.sourceAppID] = "Assigned output disconnected, so this source now follows system output."
         }
         lastWarning = "An assigned output disconnected. Affected sources are following system output."
     }
@@ -189,6 +197,10 @@ public final class AudioRoutingManager {
         backend.currentLevel(sourceID: sourceID)
     }
 
+    public func routeMessage(for sourceID: String) -> String? {
+        routeMessagesBySourceID[sourceID]
+    }
+
     private func attemptLiveRouteIfNeeded(source: AudioSource, route: inout AudioRoute, now: Date) {
         guard backend.supportsPerAppRouting,
               route.routeMode == .customOutput,
@@ -207,12 +219,15 @@ public final class AudioRoutingManager {
             route.status = .active
             routesBySourceID[source.id] = route
             saveRoutes()
+            routeMessagesBySourceID[source.id] = "Route is live."
             lastWarning = nil
         } catch {
             route.status = .requiresBackend
             routesBySourceID[source.id] = route
             saveRoutes()
-            lastWarning = "\(error.localizedDescription) AudioRouter saved the route preference."
+            let message = "\(error.localizedDescription) AudioRouter saved the route preference."
+            routeMessagesBySourceID[source.id] = message
+            lastWarning = message
         }
     }
 

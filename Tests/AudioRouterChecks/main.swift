@@ -11,6 +11,8 @@ func runChecks() throws {
     checkRouteBackwardCompatibility()
     try checkRoutingManagerRoutesAndFallback()
     try checkCustomRouteAppPersistence()
+    checkUpdateVersionComparison()
+    try checkRouteHealthDiagnostics()
 }
 
 func checkEQPresets() {
@@ -120,6 +122,37 @@ func checkRoutingManagerRoutesAndFallback() throws {
 
     reloaded.handleDeviceDisconnected(deviceID: "speaker")
     precondition(reloaded.route(for: "spotify").routeMode == .followSystemOutput, "Disconnected route should fall back")
+}
+
+func checkUpdateVersionComparison() {
+    precondition(UpdateManager.isVersion("0.1.2", newerThan: "0.1.1"), "Patch update should compare newer")
+    precondition(UpdateManager.isVersion("0.2.0", newerThan: "0.1.9"), "Minor update should compare newer")
+    precondition(!UpdateManager.isVersion("0.1.1", newerThan: "0.1.1"), "Same version should not compare newer")
+    precondition(!UpdateManager.isVersion("0.1.0", newerThan: "0.1.1"), "Older version should not compare newer")
+}
+
+@MainActor
+func checkRouteHealthDiagnostics() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    let settings = AppSettingsStore(defaults: UserDefaults(suiteName: "AudioRouterChecks-\(UUID().uuidString)")!)
+    let store = AudioRouterStore(
+        settings: settings,
+        audioRoutingManager: AudioRoutingManager(backend: FakeRoutingBackend(), fileURL: directory.appendingPathComponent("routes.json")),
+        outputGroupsURL: directory.appendingPathComponent("groups.json"),
+        appSourcesURL: directory.appendingPathComponent("sources.json")
+    )
+    store.refresh()
+    guard let source = store.audioSources.first else {
+        preconditionFailure("Expected at least one fake source")
+    }
+    let health = store.routeHealthItems(for: source)
+    precondition(health.contains { $0.id == "configured" }, "Route health should include configured app check")
+    precondition(health.contains { $0.id == "backend" }, "Route health should include backend check")
+    store.assignSourceOutput(source: source, uid: "speaker")
+    precondition(store.routeFailureReason(for: source)?.contains("backend") == true
+        || store.routeFailureReason(for: source)?.contains("route") == true,
+        "Custom route should expose a useful failure reason")
 }
 
 @MainActor

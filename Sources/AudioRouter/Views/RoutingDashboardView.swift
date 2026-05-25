@@ -814,6 +814,8 @@ private struct StudioRouteInspector: View {
                 StudioDiagnosticBanner(text: diagnostic, isWarning: store.routeStatusIsWarning(for: source))
             }
 
+            StudioRouteHealthGrid(items: store.routeHealthItems(for: source))
+
             HStack(spacing: 8) {
                 Button {
                     store.resetSourceToSystemOutput(source)
@@ -856,6 +858,38 @@ private struct StudioRouteInspector: View {
                 }
             }
         )
+    }
+}
+
+private struct StudioRouteHealthGrid: View {
+    let items: [RouteHealthItem]
+
+    var body: some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 160), spacing: 8)], spacing: 8) {
+            ForEach(items) { item in
+                HStack(spacing: 7) {
+                    StudioLED(color: item.state.visualStatus.foreground)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(item.title.uppercased())
+                            .font(.system(size: 8, weight: .heavy, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                        Text(item.detail)
+                            .font(.caption2)
+                            .foregroundStyle(.primary.opacity(0.86))
+                            .lineLimit(1)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 7)
+                .background(StudioPalette.strip.opacity(0.68), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .stroke(StudioPalette.stroke, lineWidth: 1)
+                }
+                .help(item.detail)
+            }
+        }
     }
 }
 

@@ -34,7 +34,9 @@ public struct MenuBarPopoverView: View {
                     }
 
                     SystemAudioCard(store: store)
+                    MiniMixerView(store: store, maxRows: 3)
                     AppAudioListView(store: store, maxRows: 4)
+                    UpdateStatusView(store: store, compact: true)
                     EQView(eqManager: store.eqManager, compact: true)
                     PresetsView(store: store, compact: true)
                 }

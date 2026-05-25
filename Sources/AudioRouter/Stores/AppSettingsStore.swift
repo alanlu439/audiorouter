@@ -33,6 +33,9 @@ public final class AppSettingsStore: ObservableObject {
     @Published public var demoMode: Bool {
         didSet { saveBool(demoMode, for: Keys.demoMode) }
     }
+    @Published public var automaticallyCheckForUpdates: Bool {
+        didSet { saveBool(automaticallyCheckForUpdates, for: Keys.automaticallyCheckForUpdates) }
+    }
 
     private let defaults: UserDefaults
 
@@ -47,6 +50,7 @@ public final class AppSettingsStore: ObservableObject {
         theme = defaults.string(forKey: Keys.theme).flatMap(AudioRouterTheme.init(rawValue:)) ?? .dark
         showUnsupportedNotes = defaults.object(forKey: Keys.showUnsupportedNotes) as? Bool ?? true
         demoMode = defaults.bool(forKey: Keys.demoMode)
+        automaticallyCheckForUpdates = defaults.object(forKey: Keys.automaticallyCheckForUpdates) as? Bool ?? true
     }
 
     public func setLaunchAtLogin(_ enabled: Bool) throws {
@@ -75,6 +79,7 @@ public final class AppSettingsStore: ObservableObject {
         theme = .dark
         showUnsupportedNotes = true
         demoMode = false
+        automaticallyCheckForUpdates = true
         applyActivationPolicy()
     }
 
@@ -88,5 +93,6 @@ public final class AppSettingsStore: ObservableObject {
         static let theme = "AudioRouter.theme"
         static let showUnsupportedNotes = "AudioRouter.showUnsupportedNotes"
         static let demoMode = "AudioRouter.demoMode"
+        static let automaticallyCheckForUpdates = "AudioRouter.automaticallyCheckForUpdates"
     }
 }

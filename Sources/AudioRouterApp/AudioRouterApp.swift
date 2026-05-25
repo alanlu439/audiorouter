@@ -27,7 +27,7 @@ struct AudioRouterApplication: App {
 
         MenuBarExtra {
             MenuBarPopoverView(store: store)
-                .frame(width: 430, height: 680)
+                .frame(width: 450, height: 760)
                 .onAppear {
                     store.start()
                 }
@@ -75,6 +75,13 @@ struct AudioRouterCommands: Commands {
                 store.refresh()
             }
             .keyboardShortcut("r", modifiers: [.command])
+
+            Button("Check for Updates") {
+                store.checkForUpdates()
+            }
+            Button("Download Latest Release") {
+                store.openUpdateDownload()
+            }
         }
 
         CommandMenu("AudioRouter") {

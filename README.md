@@ -8,7 +8,11 @@ Download the latest build here:
 
 [Download AudioRouter for macOS](https://github.com/alanlu439/audiorouter/releases/latest/download/AudioRouter-macOS.zip)
 
-That link always points to the newest GitHub release asset when a new release is published.
+Installer-style DMG:
+
+[Download AudioRouter DMG](https://github.com/alanlu439/audiorouter/releases/latest/download/AudioRouter-macOS.dmg)
+
+Those links point to the newest GitHub release assets when a new release is published.
 
 Note: the current public build is not Apple-notarized yet. macOS may ask you to approve it the first time you open it from Downloads.
 
@@ -25,6 +29,10 @@ Note: the current public build is not Apple-notarized yet. macOS may ask you to 
 - Per-route volume, mute, and live meters while an experimental process-tap route is active.
 - Backend readiness panel in the popover, dashboard, and Advanced settings so the app shows whether routes are ready, live, saved, or waiting for playback.
 - Custom route apps: add running apps from the visual picker or browse for an installed `.app`, then assign that app to an output.
+- Menu bar mini mixer for quick system and app volume/mute controls.
+- Route health diagnostics showing app detection, playback activity, output availability, backend readiness, and exact failure reasons.
+- Useful setup scenes for Desk Speakers, AirPods Call, Music to Bluetooth, and Focus Mode.
+- Built-in GitHub release update checking with a persistent latest-download link.
 - Persistent route preferences, EQ settings, shortcuts, setup cards, and visual output groups.
 - Live Mode for real device control, and Demo Mode for UI testing with mock apps/devices/meters.
 
@@ -94,6 +102,28 @@ The 10-band EQ UI, presets, curve preview, and Custom preset are saved settings.
 
 The generated app bundle includes `NSAudioCaptureUsageDescription`. AudioRouter does not use private TCC APIs. The Advanced screen has a process-tap probe button, and assigning an app to an output can also start a public Core Audio tap attempt so macOS can handle permission naturally.
 
+## Updates And Releases
+
+AudioRouter can check GitHub Releases from the app and open the newest download. This is a lightweight public-release updater, not a silent in-place installer. Future work can replace it with Sparkle once a Developer ID signing and update-feed workflow is ready.
+
+Release builds can produce both a ZIP and a DMG:
+
+```bash
+./script/package_release.sh
+```
+
+For Developer ID signing and notarization, set the signing and notary credentials before packaging:
+
+```bash
+export DEVELOPER_ID_APPLICATION="Developer ID Application: Your Name (TEAMID)"
+export DEVELOPER_ID_INSTALLER="Developer ID Installer: Your Name (TEAMID)"
+export NOTARYTOOL_PROFILE="AudioRouterNotary"
+export NOTARIZE=1
+./script/package_release.sh
+```
+
+`NOTARYTOOL_PROFILE` should be created with `xcrun notarytool store-credentials`. Without those Apple credentials, the script creates ad-hoc signed ZIP/DMG artifacts and skips notarization.
+
 ## Build From Source
 
 Use this path if you want to build AudioRouter locally instead of using the release download.
@@ -152,6 +182,7 @@ swift build
 swift run AudioRouterChecks
 ./script/build_and_run.sh --verify
 ./script/build_and_run.sh --package
+./script/package_release.sh
 plutil -lint dist/AudioRouter.app/Contents/Info.plist
 codesign --verify --deep --strict dist/AudioRouter.app
 ```
@@ -161,6 +192,7 @@ This Command Line Tools install does not include `XCTest` or Swift's `Testing` m
 ## Future Work
 
 - Harden the experimental process-tap aggregate-device IO pipeline across more devices and formats.
+- Sparkle-based automatic in-place updates after Developer ID signing is configured.
 - Routing plugin or virtual audio device for production-grade per-app output routing.
 - Real EQ processing in the backend audio graph.
 - Real simultaneous output groups.
