@@ -4,7 +4,7 @@ AudioRouter is a native SwiftUI macOS menu-bar app for visual audio control. It 
 
 ## Download
 
-Download the latest build here:
+Download the latest stable build here:
 
 [Download AudioRouter DMG](https://github.com/alanlu439/audiorouter/releases/latest/download/AudioRouter-macOS.dmg)
 
