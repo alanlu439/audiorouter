@@ -7,8 +7,8 @@ BUNDLE_ID="com.local.AudioRouter"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DIST_DIR="$ROOT_DIR/dist"
 APP_BUNDLE="$DIST_DIR/$APP_NAME.app"
-ZIP_PATH="$DIST_DIR/$APP_NAME-macOS.zip"
 DMG_PATH="$DIST_DIR/$APP_NAME-macOS.dmg"
+LEGACY_ZIP_PATH="$DIST_DIR/$APP_NAME-macOS.zip"
 STAGING_DIR="$DIST_DIR/dmg-staging"
 
 cd "$ROOT_DIR"
@@ -25,8 +25,7 @@ fi
 
 /usr/bin/codesign --verify --deep --strict --verbose=2 "$APP_BUNDLE"
 
-rm -f "$ZIP_PATH" "$DMG_PATH"
-COPYFILE_DISABLE=1 /usr/bin/ditto --norsrc -c -k --keepParent "$APP_BUNDLE" "$ZIP_PATH"
+rm -f "$LEGACY_ZIP_PATH" "$DMG_PATH"
 
 rm -rf "$STAGING_DIR"
 mkdir -p "$STAGING_DIR"
@@ -69,5 +68,4 @@ else
   echo "Skipping notarization. Set NOTARIZE=1 with notary credentials to notarize."
 fi
 
-echo "$ZIP_PATH"
 echo "$DMG_PATH"

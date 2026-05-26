@@ -4,7 +4,7 @@ set -euo pipefail
 MODE="${1:-run}"
 APP_NAME="AudioRouter"
 BUNDLE_ID="com.local.AudioRouter"
-APP_VERSION="0.1.3"
+APP_VERSION="0.1.4"
 MIN_SYSTEM_VERSION="14.2"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -16,7 +16,6 @@ APP_RESOURCES="$APP_CONTENTS/Resources"
 APP_BINARY="$APP_MACOS/$APP_NAME"
 INFO_PLIST="$APP_CONTENTS/Info.plist"
 ICON_SOURCE="$ROOT_DIR/Resources/AppIcon.icns"
-RELEASE_ZIP="$DIST_DIR/$APP_NAME-macOS.zip"
 
 cd "$ROOT_DIR"
 
@@ -85,9 +84,7 @@ case "$MODE" in
     echo "$APP_BUNDLE"
     ;;
   package|--package)
-    rm -f "$RELEASE_ZIP"
-    COPYFILE_DISABLE=1 /usr/bin/ditto --norsrc -c -k --keepParent "$APP_BUNDLE" "$RELEASE_ZIP"
-    echo "$RELEASE_ZIP"
+    "$ROOT_DIR/script/package_release.sh"
     ;;
   run)
     open_app

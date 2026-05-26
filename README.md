@@ -6,10 +6,6 @@ AudioRouter is a native SwiftUI macOS menu-bar app for visual audio control. It 
 
 Download the latest build here:
 
-[Download AudioRouter for macOS](https://github.com/alanlu439/audiorouter/releases/latest/download/AudioRouter-macOS.zip)
-
-Installer-style DMG:
-
 [Download AudioRouter DMG](https://github.com/alanlu439/audiorouter/releases/latest/download/AudioRouter-macOS.dmg)
 
 Those links point to the newest GitHub release assets when a new release is published.
@@ -105,11 +101,11 @@ The generated app bundle includes `NSAudioCaptureUsageDescription`. AudioRouter 
 
 ## Updates And Releases
 
-AudioRouter can check GitHub Releases from the app and open the newest download. Automatic checks run at launch when enabled, no more than every six hours. The updater uses the latest release API, follows `v`-prefixed semantic version tags, times out quickly on network problems, and shows readable errors if GitHub cannot be reached.
+AudioRouter can check GitHub Releases from the app, auto-fetch the newest DMG when a newer version is available, and prompt you to install once the download is ready. Automatic checks run at launch when enabled, no more than every six hours. The updater uses the latest release API, follows `v`-prefixed semantic version tags, times out quickly on network problems, and shows readable errors if GitHub cannot be reached.
 
-This is a lightweight public-release updater, not a silent in-place installer. Future work can replace it with Sparkle once a Developer ID signing and update-feed workflow is ready.
+This is a lightweight public-release updater, not a silent in-place installer. The Install button opens the downloaded DMG so you can replace the app in Applications. Future work can replace it with Sparkle once a Developer ID signing and update-feed workflow is ready.
 
-Release builds can produce both a ZIP and a DMG:
+Release builds produce a DMG only:
 
 ```bash
 ./script/package_release.sh
@@ -125,7 +121,7 @@ export NOTARIZE=1
 ./script/package_release.sh
 ```
 
-`NOTARYTOOL_PROFILE` should be created with `xcrun notarytool store-credentials`. Without those Apple credentials, the script creates ad-hoc signed ZIP/DMG artifacts and skips notarization.
+`NOTARYTOOL_PROFILE` should be created with `xcrun notarytool store-credentials`. Without those Apple credentials, the script creates an ad-hoc signed DMG artifact and skips notarization.
 
 ## Build From Source
 

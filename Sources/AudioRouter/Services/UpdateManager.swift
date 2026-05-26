@@ -3,6 +3,8 @@ import Foundation
 
 @MainActor
 public final class UpdateManager: ObservableObject {
+    nonisolated public static let releaseAssetName = "AudioRouter-macOS.dmg"
+
     public struct UpdateInfo: Equatable {
         public let version: String
         public let releaseURL: URL
@@ -12,14 +14,16 @@ public final class UpdateManager: ObservableObject {
     }
 
     @Published public private(set) var isChecking = false
+    @Published public private(set) var isDownloading = false
     @Published public private(set) var availableUpdate: UpdateInfo?
+    @Published public private(set) var downloadedUpdateURL: URL?
     @Published public private(set) var lastCheckedAt: Date?
     @Published public private(set) var message: String = "Updates have not been checked yet."
 
     private let session: URLSession
     private let currentVersionProvider: () -> String
     private let latestReleaseURL = URL(string: "https://api.github.com/repos/alanlu439/audiorouter/releases/latest")!
-    private let latestDownloadURL = URL(string: "https://github.com/alanlu439/audiorouter/releases/latest/download/AudioRouter-macOS.zip")!
+    private let latestDownloadURL = URL(string: "https://github.com/alanlu439/audiorouter/releases/latest/download/AudioRouter-macOS.dmg")!
 
     public init(
         session: URLSession = .shared,
@@ -39,12 +43,16 @@ public final class UpdateManager: ObservableObject {
         availableUpdate != nil
     }
 
-    public func checkForUpdates() {
+    public var hasDownloadedUpdate: Bool {
+        downloadedUpdateURL != nil
+    }
+
+    public func checkForUpdates(autoFetch: Bool = true) {
         guard !isChecking else { return }
         isChecking = true
         message = "Checking for updates..."
         Task {
-            await performUpdateCheck()
+            await performUpdateCheck(autoFetch: autoFetch)
         }
     }
 
@@ -53,7 +61,7 @@ public final class UpdateManager: ObservableObject {
         if let lastCheckedAt, abs(lastCheckedAt.timeIntervalSinceNow) < 21_600 {
             return
         }
-        checkForUpdates()
+        checkForUpdates(autoFetch: true)
     }
 
     public func openLatestRelease() {
@@ -65,10 +73,45 @@ public final class UpdateManager: ObservableObject {
     }
 
     public func openLatestDownload() {
-        NSWorkspace.shared.open(availableUpdate?.downloadURL ?? latestDownloadURL)
+        if downloadedUpdateURL != nil {
+            installDownloadedUpdate()
+        } else if availableUpdate != nil {
+            fetchAvailableUpdate()
+        } else {
+            NSWorkspace.shared.open(latestDownloadURL)
+        }
     }
 
-    private func performUpdateCheck() async {
+    public func fetchAvailableUpdate() {
+        guard let availableUpdate else {
+            NSWorkspace.shared.open(latestDownloadURL)
+            return
+        }
+        guard !isDownloading else { return }
+
+        if let existingURL = existingDownloadedUpdateURL(for: availableUpdate), FileManager.default.fileExists(atPath: existingURL.path) {
+            downloadedUpdateURL = existingURL
+            message = "AudioRouter \(availableUpdate.version) is downloaded. Open the DMG to install."
+            return
+        }
+
+        isDownloading = true
+        message = "Downloading AudioRouter \(availableUpdate.version) DMG..."
+        Task {
+            await performUpdateDownload(availableUpdate)
+        }
+    }
+
+    public func installDownloadedUpdate() {
+        guard let downloadedUpdateURL else {
+            fetchAvailableUpdate()
+            return
+        }
+        NSWorkspace.shared.open(downloadedUpdateURL)
+        message = "Opened the AudioRouter DMG. Drag AudioRouter to Applications to finish installing."
+    }
+
+    private func performUpdateCheck(autoFetch: Bool) async {
         defer { isChecking = false }
         do {
             var request = URLRequest(url: latestReleaseURL)
@@ -84,18 +127,28 @@ public final class UpdateManager: ObservableObject {
             lastCheckedAt = Date()
 
             if Self.isVersion(latestVersion, newerThan: currentVersion) {
-                let assetURL = release.assets.first { $0.name == "AudioRouter-macOS.zip" }?.browserDownloadURL
+                let assetURL = release.assets.first { $0.name == Self.releaseAssetName }?.browserDownloadURL
                     ?? latestDownloadURL
-                availableUpdate = UpdateInfo(
+                let update = UpdateInfo(
                     version: latestVersion,
                     releaseURL: release.htmlURL,
                     downloadURL: assetURL,
                     publishedAt: release.publishedAt,
                     body: release.body
                 )
-                message = "AudioRouter \(latestVersion) is available."
+                availableUpdate = update
+                downloadedUpdateURL = existingDownloadedUpdateURL(for: update)
+                if downloadedUpdateURL != nil {
+                    message = "AudioRouter \(latestVersion) is downloaded. Open the DMG to install."
+                } else if autoFetch {
+                    message = "AudioRouter \(latestVersion) is available."
+                    fetchAvailableUpdate()
+                } else {
+                    message = "AudioRouter \(latestVersion) is available."
+                }
             } else {
                 availableUpdate = nil
+                downloadedUpdateURL = nil
                 message = "AudioRouter is up to date."
             }
         } catch {
@@ -106,6 +159,50 @@ public final class UpdateManager: ObservableObject {
                 message = "Could not check for updates: \(error.localizedDescription)"
             }
         }
+    }
+
+    private func performUpdateDownload(_ update: UpdateInfo) async {
+        defer { isDownloading = false }
+        do {
+            var request = URLRequest(url: update.downloadURL)
+            request.timeoutInterval = 60
+            request.setValue("application/octet-stream", forHTTPHeaderField: "Accept")
+            request.setValue("AudioRouter/\(currentVersion)", forHTTPHeaderField: "User-Agent")
+            let (temporaryURL, response) = try await session.download(for: request)
+            if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+                throw UpdateCheckError.badDownloadStatus(http.statusCode)
+            }
+
+            let destinationURL = try downloadedUpdateURL(for: update)
+            let directoryURL = destinationURL.deletingLastPathComponent()
+            try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+            if FileManager.default.fileExists(atPath: destinationURL.path) {
+                try FileManager.default.removeItem(at: destinationURL)
+            }
+            try FileManager.default.moveItem(at: temporaryURL, to: destinationURL)
+            downloadedUpdateURL = destinationURL
+            message = "AudioRouter \(update.version) is downloaded. Open the DMG to install."
+        } catch {
+            downloadedUpdateURL = nil
+            message = "Could not download update: \(error.localizedDescription)"
+        }
+    }
+
+    private func existingDownloadedUpdateURL(for update: UpdateInfo) -> URL? {
+        guard let url = try? downloadedUpdateURL(for: update),
+              FileManager.default.fileExists(atPath: url.path) else {
+            return nil
+        }
+        return url
+    }
+
+    private func downloadedUpdateURL(for update: UpdateInfo) throws -> URL {
+        let baseURL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first
+            ?? FileManager.default.temporaryDirectory
+        return baseURL
+            .appendingPathComponent("AudioRouter", isDirectory: true)
+            .appendingPathComponent("Updates", isDirectory: true)
+            .appendingPathComponent("AudioRouter-\(update.version)-macOS.dmg")
     }
 
     nonisolated public static func displayVersion(from tag: String) -> String {
@@ -145,11 +242,14 @@ public final class UpdateManager: ObservableObject {
 
 private enum UpdateCheckError: LocalizedError {
     case badStatus(Int)
+    case badDownloadStatus(Int)
 
     var errorDescription: String? {
         switch self {
         case .badStatus(let status):
             return "GitHub returned HTTP \(status). Try again later."
+        case .badDownloadStatus(let status):
+            return "GitHub download returned HTTP \(status). Try again later."
         }
     }
 }

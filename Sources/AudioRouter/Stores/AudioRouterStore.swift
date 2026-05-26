@@ -394,6 +394,14 @@ public final class AudioRouterStore: ObservableObject {
         updateManager.openLatestDownload()
     }
 
+    public func downloadAvailableUpdate() {
+        updateManager.fetchAvailableUpdate()
+    }
+
+    public func installDownloadedUpdate() {
+        updateManager.installDownloadedUpdate()
+    }
+
     public func openLatestRelease() {
         updateManager.openLatestRelease()
     }
