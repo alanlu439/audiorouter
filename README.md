@@ -12,6 +12,16 @@ Those links point to the newest GitHub release assets when a new release is publ
 
 Note: the current public build is not Apple-notarized yet. macOS may ask you to approve it the first time you open it from Downloads.
 
+## License
+
+AudioRouter source code is available under the [PolyForm Noncommercial License 1.0.0](LICENSE) with required attribution to Alan Lu.
+
+You may use, copy, modify, publish, and distribute AudioRouter for noncommercial purposes only, provided that the license and required notices are preserved. Commercial use is not permitted without prior written permission from Alan Lu.
+
+Because commercial use is restricted, AudioRouter is source-available rather than OSI open source.
+
+The AudioRouter name, logo, app icon, and branding assets are not licensed for commercial use and may not be used in a way that suggests endorsement without prior written permission.
+
 ## What Works Now
 
 - Menu bar popover, main visual dashboard, and AudioRouter Settings window.
