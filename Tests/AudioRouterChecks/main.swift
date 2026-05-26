@@ -127,8 +127,11 @@ func checkRoutingManagerRoutesAndFallback() throws {
 func checkUpdateVersionComparison() {
     precondition(UpdateManager.isVersion("0.1.2", newerThan: "0.1.1"), "Patch update should compare newer")
     precondition(UpdateManager.isVersion("0.2.0", newerThan: "0.1.9"), "Minor update should compare newer")
+    precondition(UpdateManager.isVersion("v0.1.10", newerThan: "0.1.9"), "Version tags with v prefixes should compare correctly")
+    precondition(UpdateManager.isVersion("0.1.3-beta", newerThan: "0.1.2"), "Version tags with suffixes should compare by numeric parts")
     precondition(!UpdateManager.isVersion("0.1.1", newerThan: "0.1.1"), "Same version should not compare newer")
     precondition(!UpdateManager.isVersion("0.1.0", newerThan: "0.1.1"), "Older version should not compare newer")
+    precondition(UpdateManager.displayVersion(from: " v0.1.2 ") == "0.1.2", "Display version should trim whitespace and v prefix")
 }
 
 @MainActor

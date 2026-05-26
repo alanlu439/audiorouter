@@ -59,6 +59,8 @@ struct RoutingDashboardView: View {
             .buttonStyle(.bordered)
             .controlSize(.large)
             .help("Refresh")
+            .accessibilityLabel("Refresh AudioRouter")
+            .accessibilityHint("Reloads audio devices, apps, routes, and meters")
 
             Picker("Mode", selection: demoBinding) {
                 Text("Live").tag(false)
@@ -66,6 +68,8 @@ struct RoutingDashboardView: View {
             }
             .pickerStyle(.segmented)
             .frame(width: 154)
+            .accessibilityLabel("AudioRouter mode")
+            .accessibilityValue(store.settings.demoMode ? "Demo Mode" : "Live Mode")
         }
         .padding(14)
         .background(StudioPalette.header, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
@@ -188,6 +192,8 @@ private struct StudioMetricTile: View {
             RoundedRectangle(cornerRadius: 7, style: .continuous)
                 .stroke(StudioPalette.stroke, lineWidth: 1)
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(title), \(value)")
     }
 }
 
@@ -213,6 +219,8 @@ private struct StudioBackendStrip: View {
             RoundedRectangle(cornerRadius: 7, style: .continuous)
                 .stroke(StudioPalette.stroke, lineWidth: 1)
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Engine, \(store.backendReadinessDetail)")
     }
 }
 
@@ -224,6 +232,7 @@ private struct StudioLED: View {
             .fill(color)
             .frame(width: 8, height: 8)
             .shadow(color: color.opacity(0.65), radius: 4)
+            .accessibilityHidden(true)
     }
 }
 
@@ -245,6 +254,8 @@ private struct StudioLEDLabel: View {
             Capsule()
                 .stroke(status.foreground.opacity(0.30), lineWidth: 1)
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(text) status")
     }
 }
 
@@ -359,6 +370,7 @@ private struct StudioPatchBayActions: View {
             } label: {
                 Label("Refresh", systemImage: "arrow.clockwise")
             }
+            .accessibilityHint("Reloads running apps and audio devices")
 
             Button {
                 onAddApp()
@@ -367,6 +379,7 @@ private struct StudioPatchBayActions: View {
             }
             .buttonStyle(.borderedProminent)
             .tint(StudioPalette.teal)
+            .accessibilityHint("Opens the app picker so you can add another routable source")
         }
         .controlSize(.small)
         .padding(.horizontal, 11)
@@ -417,10 +430,12 @@ private struct AddRouteAppSheet: View {
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
+                .accessibilityLabel("Close add app sheet")
             }
 
             TextField("Search running apps", text: $searchText)
                 .textFieldStyle(.roundedBorder)
+                .accessibilityLabel("Search running apps")
 
             HStack(spacing: 8) {
                 Button {
@@ -428,12 +443,14 @@ private struct AddRouteAppSheet: View {
                 } label: {
                     Label("Refresh Running Apps", systemImage: "arrow.clockwise")
                 }
+                .accessibilityHint("Reloads the list of running apps")
 
                 Button {
                     chooseAppBundle()
                 } label: {
                     Label("Browse Applications", systemImage: "folder")
                 }
+                .accessibilityHint("Choose an installed app from disk")
 
                 Spacer()
             }
@@ -530,6 +547,8 @@ private struct AddRouteAppRow: View {
             RoundedRectangle(cornerRadius: 7, style: .continuous)
                 .stroke(StudioPalette.stroke, lineWidth: 1)
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("\(source.appName), \(source.bundleIdentifier ?? "no bundle identifier")")
     }
 }
 
@@ -614,6 +633,9 @@ private struct StudioChannelStrip: View {
                 }
             }
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("\(source.appName), output \(store.routeOutputName(for: source)), \(store.routeStatus(for: source))")
+        .accessibilityHint("Selects this source for route controls. Use the output menu to change where it plays.")
     }
 
     private var channelIdentity: some View {
@@ -655,6 +677,9 @@ private struct StudioChannelStrip: View {
             .pickerStyle(.menu)
             .controlSize(.small)
             .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityLabel("\(source.appName) output")
+            .accessibilityValue(store.routeOutputName(for: source))
+            .accessibilityHint("Chooses the output device for this source")
 
             StudioLEDLabel(text: store.routeStatus(for: source), status: visualStatus)
         }
@@ -671,6 +696,8 @@ private struct StudioChannelStrip: View {
             .foregroundStyle(source.isMuted ? StudioPalette.red : StudioPalette.green)
             .disabled(!store.supportsPerAppMute)
             .help(store.supportsPerAppMute ? "Mute this source" : "Per-app mute requires an audio backend.")
+            .accessibilityLabel(source.isMuted ? "Unmute \(source.appName)" : "Mute \(source.appName)")
+            .accessibilityHint(store.supportsPerAppMute ? "Toggles mute for this source" : "Per-app mute requires an audio backend")
 
             Slider(
                 value: Binding(
@@ -681,6 +708,9 @@ private struct StudioChannelStrip: View {
             )
             .disabled(!store.supportsPerAppVolume)
             .help(store.supportsPerAppVolume ? "Set source volume" : "Per-app gain requires an audio backend.")
+            .accessibilityLabel("\(source.appName) gain")
+            .accessibilityValue(source.volume.roundedPercentDescription)
+            .accessibilityHint(store.supportsPerAppVolume ? "Adjusts app route volume" : "Per-app gain requires an audio backend")
 
             Text("\(Int((source.volume * 100).rounded()))")
                 .font(.system(size: 11, weight: .bold, design: .monospaced))
@@ -725,6 +755,7 @@ private struct StudioRouteCable: View {
                 .font(.system(size: 10, weight: .heavy))
                 .foregroundStyle(status.foreground)
         }
+        .accessibilityHidden(true)
     }
 }
 
@@ -732,6 +763,7 @@ private struct StudioSegmentMeter: View {
     let level: Double
     var segmentCount: Int = 12
     var tint: Color = StudioPalette.green
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         GeometryReader { proxy in
@@ -774,10 +806,11 @@ private struct StudioSegmentMeter: View {
                 RoundedRectangle(cornerRadius: 4, style: .continuous)
                     .stroke(StudioPalette.strongStroke, lineWidth: 1)
             }
-            .animation(.easeOut(duration: 0.18), value: clampedLevel)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: clampedLevel)
         }
         .frame(height: 24)
         .accessibilityLabel("Audio level")
+        .accessibilityValue(level.clampedUnit.roundedPercentDescription)
     }
 
     private func segmentColor(for threshold: Double) -> Color {
@@ -822,22 +855,26 @@ private struct StudioRouteInspector: View {
                 } label: {
                     Label("Follow System", systemImage: "arrow.triangle.branch")
                 }
+                .accessibilityHint("Removes the custom output assignment for \(source.appName)")
                 Button(role: .destructive) {
                     store.resetSourceToSystemOutput(source)
                 } label: {
                     Label("Delete Route", systemImage: "trash")
                 }
+                .accessibilityHint("Deletes this saved route and follows the system output")
                 if store.isUserAddedRouteApp(source) {
                     Button(role: .destructive) {
                         store.removeRouteApp(source)
                     } label: {
                         Label("Remove App", systemImage: "minus.circle")
                     }
+                    .accessibilityHint("Removes \(source.appName) from the routing dashboard")
                 }
                 Spacer()
                 Toggle("Solo", isOn: soloBinding)
                     .toggleStyle(.switch)
                     .controlSize(.small)
+                    .accessibilityHint("Mutes other app routes when backend support is available")
             }
             .controlSize(.small)
         }
@@ -888,6 +925,8 @@ private struct StudioRouteHealthGrid: View {
                         .stroke(StudioPalette.stroke, lineWidth: 1)
                 }
                 .help(item.detail)
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("\(item.title), \(item.detail), \(item.state.badgeTitle)")
             }
         }
     }
@@ -905,6 +944,7 @@ private struct StudioDiagnosticBanner: View {
             .padding(.vertical, 7)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background((isWarning ? StudioPalette.amber : Color.secondary).opacity(0.10), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+            .accessibilityLabel(isWarning ? "Warning, \(text)" : "Information, \(text)")
     }
 }
 
@@ -979,6 +1019,8 @@ private struct StudioOutputModule: View {
                 .buttonStyle(.bordered)
                 .controlSize(.small)
                 .disabled(!device.canSetMute)
+                .accessibilityLabel((device.isMuted ?? false) ? "Unmute \(device.name)" : "Mute \(device.name)")
+                .accessibilityHint(device.canSetMute ? "Toggles mute for this output" : "Mute is not supported by this output")
 
                 Button(device.isDefault ? "System" : "Set System") {
                     store.setDefaultDevice(device)
@@ -986,6 +1028,7 @@ private struct StudioOutputModule: View {
                 .buttonStyle(.bordered)
                 .controlSize(.small)
                 .disabled(device.isDefault)
+                .accessibilityHint(device.isDefault ? "\(device.name) is already the system output" : "Makes \(device.name) the system output")
 
                 Spacer()
 
@@ -1008,6 +1051,8 @@ private struct StudioOutputModule: View {
             RoundedRectangle(cornerRadius: 6, style: .continuous)
                 .stroke(device.isDefault ? StudioPalette.teal.opacity(0.70) : StudioPalette.stroke, lineWidth: device.isDefault ? 1.5 : 1)
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("\(device.name), \(device.typeDescription), \(device.isDefault ? "system output" : "available output")")
     }
 
     @ViewBuilder

@@ -53,6 +53,8 @@ private struct MiniSystemRow: View {
                 }
                 .buttonStyle(.borderless)
                 .disabled(!output.canSetMute)
+                .accessibilityLabel((output.isMuted ?? false) ? "Unmute system output" : "Mute system output")
+                .accessibilityHint(output.canSetMute ? "Toggles mute for \(output.name)" : "Mute is not supported by this output")
             }
 
             HStack(spacing: 8) {
@@ -64,8 +66,11 @@ private struct MiniSystemRow: View {
                     in: 0...1
                 )
                 .disabled(!output.canSetVolume)
+                .accessibilityLabel("System output volume")
+                .accessibilityValue((output.volume ?? 0).roundedPercentDescription)
+                .accessibilityHint(output.canSetVolume ? "Adjusts \(output.name)" : "Volume is not supported by this output")
 
-                Text("\(Int(((output.volume ?? 0) * 100).rounded()))%")
+                Text((output.volume ?? 0).roundedPercentDescription)
                     .font(.caption2.monospacedDigit())
                     .foregroundStyle(.secondary)
                     .frame(width: 38, alignment: .trailing)
@@ -107,6 +112,8 @@ private struct MiniSourceRow: View {
                 }
                 .buttonStyle(.borderless)
                 .disabled(!store.supportsPerAppMute)
+                .accessibilityLabel(source.isMuted ? "Unmute \(source.appName)" : "Mute \(source.appName)")
+                .accessibilityHint(store.supportsPerAppMute ? "Toggles mute for this app route" : "Per-app mute requires an audio backend")
             }
 
             HStack(spacing: 8) {
@@ -120,7 +127,10 @@ private struct MiniSourceRow: View {
                     in: 0...1.5
                 )
                 .disabled(!store.supportsPerAppVolume)
-                Text("\(Int((source.volume * 100).rounded()))%")
+                .accessibilityLabel("\(source.appName) volume")
+                .accessibilityValue(source.volume.roundedPercentDescription)
+                .accessibilityHint(store.supportsPerAppVolume ? "Adjusts this app route volume" : "Per-app volume requires an audio backend")
+                Text(source.volume.roundedPercentDescription)
                     .font(.caption2.monospacedDigit())
                     .foregroundStyle(.secondary)
                     .frame(width: 38, alignment: .trailing)
@@ -129,5 +139,7 @@ private struct MiniSourceRow: View {
         .padding(9)
         .background(.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
         .help(store.routeDiagnostic(for: source) ?? "Route is ready.")
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("\(source.appName), output \(store.routeOutputName(for: source)), \(store.routeStatus(for: source))")
     }
 }

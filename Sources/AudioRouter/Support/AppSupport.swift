@@ -22,6 +22,18 @@ extension Double {
     var clampedBalance: Double {
         max(-1, min(1, self))
     }
+
+    var roundedPercentDescription: String {
+        "\(Int((self * 100).rounded()))%"
+    }
+
+    var balanceDescription: String {
+        if abs(self) < 0.01 {
+            return "Centered"
+        }
+        let side = self < 0 ? "left" : "right"
+        return "\(Int((abs(self) * 100).rounded()))% \(side)"
+    }
 }
 
 extension Date {

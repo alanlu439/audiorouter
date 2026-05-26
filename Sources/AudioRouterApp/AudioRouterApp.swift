@@ -35,6 +35,7 @@ struct AudioRouterApplication: App {
             Image(systemName: "speaker.wave.2.circle.fill")
                 .symbolRenderingMode(.hierarchical)
                 .accessibilityLabel("AudioRouter")
+                .accessibilityHint("Opens the AudioRouter menu bar controls")
         }
         .menuBarExtraStyle(.window)
 
@@ -79,6 +80,7 @@ struct AudioRouterCommands: Commands {
             Button("Check for Updates") {
                 store.checkForUpdates()
             }
+            .keyboardShortcut("u", modifiers: [.command, .shift])
             Button("Download Latest Release") {
                 store.openUpdateDownload()
             }

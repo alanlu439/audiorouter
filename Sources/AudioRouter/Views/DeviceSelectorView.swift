@@ -24,7 +24,14 @@ struct DeviceSelectorView: View {
             }
             .labelsHidden()
             .pickerStyle(.menu)
+            .accessibilityLabel("\(title) device")
+            .accessibilityValue(selectedDeviceName)
+            .accessibilityHint("Choose the system \(title.lowercased()) device")
         }
+    }
+
+    private var selectedDeviceName: String {
+        devices.first { $0.uid == selectedUID }?.name ?? "None selected"
     }
 
     private var selection: Binding<String> {

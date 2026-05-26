@@ -114,8 +114,10 @@ private struct ShortcutsSettingsView: View {
                     Spacer()
                     Toggle("⌘", isOn: modifierBinding(action, .command))
                         .labelsHidden()
+                        .accessibilityLabel("\(action.title) command modifier")
                     Toggle("⌥", isOn: modifierBinding(action, .option))
                         .labelsHidden()
+                        .accessibilityLabel("\(action.title) option modifier")
                     Picker("Key", selection: keyBinding(action, defaultValue: binding.key)) {
                         ForEach(visualKeys, id: \.self) { key in
                             Text(key.uppercased()).tag(key)
@@ -123,16 +125,21 @@ private struct ShortcutsSettingsView: View {
                     }
                     .labelsHidden()
                     .frame(width: 64)
+                    .accessibilityLabel("\(action.title) key")
+                    .accessibilityValue(binding.key.uppercased())
                     Text(binding.displayValue)
                         .font(.caption.monospaced())
                         .foregroundStyle(.secondary)
                         .frame(width: 56, alignment: .trailing)
                 }
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel("\(action.title), current shortcut \(binding.displayValue)")
             }
             Button("Reset Shortcuts") {
                 store.shortcutManager.reset()
                 editingKeys.removeAll()
             }
+            .accessibilityHint("Restores default local shortcuts")
         }
     }
 
@@ -184,6 +191,7 @@ private struct AdvancedSettingsView: View {
                 Toggle("Demo Mode", isOn: demoModeBinding)
                 Toggle("Show unsupported feature notes", isOn: unsupportedNotesBinding)
                 Toggle("Automatically check for updates", isOn: automaticUpdatesBinding)
+                    .accessibilityHint("Checks GitHub Releases when AudioRouter starts, no more than every six hours")
                 Text("True per-app routing and EQ work only when AudioRouter can capture an app stream and render it to a selected output. Routes that cannot start are saved and retried instead of being shown as live.")
                     .font(.caption)
                     .foregroundStyle(.secondary)

@@ -84,6 +84,8 @@ private struct DeviceRow: View {
                     Label((device.isMuted ?? false) ? "Muted" : "Mute", systemImage: (device.isMuted ?? false) ? "speaker.slash.fill" : "speaker.wave.1.fill")
                 }
                 .disabled(!device.canSetMute)
+                .accessibilityLabel((device.isMuted ?? false) ? "Unmute \(device.name)" : "Mute \(device.name)")
+                .accessibilityHint(device.canSetMute ? "Toggles mute for this device" : "Mute is not supported by this device")
                 if device.kind == .output {
                     Slider(
                         value: Binding(
@@ -93,11 +95,15 @@ private struct DeviceRow: View {
                         in: -1...1
                     )
                     .disabled(!device.canSetBalance)
+                    .accessibilityLabel("\(device.name) balance")
+                    .accessibilityValue((device.balance ?? 0).balanceDescription)
+                    .accessibilityHint(device.canSetBalance ? "Adjusts left and right output balance" : "Balance is not supported by this device")
                 }
                 Button(device.isDefault ? "Default" : "Set as System \(device.kind.title)") {
                     store.setDefaultDevice(device)
                 }
                 .disabled(device.isDefault)
+                .accessibilityHint(device.isDefault ? "\(device.name) is already the system \(device.kind.title.lowercased())" : "Makes \(device.name) the system \(device.kind.title.lowercased())")
             }
             if device.kind == .output {
                 let routed = store.routedSources(to: device)
@@ -116,6 +122,8 @@ private struct DeviceRow: View {
         }
         .padding(12)
         .background(.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("\(device.name), \(device.kind.title), \(device.isAlive ? "connected" : "disconnected"), \(device.isDefault ? "system default" : "not default")")
     }
 }
 
@@ -134,6 +142,7 @@ private struct OutputGroupsView: View {
                 Label("Create Output Group", systemImage: "plus.circle.fill")
             }
             .buttonStyle(.borderedProminent)
+            .accessibilityHint("Creates a visual group route target")
             if store.outputGroups.isEmpty {
                 Text("No groups saved.")
                     .font(.caption)
@@ -172,6 +181,9 @@ private struct OutputGroupCard: View {
                         in: 0...1
                     )
                     .disabled(!group.deviceUIDs.contains(device.uid) || !device.canSetVolume)
+                    .accessibilityLabel("\(device.name) group volume")
+                    .accessibilityValue((group.perDeviceVolumes[device.uid] ?? device.volume ?? 1).roundedPercentDescription)
+                    .accessibilityHint(group.deviceUIDs.contains(device.uid) ? "Adjusts saved group volume for this device" : "Include this device before changing its group volume")
                 }
             }
             Button(role: .destructive) {

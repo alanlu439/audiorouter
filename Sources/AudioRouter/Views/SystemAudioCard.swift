@@ -42,7 +42,11 @@ struct SystemAudioCard: View {
                     .buttonStyle(.borderless)
                     .disabled(!output.canSetMute)
                     .help(output.canSetMute ? "Mute output" : "Mute is not supported by this device")
+                    .accessibilityLabel((output.isMuted ?? false) ? "Unmute system output" : "Mute system output")
+                    .accessibilityHint(output.canSetMute ? "Toggles mute for \(output.name)" : "Mute is not supported by this device")
                 }
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel("Current output device, \(output.name), \(output.typeDescription)")
 
                 VolumeSlider(
                     title: "Output",
@@ -93,6 +97,9 @@ private struct BalanceSlider: View {
                 in: -1...1
             )
             .disabled(!device.canSetBalance)
+            .accessibilityLabel("Output balance")
+            .accessibilityValue((device.balance ?? 0).balanceDescription)
+            .accessibilityHint(device.canSetBalance ? "Adjusts left and right output balance" : "Balance is not supported by this device")
             Text("L/R")
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(.secondary)

@@ -31,6 +31,7 @@ Note: the current public build is not Apple-notarized yet. macOS may ask you to 
 - Custom route apps: add running apps from the visual picker or browse for an installed `.app`, then assign that app to an output.
 - Menu bar mini mixer for quick system and app volume/mute controls.
 - Route health diagnostics showing app detection, playback activity, output availability, backend readiness, and exact failure reasons.
+- VoiceOver-friendly labels, values, hints, keyboard commands, and Reduce Motion-aware meters across the main audio controls.
 - Useful setup scenes for Desk Speakers, AirPods Call, Music to Bluetooth, and Focus Mode.
 - Built-in GitHub release update checking with a persistent latest-download link.
 - Persistent route preferences, EQ settings, shortcuts, setup cards, and visual output groups.
@@ -104,7 +105,9 @@ The generated app bundle includes `NSAudioCaptureUsageDescription`. AudioRouter 
 
 ## Updates And Releases
 
-AudioRouter can check GitHub Releases from the app and open the newest download. This is a lightweight public-release updater, not a silent in-place installer. Future work can replace it with Sparkle once a Developer ID signing and update-feed workflow is ready.
+AudioRouter can check GitHub Releases from the app and open the newest download. Automatic checks run at launch when enabled, no more than every six hours. The updater uses the latest release API, follows `v`-prefixed semantic version tags, times out quickly on network problems, and shows readable errors if GitHub cannot be reached.
+
+This is a lightweight public-release updater, not a silent in-place installer. Future work can replace it with Sparkle once a Developer ID signing and update-feed workflow is ready.
 
 Release builds can produce both a ZIP and a DMG:
 

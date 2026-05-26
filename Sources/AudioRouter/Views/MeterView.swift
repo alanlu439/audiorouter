@@ -5,6 +5,7 @@ struct MeterView: View {
     var barCount: Int = 10
     var height: CGFloat = 18
     var color: Color = .green
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         HStack(spacing: 3) {
@@ -27,8 +28,9 @@ struct MeterView: View {
             Capsule()
                 .stroke(Color.white.opacity(0.10), lineWidth: 1)
         }
-        .animation(.easeOut(duration: 0.18), value: level)
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: level)
         .accessibilityLabel("Audio level")
+        .accessibilityValue(level.clampedUnit.roundedPercentDescription)
     }
 
     private func indexLevel(_ index: Int) -> Double {
@@ -52,6 +54,7 @@ struct StatusLabel: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
             .background(status.background, in: Capsule())
+            .accessibilityLabel("\(text) status")
     }
 }
 

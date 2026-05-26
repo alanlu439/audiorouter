@@ -82,6 +82,8 @@ struct AppAudioRowView: View {
                 .buttonStyle(.borderless)
                 .disabled(!store.supportsPerAppMute)
                 .help(store.supportsPerAppMute ? "Mute this audio source" : "Per-app mute requires an audio backend.")
+                .accessibilityLabel(source.isMuted ? "Unmute \(source.appName)" : "Mute \(source.appName)")
+                .accessibilityHint(store.supportsPerAppMute ? "Toggles mute for this app route" : "Per-app mute requires an audio backend")
             }
 
             HStack(spacing: 10) {
@@ -97,7 +99,10 @@ struct AppAudioRowView: View {
                 )
                 .disabled(!store.supportsPerAppVolume)
                 .help(store.supportsPerAppVolume ? "Set source volume" : "Per-app gain requires an audio backend.")
-                Text("\((source.volume * 100).rounded().formatted(.number.precision(.fractionLength(0))))%")
+                .accessibilityLabel("\(source.appName) volume")
+                .accessibilityValue(source.volume.roundedPercentDescription)
+                .accessibilityHint(store.supportsPerAppVolume ? "Adjusts this app route volume" : "Per-app gain requires an audio backend")
+                Text(source.volume.roundedPercentDescription)
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
                     .frame(width: 46, alignment: .trailing)
@@ -121,6 +126,9 @@ struct AppAudioRowView: View {
                     }
                 }
                 .pickerStyle(.menu)
+                .accessibilityLabel("\(source.appName) output")
+                .accessibilityValue(store.routeOutputName(for: source))
+                .accessibilityHint("Chooses where this app should play")
                 Spacer()
                 let status = store.routeStatus(for: source)
                 if route.routeMode == .customOutput && status != "Live" {
@@ -136,6 +144,8 @@ struct AppAudioRowView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("\(source.appName), \(source.activityLabel), output \(store.routeOutputName(for: source)), \(store.routeStatus(for: source))")
     }
 
     private var outputSelection: Binding<String> {

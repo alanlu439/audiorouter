@@ -72,14 +72,15 @@ public final class UpdateManager: ObservableObject {
         defer { isChecking = false }
         do {
             var request = URLRequest(url: latestReleaseURL)
+            request.timeoutInterval = 12
             request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
-            request.setValue("AudioRouter", forHTTPHeaderField: "User-Agent")
+            request.setValue("AudioRouter/\(currentVersion)", forHTTPHeaderField: "User-Agent")
             let (data, response) = try await session.data(for: request)
             if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
-                throw URLError(.badServerResponse)
+                throw UpdateCheckError.badStatus(http.statusCode)
             }
             let release = try JSONDecoder.releaseDecoder.decode(GitHubRelease.self, from: data)
-            let latestVersion = release.tagName.trimmingCharacters(in: CharacterSet(charactersIn: "vV"))
+            let latestVersion = Self.displayVersion(from: release.tagName)
             lastCheckedAt = Date()
 
             if Self.isVersion(latestVersion, newerThan: currentVersion) {
@@ -99,13 +100,25 @@ public final class UpdateManager: ObservableObject {
             }
         } catch {
             lastCheckedAt = Date()
-            message = "Could not check for updates: \(error.localizedDescription)"
+            if error is DecodingError {
+                message = "Could not read the GitHub release feed. The release format may have changed."
+            } else {
+                message = "Could not check for updates: \(error.localizedDescription)"
+            }
         }
     }
 
+    nonisolated public static func displayVersion(from tag: String) -> String {
+        var cleaned = tag.trimmingCharacters(in: .whitespacesAndNewlines)
+        if cleaned.lowercased().hasPrefix("v") {
+            cleaned.removeFirst()
+        }
+        return cleaned
+    }
+
     nonisolated public static func isVersion(_ candidate: String, newerThan current: String) -> Bool {
-        let lhs = candidate.split(separator: ".").map { Int($0) ?? 0 }
-        let rhs = current.split(separator: ".").map { Int($0) ?? 0 }
+        let lhs = numericVersionParts(candidate)
+        let rhs = numericVersionParts(current)
         let count = max(lhs.count, rhs.count)
         for index in 0..<count {
             let left = index < lhs.count ? lhs[index] : 0
@@ -115,6 +128,29 @@ public final class UpdateManager: ObservableObject {
             }
         }
         return false
+    }
+
+    nonisolated private static func numericVersionParts(_ version: String) -> [Int] {
+        let base = displayVersion(from: version)
+            .split(whereSeparator: { $0 == "-" || $0 == "+" })
+            .first
+            .map(String.init) ?? "0"
+
+        return base.split(separator: ".").map { component in
+            let digits = component.prefix { $0.isNumber }
+            return Int(digits) ?? 0
+        }
+    }
+}
+
+private enum UpdateCheckError: LocalizedError {
+    case badStatus(Int)
+
+    var errorDescription: String? {
+        switch self {
+        case .badStatus(let status):
+            return "GitHub returned HTTP \(status). Try again later."
+        }
     }
 }
 
@@ -147,7 +183,32 @@ private struct GitHubAsset: Decodable {
 private extension JSONDecoder {
     static var releaseDecoder: JSONDecoder {
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let container = try decoder.singleValueContainer()
+            let value = try container.decode(String.self)
+            if let date = ISO8601DateFormatter.githubDateWithFractionalSeconds.date(from: value)
+                ?? ISO8601DateFormatter.githubDate.date(from: value) {
+                return date
+            }
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Unsupported GitHub release date: \(value)"
+            )
+        }
         return decoder
     }
+}
+
+private extension ISO8601DateFormatter {
+    static let githubDate: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter
+    }()
+
+    static let githubDateWithFractionalSeconds: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
 }

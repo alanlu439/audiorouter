@@ -37,6 +37,8 @@ struct SectionHeader: View {
                     .foregroundStyle(.secondary)
             }
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(trailing.map { "\(title), \($0)" } ?? title)
     }
 }
 
@@ -51,6 +53,7 @@ struct StatusBadge: View {
             .padding(.vertical, 4)
             .foregroundStyle(isActive ? .black : .secondary)
             .background(isActive ? .green : .secondary.opacity(0.12), in: Capsule())
+            .accessibilityLabel("\(text) status")
     }
 }
 
@@ -63,6 +66,7 @@ struct DeviceIcon: View {
             .foregroundStyle(device.isDefault ? .teal : .secondary)
             .frame(width: 28, height: 28)
             .background(.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .accessibilityHidden(true)
     }
 
     private var imageName: String {
@@ -93,6 +97,7 @@ struct AppSourceIcon: View {
         }
         .frame(width: 30, height: 30)
         .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+        .accessibilityHidden(true)
     }
 }
 
@@ -116,9 +121,13 @@ struct SupportNote: View {
             }
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
+            .accessibilityLabel("Dismiss note")
+            .accessibilityHint("Hides this message")
         }
         .padding(10)
         .background(.blue.opacity(0.10), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("AudioRouter note")
     }
 }
 
@@ -146,11 +155,14 @@ struct VolumeSlider: View {
                 in: 0...1
             )
             .disabled(!isEnabled)
-            Text(value.map { "\(($0 * 100).rounded().formatted(.number.precision(.fractionLength(0))))%" } ?? "N/A")
+            .accessibilityLabel("\(title) volume")
+            .accessibilityValue(value?.roundedPercentDescription ?? "Not available")
+            .accessibilityHint(isEnabled ? "Adjusts \(title.lowercased()) volume" : "\(title) volume is not exposed by this device")
+            Text(value?.roundedPercentDescription ?? "N/A")
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(.secondary)
                 .frame(width: 42, alignment: .trailing)
         }
-        .help(isEnabled ? "" : "\(title) is not exposed by this device.")
+        .help(isEnabled ? "\(title) volume" : "\(title) volume is not exposed by this device.")
     }
 }
