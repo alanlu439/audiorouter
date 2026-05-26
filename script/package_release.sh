@@ -30,6 +30,8 @@ rm -f "$LEGACY_ZIP_PATH" "$DMG_PATH"
 rm -rf "$STAGING_DIR"
 mkdir -p "$STAGING_DIR"
 cp -R "$APP_BUNDLE" "$STAGING_DIR/"
+cp "$ROOT_DIR/LICENSE" "$STAGING_DIR/LICENSE"
+cp "$ROOT_DIR/NOTICE" "$STAGING_DIR/NOTICE"
 ln -s /Applications "$STAGING_DIR/Applications"
 
 /usr/bin/hdiutil create \

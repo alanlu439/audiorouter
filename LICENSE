@@ -1,116 +1,146 @@
-Required Notice: Copyright (c) 2026 Alan Lu. AudioRouter is available for noncommercial use only. Commercial use requires prior written permission from Alan Lu.
+AudioRouter Noncommercial License
+Version 1.0
 
-# PolyForm Noncommercial License 1.0.0
+Copyright (c) 2026 Alan Lu.
 
-<https://polyformproject.org/licenses/noncommercial/1.0.0>
+This license is a custom source-available license for AudioRouter. It allows
+noncommercial use, modification, publishing, and redistribution with attribution.
+Commercial use is not allowed unless Alan Lu gives prior written permission.
 
-## Acceptance
+1. Definitions
 
-In order to get any license under these terms, you must agree to them as both
-strict obligations and conditions to all your licenses.
+"Licensor" means Alan Lu.
 
-## Copyright License
+"Software" means AudioRouter, including its source code, object code, releases,
+documentation, examples, configuration files, scripts, and other materials
+provided in this repository or release package.
 
-The licensor grants you a copyright license for the software to do everything
-you might do with the software that would otherwise infringe the licensor's
-copyright in it for any permitted purpose. However, you may only distribute the
-software according to [Distribution License](#distribution-license) and make
-changes or new works based on the software according to
-[Changes and New Works License](#changes-and-new-works-license).
+"You" means any person or organization receiving, using, copying, modifying,
+publishing, or distributing the Software.
 
-## Distribution License
+"Noncommercial Purpose" means a use that is not primarily intended for, directed
+toward, or connected to commercial advantage, monetary compensation, revenue
+generation, paid services, paid products, business operations, or commercial
+promotion.
 
-The licensor grants you an additional copyright license to distribute copies of
-the software. Your license to distribute covers distributing the software with
-changes and new works permitted by [Changes and New Works License](#changes-and-new-works-license).
+"Commercial Purpose" includes, without limitation, selling the Software, charging
+for access to the Software, bundling the Software with a paid product or service,
+using the Software to provide paid services, using the Software inside a
+for-profit business workflow, using the Software for advertising or promotion of
+a paid product or service, or distributing the Software in a way that generates
+direct or indirect commercial advantage.
 
-## Notices
+"Modified Version" means any version of the Software that You change, adapt,
+translate, compile, package, combine, or build upon.
 
-You must ensure that anyone who gets a copy of any part of the software from
-you also gets a copy of these terms or the URL for them above, as well as
-copies of any plain-text lines beginning with `Required Notice:` that the
-licensor provided with the software. For example:
+"Attribution Notice" means a clear notice that includes:
 
-> Required Notice: Copyright Yoyodyne, Inc. (http://example.com)
+AudioRouter
+Copyright (c) 2026 Alan Lu
+Licensed for noncommercial use only
+https://github.com/alanlu439/audiorouter
 
-## Changes and New Works License
+"Branding Assets" means the AudioRouter name, logo, app icon, product design
+marks, release artwork, and any other visual identity assets.
 
-The licensor grants you an additional copyright license to make changes and new
-works based on the software for any permitted purpose.
+2. Noncommercial License Grant
 
-## Patent License
+Subject to this license, Licensor grants You a worldwide, royalty-free,
+non-exclusive, revocable license to use, copy, modify, publish, and distribute
+the Software and Modified Versions solely for Noncommercial Purposes.
 
-The licensor grants you a patent license for the software that covers patent
-claims the licensor can license, or becomes able to license, that you would
-infringe by using the software.
+3. Commercial Use Is Reserved
 
-## Noncommercial Purposes
+You may not use, copy, modify, publish, distribute, sublicense, sell, rent,
+lease, host, offer, or make available the Software or any Modified Version for
+any Commercial Purpose without prior written permission from Licensor.
 
-Any noncommercial purpose is a permitted purpose.
+Commercial licenses may be granted separately by Licensor. This license does not
+promise that any commercial license will be granted.
 
-## Personal Uses
+4. Attribution Requirements
 
-Personal use for research, experiment, and testing for the benefit of public
-knowledge, personal study, private entertainment, hobby projects, amateur
-pursuits, or religious observance, without any anticipated commercial
-application, is use for a permitted purpose.
+If You publish or distribute the Software or a Modified Version, You must:
 
-## Noncommercial Organizations
+a. include the Attribution Notice in a reasonably visible place;
+b. include a copy of this license;
+c. keep all copyright, license, and attribution notices from the Software;
+d. clearly state if You changed the Software; and
+e. not imply that Licensor endorses You, Your Modified Version, or Your use.
 
-Use by any charitable organization, educational institution, public research
-organization, public safety or health organization, environmental protection
-organization, or government institution is use for a permitted purpose
-regardless of the source of funding or obligations resulting from the funding.
+For apps, installers, binaries, or packaged releases, the Attribution Notice
+must appear in documentation, an about screen, a notices screen, a license file,
+or another place users can reasonably find.
 
-## Fair Use
+5. Modified Versions
 
-You may have "fair use" rights for the software under the law. These terms do
-not limit them.
+You may create and publish Modified Versions for Noncommercial Purposes only.
 
-## No Other Rights
+Any Modified Version You distribute must keep this license, or terms that are at
+least as protective of Licensor and no less restrictive on commercial use.
 
-These terms do not allow you to sublicense or transfer any of your licenses to
-anyone else, or prevent the licensor from granting licenses to anyone else.
-These terms do not imply any other licenses.
+You may add Your own copyright notice for Your changes, but You may not remove
+Licensor's copyright notice or attribution.
 
-## Patent Defense
+6. Branding
 
-If you make any written claim that the software infringes or contributes to
-infringement of any patent, your patent license for the software granted under
-these terms ends immediately. If your company makes such a claim, your patent
-license ends immediately for work on behalf of your company.
+This license does not grant permission to use the Branding Assets except as
+needed to identify the original Software and preserve attribution notices.
 
-## Violations
+You may not use the Branding Assets in a way that suggests endorsement,
+affiliation, sponsorship, or official status without prior written permission
+from Licensor.
 
-The first time you are notified in writing that you have violated any of these
-terms, or done anything with the software not covered by your licenses, your
-licenses can nonetheless continue if you come into full compliance with these
-terms, and take practical steps to correct past violations, within 32 days of
-receiving notice. Otherwise, all your licenses end immediately.
+Modified Versions must not be presented as official AudioRouter releases unless
+Licensor gives prior written permission.
 
-## No Liability
+7. Contributions
 
-***As far as the law allows, the software comes as is, without any warranty or
-condition, and the licensor will not be liable to you for any damages arising
-out of these terms or the use or nature of the software, under any kind of
-legal claim.***
+Unless You clearly state otherwise in writing, any contribution You intentionally
+submit to the Software is licensed to Licensor under the same terms as this
+license and may also be used by Licensor under any other license, including a
+commercial license.
 
-## Definitions
+8. No Patent or Trademark Grant
 
-The **licensor** is the individual or entity offering these terms, and the
-**software** is the software the licensor makes available under these terms.
+This license does not grant any patent rights, trademark rights, trade name
+rights, or rights in the Branding Assets except where expressly stated.
 
-**You** refers to the individual or entity agreeing to these terms.
+9. No Other Rights
 
-**Your company** is any legal entity, sole proprietorship, or other kind of
-organization that you work for, plus all organizations that have control over,
-are under the control of, or are under common control with that organization.
+All rights not expressly granted by this license are reserved by Licensor.
 
-**Control** means ownership of substantially all the assets of an entity, or
-the power to direct its management and policies by vote, contract, or
-otherwise. Control can be direct or indirect.
+10. Termination
 
-**Your licenses** are all the licenses granted to you for the software under
-these terms.
+If You violate this license, Your rights under this license end automatically.
 
-**Use** means anything you do with the software requiring one of your licenses.
+If this is Your first violation and You fully correct the violation within 30
+days after receiving written notice from Licensor, Your license will be
+reinstated. Otherwise, You must stop using, copying, modifying, publishing, and
+distributing the Software and any Modified Versions.
+
+11. Disclaimer of Warranty
+
+The Software is provided "as is" and "as available", without warranties or
+conditions of any kind, whether express, implied, statutory, or otherwise,
+including warranties of merchantability, fitness for a particular purpose, title,
+non-infringement, availability, reliability, or accuracy.
+
+You are responsible for deciding whether the Software is appropriate for Your
+use and for complying with all laws, platform rules, and third-party terms that
+apply to Your use.
+
+12. Limitation of Liability
+
+To the maximum extent allowed by law, Licensor will not be liable for any
+indirect, incidental, special, consequential, exemplary, punitive, or other
+damages, or for lost profits, lost revenue, lost data, business interruption,
+device damage, audio routing failure, or any other loss arising from or related
+to the Software or this license, even if Licensor has been advised of the
+possibility of such damages.
+
+13. Governing Terms
+
+If any part of this license is unenforceable, the rest of the license remains in
+effect. This license is the complete agreement between You and Licensor for the
+rights granted here, unless You and Licensor sign a separate written agreement.

@@ -14,7 +14,7 @@ Note: the current public build is not Apple-notarized yet. macOS may ask you to 
 
 ## License
 
-AudioRouter source code is available under the [PolyForm Noncommercial License 1.0.0](LICENSE) with required attribution to Alan Lu.
+AudioRouter source code is available under the custom [AudioRouter Noncommercial License 1.0](LICENSE) with required attribution to Alan Lu.
 
 You may use, copy, modify, publish, and distribute AudioRouter for noncommercial purposes only, provided that the license and required notices are preserved. Commercial use is not permitted without prior written permission from Alan Lu.
 
