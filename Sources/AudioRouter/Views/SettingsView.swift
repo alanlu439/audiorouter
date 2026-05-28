@@ -208,7 +208,7 @@ private struct AdvancedSettingsView: View {
                     Button {
                         store.showOnboarding()
                     } label: {
-                        Label("Show Quick Start", systemImage: "questionmark.circle")
+                        Label("Open Guided Setup", systemImage: "sparkles.rectangle.stack")
                     }
                     Button {
                         store.probeProcessTapPermission()

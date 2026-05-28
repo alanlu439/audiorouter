@@ -17,6 +17,7 @@ public final class AudioRouterStore: ObservableObject {
     @Published public var selectedSourceID: String?
     @Published public private(set) var meteringNote: String = "Live meters appear when a process-tap route is active."
     @Published public private(set) var processTapProbeMessage: String?
+    @Published public var isOnboardingPresented = false
     @Published public var outputGroups: [OutputDeviceGroup] = [] {
         didSet { saveOutputGroups() }
     }
@@ -445,11 +446,17 @@ public final class AudioRouterStore: ObservableObject {
 
     public func completeOnboarding() {
         settings.hasCompletedOnboarding = true
+        isOnboardingPresented = false
     }
 
     public func showOnboarding() {
         settings.hasCompletedOnboarding = false
         selectedSettingsSection = .dashboard
+        isOnboardingPresented = true
+    }
+
+    public func dismissOnboardingForNow() {
+        isOnboardingPresented = false
     }
 
     public func setDefaultDevice(_ device: AudioDevice) {

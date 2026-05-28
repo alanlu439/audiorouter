@@ -263,25 +263,32 @@ private struct StudioOnboardingCard: View {
     @ObservedObject var store: AudioRouterStore
 
     var body: some View {
-        StudioPanel(title: "Quick Start", systemImage: "wand.and.stars", trailing: "Visual setup") {
+        StudioPanel(title: "Guided Setup", systemImage: "wand.and.stars", trailing: "First run") {
             VStack(alignment: .leading, spacing: 12) {
                 ViewThatFits(in: .horizontal) {
                     HStack(alignment: .top, spacing: 10) {
-                        OnboardingStep(number: "1", title: "Add source apps", detail: "Keep Spotify, Music, Chrome, or add any app from Applications.")
+                        OnboardingStep(number: "1", title: "Confirm devices", detail: "Make sure your speaker, AirPods, or built-in output is visible.")
                         OnboardingArrow()
-                        OnboardingStep(number: "2", title: "Pick an output", detail: "Choose Follow System or a connected speaker from the route row.")
+                        OnboardingStep(number: "2", title: "Choose source and output", detail: "Use the side-by-side Route Builder to connect an app to a destination.")
                         OnboardingArrow()
-                        OnboardingStep(number: "3", title: "Approve macOS", detail: "When macOS asks, you must approve System Audio Recording yourself.")
+                        OnboardingStep(number: "3", title: "Check permission", detail: "When macOS asks, approve System Audio Recording manually.")
                     }
 
                     VStack(alignment: .leading, spacing: 10) {
-                        OnboardingStep(number: "1", title: "Add source apps", detail: "Keep Spotify, Music, Chrome, or add any app from Applications.")
-                        OnboardingStep(number: "2", title: "Pick an output", detail: "Choose Follow System or a connected speaker from the route row.")
-                        OnboardingStep(number: "3", title: "Approve macOS", detail: "When macOS asks, you must approve System Audio Recording yourself.")
+                        OnboardingStep(number: "1", title: "Confirm devices", detail: "Make sure your speaker, AirPods, or built-in output is visible.")
+                        OnboardingStep(number: "2", title: "Choose source and output", detail: "Use the side-by-side Route Builder to connect an app to a destination.")
+                        OnboardingStep(number: "3", title: "Check permission", detail: "When macOS asks, approve System Audio Recording manually.")
                     }
                 }
 
                 HStack(spacing: 8) {
+                    Button {
+                        store.showOnboarding()
+                    } label: {
+                        Label("Open Guided Setup", systemImage: "sparkles.rectangle.stack")
+                    }
+                    .accessibilityHint("Opens the full AudioRouter guided setup assistant")
+
                     Button {
                         store.probeProcessTapPermission()
                     } label: {
@@ -554,6 +561,8 @@ private struct StudioSmoothRouteBuilder: View {
     @State private var selectedSourceID = ""
     @State private var selectedOutputID = ""
     @State private var lastAppliedSignature: String?
+    @State private var recentlyAppliedRoute: String?
+    @State private var advanceAfterApply = true
 
     private var selectedSource: AudioSource? {
         let id = selectedSourceID.isEmpty ? (store.selectedSourceID ?? store.audioSources.first?.id ?? "") : selectedSourceID
@@ -563,6 +572,7 @@ private struct StudioSmoothRouteBuilder: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             setupRail
+            configurationToolbar
 
             HStack(alignment: .top, spacing: 10) {
                 SmoothRouteColumn(title: "Input", systemImage: "app.fill", tint: StudioPalette.blue) {
@@ -574,9 +584,7 @@ private struct StudioSmoothRouteBuilder: View {
                                     isSelected: source.id == selectedSource?.id,
                                     meterLevel: store.sourceMeters[source.id] ?? 0
                                 ) {
-                                    selectedSourceID = source.id
-                                    store.selectedSourceID = source.id
-                                    syncOutputToSelectedSource()
+                                    selectSource(source)
                                 }
                             }
                         }
@@ -589,17 +597,20 @@ private struct StudioSmoothRouteBuilder: View {
                     .frame(width: 42)
 
                 SmoothRouteColumn(title: "Output", systemImage: "speaker.wave.2.fill", tint: StudioPalette.teal) {
-                    ScrollView {
-                        LazyVStack(spacing: 7) {
-                            ForEach(routeTargets) { target in
-                                SmoothOutputChoice(target: target, isSelected: target.selectionID == selectedOutputID) {
-                                    selectedOutputID = target.selectionID
-                                    lastAppliedSignature = nil
+                    VStack(alignment: .leading, spacing: 8) {
+                        suggestedTargetStrip
+
+                        ScrollView {
+                            LazyVStack(spacing: 7) {
+                                ForEach(routeTargets) { target in
+                                    SmoothOutputChoice(target: target, isSelected: target.selectionID == selectedOutputID) {
+                                        selectOutput(target.selectionID)
+                                    }
                                 }
                             }
                         }
+                        .frame(maxHeight: 170)
                     }
-                    .frame(maxHeight: 170)
                 }
                 .frame(minWidth: 240, maxWidth: .infinity, alignment: .topLeading)
 
@@ -645,6 +656,107 @@ private struct StudioSmoothRouteBuilder: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Route setup, input \(selectedSource?.appName ?? "not selected"), output \(outputDisplayName), \(routeActionTitle)")
+    }
+
+    private var configurationToolbar: some View {
+        HStack(spacing: 9) {
+            Label(sourcePositionText, systemImage: "list.number")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            ProgressView(value: configurationProgress)
+                .progressViewStyle(.linear)
+                .tint(StudioPalette.teal)
+                .frame(maxWidth: 150)
+                .accessibilityLabel("Custom route progress")
+                .accessibilityValue("\(customRouteCount) of \(max(store.audioSources.count, 1)) source apps routed")
+
+            Text("\(customRouteCount)/\(store.audioSources.count) custom")
+                .font(.caption2.monospacedDigit().weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            Spacer(minLength: 0)
+
+            Button {
+                selectPreviousSource()
+            } label: {
+                Image(systemName: "chevron.up")
+            }
+            .buttonStyle(.borderless)
+            .disabled(store.audioSources.count < 2)
+            .help("Previous source")
+            .accessibilityLabel("Previous source app")
+
+            Button {
+                selectNextSource()
+            } label: {
+                Image(systemName: "chevron.down")
+            }
+            .buttonStyle(.borderless)
+            .disabled(store.audioSources.count < 2)
+            .help("Next source")
+            .accessibilityLabel("Next source app")
+
+            Button {
+                selectNextUnroutedSource()
+            } label: {
+                Label("Next unset", systemImage: "forward.end.fill")
+            }
+            .buttonStyle(.borderless)
+            .disabled(nextUnroutedSource == nil)
+            .help("Jump to the next source still following system output")
+            .accessibilityHint("Selects the next source app without a custom output")
+
+            Toggle("Auto-next", isOn: $advanceAfterApply)
+                .toggleStyle(.switch)
+                .font(.caption2.weight(.semibold))
+                .help("After applying a route, keep the output selected and move to the next source")
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(StudioPalette.strip.opacity(0.58), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .stroke(StudioPalette.stroke, lineWidth: 1)
+        }
+    }
+
+    private var suggestedTargetStrip: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(StudioPalette.amber)
+                Text("Suggested")
+                    .font(.system(size: 8, weight: .heavy, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                Spacer(minLength: 0)
+            }
+
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 6) {
+                    ForEach(suggestedRouteTargets) { target in
+                        SmoothSuggestionButton(target: target, isSelected: target.selectionID == selectedOutputID) {
+                            selectOutput(target.selectionID)
+                        }
+                    }
+                }
+
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: 6)], spacing: 6) {
+                    ForEach(suggestedRouteTargets) { target in
+                        SmoothSuggestionButton(target: target, isSelected: target.selectionID == selectedOutputID) {
+                            selectOutput(target.selectionID)
+                        }
+                    }
+                }
+            }
+        }
+        .padding(8)
+        .background(StudioPalette.inset.opacity(0.72), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .stroke(StudioPalette.stroke, lineWidth: 1)
+        }
     }
 
     private var routeGlyph: some View {
@@ -729,9 +841,7 @@ private struct StudioSmoothRouteBuilder: View {
         Menu {
             ForEach(store.audioSources) { source in
                 Button(source.appName) {
-                    selectedSourceID = source.id
-                    store.selectedSourceID = source.id
-                    syncOutputToSelectedSource()
+                    selectSource(source)
                 }
             }
         } label: {
@@ -751,16 +861,14 @@ private struct StudioSmoothRouteBuilder: View {
             Divider()
             ForEach(store.outputDevices) { device in
                 Button(device.name) {
-                    selectedOutputID = device.uid
-                    lastAppliedSignature = nil
+                    selectOutput(device.uid)
                 }
             }
             if !store.outputGroups.isEmpty {
                 Divider()
                 ForEach(store.outputGroups) { group in
                     Button("\(group.name) Group") {
-                        selectedOutputID = group.routeTargetID
-                        lastAppliedSignature = nil
+                        selectOutput(group.routeTargetID)
                     }
                 }
             }
@@ -826,6 +934,9 @@ private struct StudioSmoothRouteBuilder: View {
         guard let selectedSource else {
             return "Choose an input app to configure a route."
         }
+        if let recentlyAppliedRoute, !routeAlreadySet {
+            return "\(recentlyAppliedRoute) saved. \(selectedSource.appName) is ready next."
+        }
         if routeAlreadySet {
             return "\(selectedSource.appName) is set to \(outputDisplayName)."
         }
@@ -846,6 +957,67 @@ private struct StudioSmoothRouteBuilder: View {
         return routeTargets.first { $0.selectionID == selectedOutputID }?.title ?? "Missing Output"
     }
 
+    private var customRouteCount: Int {
+        store.audioSources.filter { source in
+            store.route(for: source).routeMode != .followSystemOutput
+        }.count
+    }
+
+    private var configurationProgress: Double {
+        guard !store.audioSources.isEmpty else { return 0 }
+        return Double(customRouteCount) / Double(store.audioSources.count)
+    }
+
+    private var selectedSourceIndex: Int? {
+        guard let selectedSource else { return nil }
+        return store.audioSources.firstIndex { $0.id == selectedSource.id }
+    }
+
+    private var sourcePositionText: String {
+        guard let selectedSourceIndex else { return "No source" }
+        return "Source \(selectedSourceIndex + 1) of \(store.audioSources.count)"
+    }
+
+    private var nextUnroutedSource: AudioSource? {
+        guard let selectedSourceIndex, !store.audioSources.isEmpty else {
+            return store.audioSources.first { store.route(for: $0).routeMode == .followSystemOutput }
+        }
+
+        let sources = store.audioSources
+        for offset in 1...sources.count {
+            let index = (selectedSourceIndex + offset) % sources.count
+            let candidate = sources[index]
+            if store.route(for: candidate).routeMode == .followSystemOutput {
+                return candidate
+            }
+        }
+        return nil
+    }
+
+    private var suggestedRouteTargets: [SmoothRouteTarget] {
+        var ids = [""]
+        if let currentOutputUID = store.currentOutput?.uid {
+            ids.append(currentOutputUID)
+        }
+        if let bluetooth = store.outputDevices.first(where: { $0.transport == .bluetooth || $0.transport == .bluetoothLE }) {
+            ids.append(bluetooth.uid)
+        }
+        if let builtIn = store.outputDevices.first(where: { $0.transport == .builtIn }) {
+            ids.append(builtIn.uid)
+        }
+        if let group = store.outputGroups.first {
+            ids.append(group.routeTargetID)
+        }
+
+        var seen: Set<String> = []
+        return ids.compactMap { id in
+            guard seen.insert(id).inserted else { return nil }
+            return routeTargets.first { $0.selectionID == id }
+        }
+        .prefix(4)
+        .map { $0 }
+    }
+
     private func syncFromStoreSelection() {
         guard let storeSelection = store.selectedSourceID,
               storeSelection != selectedSourceID else {
@@ -862,10 +1034,61 @@ private struct StudioSmoothRouteBuilder: View {
         lastAppliedSignature = nil
     }
 
+    private func selectOutput(_ outputID: String) {
+        selectedOutputID = outputID
+        lastAppliedSignature = nil
+        recentlyAppliedRoute = nil
+    }
+
+    private func selectSource(_ source: AudioSource, keepCurrentOutput: Bool = false) {
+        selectedSourceID = source.id
+        store.selectedSourceID = source.id
+        if keepCurrentOutput, store.route(for: source).routeMode == .followSystemOutput {
+            lastAppliedSignature = nil
+            return
+        }
+        syncOutputToSelectedSource()
+    }
+
+    private func selectPreviousSource() {
+        selectSource(offset: -1)
+    }
+
+    private func selectNextSource() {
+        selectSource(offset: 1)
+    }
+
+    private func selectSource(offset: Int) {
+        guard let selectedSourceIndex, !store.audioSources.isEmpty else { return }
+        let nextIndex = (selectedSourceIndex + offset + store.audioSources.count) % store.audioSources.count
+        selectSource(store.audioSources[nextIndex])
+    }
+
+    private func selectNextUnroutedSource(keepCurrentOutput: Bool = false) {
+        guard let nextUnroutedSource else { return }
+        selectSource(nextUnroutedSource, keepCurrentOutput: keepCurrentOutput)
+    }
+
     private func applyRoute() {
         guard let selectedSource else { return }
+        let appliedSourceID = selectedSource.id
+        let appliedSummary = "\(selectedSource.appName) -> \(outputDisplayName)"
         store.assignSourceOutput(source: selectedSource, uid: selectedOutputID.isEmpty ? nil : selectedOutputID)
         lastAppliedSignature = routeSignature
+        recentlyAppliedRoute = appliedSummary
+        if advanceAfterApply, store.audioSources.count > 1 {
+            advanceToNextSource(afterApplying: appliedSourceID)
+        }
+    }
+
+    private func advanceToNextSource(afterApplying sourceID: String) {
+        guard let appliedIndex = store.audioSources.firstIndex(where: { $0.id == sourceID }) else { return }
+        if let nextUnroutedSource {
+            selectSource(nextUnroutedSource, keepCurrentOutput: true)
+            return
+        }
+        let nextIndex = (appliedIndex + 1) % store.audioSources.count
+        selectSource(store.audioSources[nextIndex], keepCurrentOutput: true)
     }
 }
 
@@ -1035,6 +1258,42 @@ private struct SmoothOutputChoice: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("\(target.title), \(target.detail), \(isSelected ? "selected" : "not selected")")
+    }
+}
+
+private struct SmoothSuggestionButton: View {
+    let target: SmoothRouteTarget
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 5) {
+                Image(systemName: target.systemImage)
+                    .font(.system(size: 9, weight: .bold))
+                Text(target.title)
+                    .font(.caption2.weight(.bold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
+                if isSelected {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 8, weight: .heavy))
+                }
+            }
+            .foregroundStyle(isSelected ? .black : target.tint)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .frame(maxWidth: .infinity)
+            .background(isSelected ? target.tint : target.tint.opacity(0.13), in: Capsule())
+            .overlay {
+                Capsule()
+                    .stroke(target.tint.opacity(isSelected ? 0.0 : 0.28), lineWidth: 1)
+            }
+        }
+        .buttonStyle(.plain)
+        .help("Choose \(target.title)")
+        .accessibilityLabel("Suggested output, \(target.title)")
+        .accessibilityValue(isSelected ? "Selected" : "Not selected")
     }
 }
 

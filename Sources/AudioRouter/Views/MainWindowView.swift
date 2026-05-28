@@ -2,6 +2,7 @@ import SwiftUI
 
 public struct MainWindowView: View {
     @ObservedObject private var store: AudioRouterStore
+    @State private var offeredInitialOnboarding = false
 
     public init(store: AudioRouterStore) {
         self.store = store
@@ -22,6 +23,20 @@ public struct MainWindowView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .preferredColorScheme(store.settings.effectiveColorScheme)
+        .sheet(isPresented: $store.isOnboardingPresented) {
+            GuidedOnboardingSheet(store: store)
+                .frame(minWidth: 760, idealWidth: 860, minHeight: 540, idealHeight: 620)
+                .preferredColorScheme(store.settings.effectiveColorScheme)
+        }
+        .onAppear {
+            presentInitialOnboardingIfNeeded()
+        }
+    }
+
+    private func presentInitialOnboardingIfNeeded() {
+        guard !offeredInitialOnboarding, !store.settings.hasCompletedOnboarding else { return }
+        offeredInitialOnboarding = true
+        store.showOnboarding()
     }
 }
 
