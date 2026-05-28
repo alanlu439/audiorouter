@@ -21,6 +21,17 @@ struct UpdateStatusView: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
+            Toggle("Automatically check and fetch updates", isOn: automaticUpdatesBinding)
+                .font(.caption.weight(.semibold))
+                .toggleStyle(.switch)
+                .accessibilityHint("Checks GitHub Releases at launch and fetches the newest AudioRouter ZIP when available")
+
+            if let lastCheckedAt = store.updateManager.lastCheckedAt {
+                Text("Last checked \(lastCheckedAt.formatted(date: .abbreviated, time: .shortened))")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+
             HStack(spacing: 8) {
                 Button {
                     store.checkForUpdates()
@@ -71,6 +82,13 @@ struct UpdateStatusView: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Updates. Current version \(store.updateManager.currentVersion). \(store.updateManager.message)")
+    }
+
+    private var automaticUpdatesBinding: Binding<Bool> {
+        Binding(
+            get: { store.settings.automaticallyCheckForUpdates },
+            set: { store.setAutomaticallyCheckForUpdates($0) }
+        )
     }
 
     private var updateIcon: String {

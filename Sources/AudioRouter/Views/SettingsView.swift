@@ -269,7 +269,7 @@ private struct AdvancedSettingsView: View {
     private var automaticUpdatesBinding: Binding<Bool> {
         Binding(
             get: { store.settings.automaticallyCheckForUpdates },
-            set: { store.settings.automaticallyCheckForUpdates = $0 }
+            set: { store.setAutomaticallyCheckForUpdates($0) }
         )
     }
 

@@ -117,7 +117,7 @@ macOS system prompts cannot be auto-approved by AudioRouter or any normal app. A
 
 ## Updates And Releases
 
-AudioRouter can check GitHub Releases from the app, auto-fetch the newest ZIP when a newer version is available, and prompt you to install once the download is ready. Automatic checks run at launch when enabled, no more than every six hours. The updater uses the latest release API, follows `v`-prefixed semantic version tags, times out quickly on network problems, and shows readable errors if GitHub cannot be reached.
+AudioRouter can check GitHub Releases from the app, auto-fetch the newest ZIP when a newer version is available, and prompt you to install once the download is ready. Automatic checks run at launch when enabled, no more than every six hours, and the last check time is saved across app launches. The Updates card and Advanced settings both include a visual auto-check toggle. The updater uses the latest release API, follows `v`-prefixed semantic version tags, times out quickly on network problems, and shows readable errors if GitHub cannot be reached.
 
 This is a lightweight public-release updater, not a silent in-place installer. The Install button opens the downloaded ZIP so you can move the app to Applications. Future work can replace it with Sparkle once a Developer ID signing and update-feed workflow is ready.
 

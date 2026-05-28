@@ -31,12 +31,40 @@ public struct MainWindowView: View {
         .onAppear {
             presentInitialOnboardingIfNeeded()
         }
+        .alert("AudioRouter Update Ready", isPresented: updatePromptBinding) {
+            Button("Install ZIP") {
+                store.installDownloadedUpdate()
+            }
+            Button("Later", role: .cancel) {
+                store.dismissUpdatePrompt()
+            }
+        } message: {
+            Text(updatePromptMessage)
+        }
     }
 
     private func presentInitialOnboardingIfNeeded() {
         guard !offeredInitialOnboarding, !store.settings.hasCompletedOnboarding else { return }
         offeredInitialOnboarding = true
         store.showOnboarding()
+    }
+
+    private var updatePromptBinding: Binding<Bool> {
+        Binding(
+            get: { store.updateManager.shouldPromptToInstall },
+            set: { isPresented in
+                if !isPresented {
+                    store.dismissUpdatePrompt()
+                }
+            }
+        )
+    }
+
+    private var updatePromptMessage: String {
+        if let update = store.updateManager.availableUpdate {
+            return "AudioRouter \(update.version) has been downloaded. Open the ZIP and move AudioRouter.app to Applications to finish installing."
+        }
+        return store.updateManager.message
     }
 }
 

@@ -424,6 +424,13 @@ public final class AudioRouterStore: ObservableObject {
         updateManager.checkForUpdates()
     }
 
+    public func setAutomaticallyCheckForUpdates(_ enabled: Bool) {
+        settings.automaticallyCheckForUpdates = enabled
+        if enabled {
+            updateManager.checkAutomaticallyIfNeeded(enabled: true, force: true)
+        }
+    }
+
     public func openUpdateDownload() {
         updateManager.openLatestDownload()
     }
@@ -434,6 +441,10 @@ public final class AudioRouterStore: ObservableObject {
 
     public func installDownloadedUpdate() {
         updateManager.installDownloadedUpdate()
+    }
+
+    public func dismissUpdatePrompt() {
+        updateManager.dismissInstallPrompt()
     }
 
     public func openLatestRelease() {

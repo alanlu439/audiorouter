@@ -13,6 +13,7 @@ func runChecks() throws {
     try checkDeviceAdditionPreservesCurrentOutput()
     try checkCustomRouteAppPersistence()
     checkUpdateVersionComparison()
+    checkAutomaticUpdateCheckPersistence()
     try checkRouteHealthDiagnostics()
 }
 
@@ -208,6 +209,24 @@ func checkUpdateVersionComparison() {
     precondition(!UpdateManager.isVersion("0.1.1", newerThan: "0.1.1"), "Same version should not compare newer")
     precondition(!UpdateManager.isVersion("0.1.0", newerThan: "0.1.1"), "Older version should not compare newer")
     precondition(UpdateManager.displayVersion(from: " v0.1.2 ") == "0.1.2", "Display version should trim whitespace and v prefix")
+}
+
+@MainActor
+func checkAutomaticUpdateCheckPersistence() {
+    let suiteName = "AudioRouterChecks-\(UUID().uuidString)"
+    let suite = UserDefaults(suiteName: suiteName)!
+    defer { suite.removePersistentDomain(forName: suiteName) }
+
+    let date = Date(timeIntervalSince1970: 1_779_966_000)
+    suite.set(date, forKey: UpdateManager.lastAutomaticCheckDefaultsKey)
+    let manager = UpdateManager(
+        defaults: suite,
+        automaticCheckInterval: 60,
+        currentVersionProvider: { "1.0.0" }
+    )
+
+    precondition(manager.lastCheckedAt == date, "Automatic update check timestamp should persist across launches")
+    precondition(manager.currentVersion == "1.0.0", "Injected current version should be used for update checks")
 }
 
 @MainActor

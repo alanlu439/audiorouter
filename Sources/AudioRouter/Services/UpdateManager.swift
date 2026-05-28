@@ -4,6 +4,7 @@ import Foundation
 @MainActor
 public final class UpdateManager: ObservableObject {
     nonisolated public static let releaseAssetName = "AudioRouter-macOS.zip"
+    nonisolated public static let lastAutomaticCheckDefaultsKey = "AudioRouter.lastAutomaticUpdateCheckAt"
 
     public struct UpdateInfo: Equatable {
         public let version: String
@@ -18,21 +19,29 @@ public final class UpdateManager: ObservableObject {
     @Published public private(set) var availableUpdate: UpdateInfo?
     @Published public private(set) var downloadedUpdateURL: URL?
     @Published public private(set) var lastCheckedAt: Date?
+    @Published public private(set) var shouldPromptToInstall = false
     @Published public private(set) var message: String = "Updates have not been checked yet."
 
     private let session: URLSession
+    private let defaults: UserDefaults
+    private let automaticCheckInterval: TimeInterval
     private let currentVersionProvider: () -> String
     private let latestReleaseURL = URL(string: "https://api.github.com/repos/alanlu439/audiorouter/releases/latest")!
     private let latestDownloadURL = URL(string: "https://github.com/alanlu439/audiorouter/releases/latest/download/AudioRouter-macOS.zip")!
 
     public init(
         session: URLSession = .shared,
+        defaults: UserDefaults = .standard,
+        automaticCheckInterval: TimeInterval = 21_600,
         currentVersionProvider: @escaping () -> String = {
             Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.0.0"
         }
     ) {
         self.session = session
+        self.defaults = defaults
+        self.automaticCheckInterval = automaticCheckInterval
         self.currentVersionProvider = currentVersionProvider
+        self.lastCheckedAt = defaults.object(forKey: Self.lastAutomaticCheckDefaultsKey) as? Date
     }
 
     public var currentVersion: String {
@@ -56,12 +65,16 @@ public final class UpdateManager: ObservableObject {
         }
     }
 
-    public func checkAutomaticallyIfNeeded(enabled: Bool) {
+    public func checkAutomaticallyIfNeeded(enabled: Bool, force: Bool = false) {
         guard enabled else { return }
-        if let lastCheckedAt, abs(lastCheckedAt.timeIntervalSinceNow) < 21_600 {
+        if !force, let lastCheckedAt, abs(lastCheckedAt.timeIntervalSinceNow) < automaticCheckInterval {
             return
         }
         checkForUpdates(autoFetch: true)
+    }
+
+    public func dismissInstallPrompt() {
+        shouldPromptToInstall = false
     }
 
     public func openLatestRelease() {
@@ -108,6 +121,7 @@ public final class UpdateManager: ObservableObject {
             return
         }
         NSWorkspace.shared.open(downloadedUpdateURL)
+        shouldPromptToInstall = false
         message = "Opened the AudioRouter ZIP. Move AudioRouter to Applications to finish installing."
     }
 
@@ -124,7 +138,7 @@ public final class UpdateManager: ObservableObject {
             }
             let release = try JSONDecoder.releaseDecoder.decode(GitHubRelease.self, from: data)
             let latestVersion = Self.displayVersion(from: release.tagName)
-            lastCheckedAt = Date()
+            markChecked()
 
             if Self.isVersion(latestVersion, newerThan: currentVersion) {
                 let assetURL = release.assets.first { $0.name == Self.releaseAssetName }?.browserDownloadURL
@@ -140,6 +154,7 @@ public final class UpdateManager: ObservableObject {
                 downloadedUpdateURL = existingDownloadedUpdateURL(for: update)
                 if downloadedUpdateURL != nil {
                     message = "AudioRouter \(latestVersion) is downloaded. Open the ZIP to install."
+                    shouldPromptToInstall = true
                 } else if autoFetch {
                     message = "AudioRouter \(latestVersion) is available."
                     fetchAvailableUpdate()
@@ -149,10 +164,11 @@ public final class UpdateManager: ObservableObject {
             } else {
                 availableUpdate = nil
                 downloadedUpdateURL = nil
+                shouldPromptToInstall = false
                 message = "AudioRouter is up to date."
             }
         } catch {
-            lastCheckedAt = Date()
+            markChecked()
             if error is DecodingError {
                 message = "Could not read the GitHub release feed. The release format may have changed."
             } else {
@@ -181,11 +197,19 @@ public final class UpdateManager: ObservableObject {
             }
             try FileManager.default.moveItem(at: temporaryURL, to: destinationURL)
             downloadedUpdateURL = destinationURL
+            shouldPromptToInstall = true
             message = "AudioRouter \(update.version) is downloaded. Open the ZIP to install."
         } catch {
             downloadedUpdateURL = nil
+            shouldPromptToInstall = false
             message = "Could not download update: \(error.localizedDescription)"
         }
+    }
+
+    private func markChecked() {
+        let date = Date()
+        lastCheckedAt = date
+        defaults.set(date, forKey: Self.lastAutomaticCheckDefaultsKey)
     }
 
     private func existingDownloadedUpdateURL(for update: UpdateInfo) -> URL? {
