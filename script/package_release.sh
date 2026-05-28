@@ -21,6 +21,7 @@ if [[ -n "$SIGN_IDENTITY" ]]; then
   /usr/bin/codesign --force --deep --options runtime --timestamp --sign "$SIGN_IDENTITY" "$APP_BUNDLE"
 else
   echo "DEVELOPER_ID_APPLICATION is not set; keeping ad-hoc app signature."
+  echo "WARNING: ad-hoc signed builds are for local testing only. macOS Gatekeeper may block downloaded DMGs until the app is Developer ID signed and notarized."
 fi
 
 /usr/bin/codesign --verify --deep --strict --verbose=2 "$APP_BUNDLE"
@@ -68,6 +69,11 @@ if [[ "${NOTARIZE:-0}" == "1" ]]; then
   fi
 else
   echo "Skipping notarization. Set NOTARIZE=1 with notary credentials to notarize."
+  echo "WARNING: an unnotarized downloaded DMG can show 'cannot be opened' or 'not safe' on other Macs."
+fi
+
+if [[ -n "$SIGN_IDENTITY" && "${NOTARIZE:-0}" == "1" ]]; then
+  /usr/sbin/spctl -a -t open --context context:primary-signature -v "$DMG_PATH"
 fi
 
 echo "$DMG_PATH"

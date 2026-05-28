@@ -1,5 +1,31 @@
 # Changelog
 
+## 1.0.2 - 2026-05-27
+
+### Usability And Stability
+
+- Reduced UI stalls by stopping passive refreshes from starting saved routes automatically.
+- Shortened the process-tap route-start probe so failed route attempts return faster.
+- Added a visual Route Builder for smoother source-app to output-device setup.
+- Kept the dashboard routing area in a side-by-side input/output layout with clearer input and output labels, using horizontal scrolling instead of stacking when space is tight.
+- Added first-run onboarding with visual routing steps, permission probing, and a Privacy Settings shortcut.
+- Added source-app customization: hide default apps, restore defaults, add running apps, or browse for installed apps.
+- Added persistent source-app ordering controls, drag-and-drop reordering, and clearer dashboard section dividers.
+- Kept saved custom routes intact during Bluetooth/AirPods device-change bursts instead of immediately resetting them.
+- Preserved the current system output when a newly connected device tries to become default, so adding AirPods does not interrupt existing playback.
+- Smoothed meters with faster lightweight updates and refreshed Core Audio device changes less aggressively.
+- Made release packaging warn clearly when a DMG is ad-hoc signed or not notarized.
+
+## 1.0.1 - 2026-05-26
+
+### Audio Quality
+
+- Improved the experimental route renderer to keep routed audio in 32-bit floating-point PCM with the source tap sample rate whenever available.
+- Preserved the highest practical channel count supported by both the process tap and the selected output device, instead of forcing the route format to stereo.
+- Raised Core Audio sub-tap drift compensation to high quality for transient route devices.
+- Added soft peak limiting for boosted per-app route volume to reduce hard clipping while keeping normal-volume audio untouched.
+- Increased the route pipe buffer slightly to reduce dropouts during short scheduling hiccups.
+
 ## 1.0.0 - 2026-05-26
 
 AudioRouter 1.0.0 is the first large public DMG release of the app.

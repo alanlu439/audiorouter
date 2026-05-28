@@ -198,6 +198,38 @@ private struct AdvancedSettingsView: View {
                     .fixedSize(horizontal: false, vertical: true)
                 }
 
+            DockCard {
+                SectionHeader(title: "Onboarding & Permissions", systemImage: "checkmark.shield")
+                Text("macOS security prompts cannot be auto-approved by any normal app. AudioRouter can open the relevant settings and start a safe probe so you can approve System Audio Recording when macOS asks.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 8) {
+                    Button {
+                        store.showOnboarding()
+                    } label: {
+                        Label("Show Quick Start", systemImage: "questionmark.circle")
+                    }
+                    Button {
+                        store.probeProcessTapPermission()
+                    } label: {
+                        Label("Check Audio Permission", systemImage: "waveform.badge.magnifyingglass")
+                    }
+                    Button {
+                        store.openSystemAudioPermissionSettings()
+                    } label: {
+                        Label("Open Privacy Settings", systemImage: "switch.2")
+                    }
+                }
+                .controlSize(.small)
+                if let message = store.processTapProbeMessage {
+                    Text(message)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
             UpdateStatusView(store: store)
 
             DockCard {

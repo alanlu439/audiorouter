@@ -10,7 +10,7 @@ Download the latest stable build here:
 
 Those links point to the newest GitHub release assets when a new release is published.
 
-Note: the current public build is not Apple-notarized yet. macOS may ask you to approve it the first time you open it from Downloads.
+Note: the current public build is not Apple-notarized yet. macOS may ask you to approve it the first time you open it from Downloads, or it may block the DMG on stricter systems. A download that opens cleanly on other Macs requires Developer ID signing plus Apple notarization.
 
 ## License
 
@@ -32,9 +32,13 @@ The AudioRouter name, logo, app icon, and branding assets are not licensed for c
 - Core Audio hardware change observation plus a refresh fallback for Bluetooth, AirPlay, USB, HDMI, virtual, aggregate, and built-in device changes.
 - Running audio-capable app discovery through Core Audio process objects, with a running-app fallback.
 - Experimental live per-app routes on macOS 14.2+ using public Core Audio process taps, transient aggregate devices, and an IO callback.
+- High-quality experimental route rendering using 32-bit floating-point PCM, source-rate-first playback, high-quality drift compensation, and soft peak limiting for boosted app routes.
 - Per-route volume, mute, and live meters while an experimental process-tap route is active.
 - Backend readiness panel in the popover, dashboard, and Advanced settings so the app shows whether routes are ready, live, saved, or waiting for playback.
 - Custom route apps: add running apps from the visual picker or browse for an installed `.app`, then assign that app to an output.
+- Customizable source-app dashboard: hide default source apps, restore defaults, drag to reorder the app list, or add your own route apps visually.
+- First-run visual onboarding with a route setup walkthrough, permission probe, and Privacy Settings shortcut.
+- Smoother device-change handling that waits through Bluetooth/AirPods re-enumeration bursts before marking a route missing, and preserves the current system output when a newly added device tries to become default.
 - Menu bar mini mixer for quick system and app volume/mute controls.
 - Route health diagnostics showing app detection, playback activity, output availability, backend readiness, and exact failure reasons.
 - VoiceOver-friendly labels, values, hints, keyboard commands, and Reduce Motion-aware meters across the main audio controls.
@@ -109,6 +113,8 @@ The 10-band EQ UI, presets, curve preview, and Custom preset are saved settings.
 
 The generated app bundle includes `NSAudioCaptureUsageDescription`. AudioRouter does not use private TCC APIs. The Advanced screen has a process-tap probe button, and assigning an app to an output can also start a public Core Audio tap attempt so macOS can handle permission naturally.
 
+macOS system prompts cannot be auto-approved by AudioRouter or any normal app. AudioRouter instead shows visual instructions, opens Privacy & Security when requested, and keeps routes saved while you approve the prompt yourself.
+
 ## Updates And Releases
 
 AudioRouter can check GitHub Releases from the app, auto-fetch the newest DMG when a newer version is available, and prompt you to install once the download is ready. Automatic checks run at launch when enabled, no more than every six hours. The updater uses the latest release API, follows `v`-prefixed semantic version tags, times out quickly on network problems, and shows readable errors if GitHub cannot be reached.
@@ -131,7 +137,7 @@ export NOTARIZE=1
 ./script/package_release.sh
 ```
 
-`NOTARYTOOL_PROFILE` should be created with `xcrun notarytool store-credentials`. Without those Apple credentials, the script creates an ad-hoc signed DMG artifact and skips notarization.
+`NOTARYTOOL_PROFILE` should be created with `xcrun notarytool store-credentials`. Without those Apple credentials, the script creates an ad-hoc signed DMG artifact and skips notarization. Ad-hoc DMGs are useful for local testing, but they are the reason macOS may say a downloaded app is unsafe or cannot be opened.
 
 ## Build From Source
 
@@ -157,8 +163,8 @@ The script builds the SwiftPM product, stages `dist/AudioRouter.app`, writes the
 2. Open AudioRouter from the menu bar.
 3. Keep the app in Live Mode.
 4. Start playback in Spotify, Apple Music, Chrome, or another app you added.
-5. To add another source, open the Routing Dashboard, click `Add App`, pick a running app, or browse for an installed `.app`.
-6. Pick an output from that app's output dropdown, or drag the app card onto an output device card.
+5. To customize sources, open the Routing Dashboard, click `Add App`, pick a running app, browse for an installed `.app`, drag input rows to reorder them, or hide apps you do not want from the source row menu.
+6. Use the Route Builder, pick an output from an app row, or drag the app card onto an output device card.
 7. When macOS asks for System Audio Recording permission, allow AudioRouter.
 8. If a route starts successfully, the route badge changes to `Live` and the meter begins moving.
 9. Use the per-app volume and mute controls on the source card to adjust that route.

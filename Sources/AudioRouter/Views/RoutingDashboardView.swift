@@ -10,6 +10,9 @@ struct RoutingDashboardView: View {
             VStack(alignment: .leading, spacing: 14) {
                 consoleHeader
                 consoleStatusRail
+                if !store.settings.hasCompletedOnboarding {
+                    StudioOnboardingCard(store: store)
+                }
 
                 if let note = store.unsupportedNote {
                     SupportNote(note: note) {
@@ -92,21 +95,18 @@ struct RoutingDashboardView: View {
 
     @ViewBuilder
     private var consoleSurface: some View {
-        ViewThatFits(in: .horizontal) {
+        ScrollView(.horizontal) {
             HStack(alignment: .top, spacing: 14) {
                 StudioPatchBayPanel(store: store)
-                    .frame(minWidth: 650, maxWidth: .infinity, alignment: .top)
+                    .frame(minWidth: 700, idealWidth: 760, maxWidth: .infinity, alignment: .top)
                 StudioOutputRackPanel(store: store)
-                    .frame(width: 328, alignment: .top)
+                    .frame(minWidth: 300, idealWidth: 328, maxWidth: 360, alignment: .top)
             }
-            .frame(maxWidth: .infinity, alignment: .topLeading)
-
-            VStack(alignment: .leading, spacing: 14) {
-                StudioPatchBayPanel(store: store)
-                StudioOutputRackPanel(store: store)
+            .containerRelativeFrame(.horizontal, alignment: .topLeading) { length, _ in
+                max(length, 1_014)
             }
-            .frame(maxWidth: .infinity, alignment: .topLeading)
         }
+        .scrollIndicators(.visible)
         .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 
@@ -259,6 +259,98 @@ private struct StudioLEDLabel: View {
     }
 }
 
+private struct StudioOnboardingCard: View {
+    @ObservedObject var store: AudioRouterStore
+
+    var body: some View {
+        StudioPanel(title: "Quick Start", systemImage: "wand.and.stars", trailing: "Visual setup") {
+            VStack(alignment: .leading, spacing: 12) {
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .top, spacing: 10) {
+                        OnboardingStep(number: "1", title: "Add source apps", detail: "Keep Spotify, Music, Chrome, or add any app from Applications.")
+                        OnboardingArrow()
+                        OnboardingStep(number: "2", title: "Pick an output", detail: "Choose Follow System or a connected speaker from the route row.")
+                        OnboardingArrow()
+                        OnboardingStep(number: "3", title: "Approve macOS", detail: "When macOS asks, you must approve System Audio Recording yourself.")
+                    }
+
+                    VStack(alignment: .leading, spacing: 10) {
+                        OnboardingStep(number: "1", title: "Add source apps", detail: "Keep Spotify, Music, Chrome, or add any app from Applications.")
+                        OnboardingStep(number: "2", title: "Pick an output", detail: "Choose Follow System or a connected speaker from the route row.")
+                        OnboardingStep(number: "3", title: "Approve macOS", detail: "When macOS asks, you must approve System Audio Recording yourself.")
+                    }
+                }
+
+                HStack(spacing: 8) {
+                    Button {
+                        store.probeProcessTapPermission()
+                    } label: {
+                        Label("Check Permission", systemImage: "checkmark.shield")
+                    }
+                    .accessibilityHint("Starts a safe process-tap probe so macOS can show its audio capture prompt if needed")
+
+                    Button {
+                        store.openSystemAudioPermissionSettings()
+                    } label: {
+                        Label("Open Privacy Settings", systemImage: "switch.2")
+                    }
+                    .accessibilityHint("Opens System Settings so you can approve AudioRouter manually")
+
+                    Spacer()
+
+                    Button {
+                        store.completeOnboarding()
+                    } label: {
+                        Label("Got It", systemImage: "checkmark")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(StudioPalette.teal)
+                    .accessibilityHint("Hides the quick start card")
+                }
+                .controlSize(.small)
+            }
+        }
+    }
+}
+
+private struct OnboardingStep: View {
+    let number: String
+    let title: String
+    let detail: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 9) {
+            Text(number)
+                .font(.system(size: 13, weight: .heavy, design: .monospaced))
+                .foregroundStyle(.black)
+                .frame(width: 24, height: 24)
+                .background(StudioPalette.teal, in: Circle())
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.caption.weight(.bold))
+                Text(detail)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Step \(number), \(title), \(detail)")
+    }
+}
+
+private struct OnboardingArrow: View {
+    var body: some View {
+        Image(systemName: "arrow.right")
+            .font(.system(size: 12, weight: .heavy))
+            .foregroundStyle(StudioPalette.amber)
+            .padding(.top, 6)
+            .accessibilityHidden(true)
+    }
+}
+
 private struct StudioPanel<Content: View>: View {
     let title: String
     let systemImage: String
@@ -323,22 +415,42 @@ private struct StudioPatchBayPanel: View {
             systemImage: "point.3.connected.trianglepath.dotted",
             trailing: store.routeSummaryText
         ) {
-            VStack(spacing: 7) {
+            VStack(spacing: 9) {
+                StudioSectionMarker(
+                    title: "Controls",
+                    detail: "\(store.routeAppDisplayNames.count) configured inputs",
+                    tint: StudioPalette.blue
+                )
                 StudioPatchBayActions(store: store) {
                     isAddingApp = true
                 }
+                StudioSectionMarker(
+                    title: "Route Builder",
+                    detail: "Choose one input app and one output destination",
+                    tint: StudioPalette.teal
+                )
+                StudioRouteBuilder(store: store)
 
+                StudioSectionMarker(
+                    title: "Input Apps",
+                    detail: "Drag rows or use arrows to customize order",
+                    tint: StudioPalette.blue
+                )
                 StudioPatchBayHeader()
 
                 ForEach(store.audioSources) { source in
                     StudioChannelStrip(source: source, store: store)
-                        .draggable(source.id)
                 }
 
                 if let selectedSource {
                     Divider()
                         .overlay(StudioPalette.stroke)
                         .padding(.vertical, 4)
+                    StudioSectionMarker(
+                        title: "Selected Route",
+                        detail: selectedSource.appName,
+                        tint: store.statusStyle(for: selectedSource).foreground
+                    )
                     StudioRouteInspector(source: selectedSource, store: store)
                 }
             }
@@ -372,6 +484,22 @@ private struct StudioPatchBayActions: View {
             }
             .accessibilityHint("Reloads running apps and audio devices")
 
+            if store.hasHiddenDefaultRouteApps {
+                Button {
+                    store.restoreDefaultRouteApps()
+                } label: {
+                    Label("Restore Defaults", systemImage: "arrow.uturn.backward")
+                }
+                .accessibilityHint("Restores Spotify, Apple Music, and Chrome to the dashboard")
+            }
+
+            Button {
+                store.resetRouteAppOrder()
+            } label: {
+                Label("Reset Order", systemImage: "arrow.up.arrow.down")
+            }
+            .accessibilityHint("Restores the default app order")
+
             Button {
                 onAddApp()
             } label: {
@@ -389,6 +517,246 @@ private struct StudioPatchBayActions: View {
             RoundedRectangle(cornerRadius: 6, style: .continuous)
                 .stroke(StudioPalette.stroke, lineWidth: 1)
         }
+    }
+}
+
+private struct StudioSectionMarker: View {
+    let title: String
+    let detail: String
+    let tint: Color
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Capsule()
+                .fill(tint)
+                .frame(width: 4, height: 16)
+                .shadow(color: tint.opacity(0.45), radius: 3)
+            Text(title.uppercased())
+                .font(.system(size: 10, weight: .heavy, design: .monospaced))
+                .foregroundStyle(.primary.opacity(0.9))
+            Rectangle()
+                .fill(StudioPalette.stroke)
+                .frame(height: 1)
+            Text(detail)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
+        .padding(.horizontal, 11)
+        .padding(.top, 3)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(title), \(detail)")
+    }
+}
+
+private struct StudioRouteBuilder: View {
+    @ObservedObject var store: AudioRouterStore
+    @State private var selectedSourceID = ""
+    @State private var selectedOutputID = ""
+
+    private var selectedSource: AudioSource? {
+        let id = selectedSourceID.isEmpty ? (store.selectedSourceID ?? store.audioSources.first?.id ?? "") : selectedSourceID
+        return store.audioSources.first { $0.id == id }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            HStack(alignment: .top, spacing: 10) {
+                inputEndpoint
+                    .frame(minWidth: 190, maxWidth: .infinity, alignment: .topLeading)
+                routeGlyph
+                outputEndpoint
+                    .frame(minWidth: 190, maxWidth: .infinity, alignment: .topLeading)
+                routeActionStack
+                    .frame(width: 128, alignment: .top)
+            }
+
+            HStack(spacing: 8) {
+                Image(systemName: "hand.draw")
+                    .foregroundStyle(StudioPalette.amber)
+                Text("You can also drag a source row onto an output card, or use each source row's output menu.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(.horizontal, 11)
+        .padding(.vertical, 9)
+        .background(StudioPalette.inset.opacity(0.72), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .stroke(StudioPalette.stroke, lineWidth: 1)
+        }
+        .onChange(of: store.audioSources) { _, _ in
+            if selectedSource == nil {
+                selectedSourceID = store.selectedSourceID ?? store.audioSources.first?.id ?? ""
+            }
+        }
+        .onAppear {
+            selectedSourceID = store.selectedSourceID ?? store.audioSources.first?.id ?? ""
+            selectedOutputID = selectedSource.flatMap { $0.assignedOutputDeviceID } ?? ""
+        }
+    }
+
+    private var inputEndpoint: some View {
+        StudioRouteEndpoint(
+            title: "Input",
+            subtitle: selectedSource?.appName ?? "Choose app",
+            systemImage: "app.fill",
+            tint: StudioPalette.blue
+        ) {
+            Picker("Input App", selection: sourceSelection) {
+                ForEach(store.audioSources) { source in
+                    Text(source.appName).tag(source.id)
+                }
+            }
+            .labelsHidden()
+            .pickerStyle(.menu)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityHint("Choose the app you want to route")
+        }
+    }
+
+    private var outputEndpoint: some View {
+        StudioRouteEndpoint(
+            title: "Output",
+            subtitle: outputSubtitle,
+            systemImage: selectedOutputID.isEmpty ? "arrow.triangle.branch" : "speaker.wave.2.fill",
+            tint: StudioPalette.teal
+        ) {
+            Picker("Output Device", selection: $selectedOutputID) {
+                Text("Follow System").tag("")
+                ForEach(store.outputDevices) { device in
+                    Text(device.name).tag(device.uid)
+                }
+                if !store.outputGroups.isEmpty {
+                    Divider()
+                    ForEach(store.outputGroups) { group in
+                        Text("\(group.name) (Group)").tag(group.routeTargetID)
+                    }
+                }
+            }
+            .labelsHidden()
+            .pickerStyle(.menu)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityHint("Choose the output device for the selected app")
+        }
+    }
+
+    private var routeGlyph: some View {
+        VStack(spacing: 5) {
+            Text("ROUTE")
+                .font(.system(size: 8, weight: .heavy, design: .monospaced))
+                .foregroundStyle(.secondary)
+            Image(systemName: "arrow.right")
+                .font(.system(size: 16, weight: .heavy))
+                .foregroundStyle(StudioPalette.amber)
+            StudioLED(color: selectedOutputID.isEmpty ? StudioPalette.blue : StudioPalette.teal)
+        }
+        .padding(.top, 10)
+        .frame(width: 54)
+        .accessibilityHidden(true)
+    }
+
+    private var routeActionStack: some View {
+        VStack(spacing: 8) {
+            Button {
+                applyRoute()
+            } label: {
+                Label(selectedOutputID.isEmpty ? "Follow System" : "Patch Route", systemImage: selectedOutputID.isEmpty ? "arrow.triangle.branch" : "point.3.connected.trianglepath.dotted")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(selectedOutputID.isEmpty ? StudioPalette.blue : StudioPalette.teal)
+            .disabled(selectedSource == nil)
+            .accessibilityHint("Applies the selected app to output route")
+
+            Text("INPUT -> OUTPUT")
+                .font(.system(size: 8, weight: .heavy, design: .monospaced))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
+    }
+
+    private var sourceSelection: Binding<String> {
+        Binding(
+            get: { selectedSourceID.isEmpty ? (store.selectedSourceID ?? store.audioSources.first?.id ?? "") : selectedSourceID },
+            set: { value in
+                selectedSourceID = value
+                store.selectedSourceID = value
+                selectedOutputID = selectedSource.flatMap { $0.assignedOutputDeviceID } ?? ""
+            }
+        )
+    }
+
+    private func applyRoute() {
+        guard let selectedSource else { return }
+        store.assignSourceOutput(source: selectedSource, uid: selectedOutputID.isEmpty ? nil : selectedOutputID)
+    }
+
+    private var outputSubtitle: String {
+        if selectedOutputID.isEmpty {
+            return "Follow System"
+        }
+        if let device = store.outputDevices.first(where: { $0.uid == selectedOutputID }) {
+            return device.name
+        }
+        if let group = store.outputGroups.first(where: { $0.routeTargetID == selectedOutputID }) {
+            return group.name
+        }
+        return "Missing Output"
+    }
+}
+
+private struct StudioRouteEndpoint<Content: View>: View {
+    let title: String
+    let subtitle: String
+    let systemImage: String
+    let tint: Color
+    let content: Content
+
+    init(
+        title: String,
+        subtitle: String,
+        systemImage: String,
+        tint: Color,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.title = title
+        self.subtitle = subtitle
+        self.systemImage = systemImage
+        self.tint = tint
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(tint)
+                    .frame(width: 22, height: 22)
+                    .background(tint.opacity(0.13), in: RoundedRectangle(cornerRadius: 5, style: .continuous))
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(title.uppercased())
+                        .font(.system(size: 9, weight: .heavy, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                    Text(subtitle)
+                        .font(.caption.weight(.semibold))
+                        .lineLimit(1)
+                }
+            }
+
+            content
+        }
+        .padding(10)
+        .background(StudioPalette.strip.opacity(0.72), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .stroke(tint.opacity(0.22), lineWidth: 1)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("\(title), \(subtitle)")
     }
 }
 
@@ -451,6 +819,15 @@ private struct AddRouteAppSheet: View {
                     Label("Browse Applications", systemImage: "folder")
                 }
                 .accessibilityHint("Choose an installed app from disk")
+
+                if store.hasHiddenDefaultRouteApps {
+                    Button {
+                        store.restoreDefaultRouteApps()
+                    } label: {
+                        Label("Restore Defaults", systemImage: "arrow.uturn.backward")
+                    }
+                    .accessibilityHint("Restores Spotify, Apple Music, and Chrome")
+                }
 
                 Spacer()
             }
@@ -554,15 +931,27 @@ private struct AddRouteAppRow: View {
 
 private struct StudioPatchBayHeader: View {
     var body: some View {
-        HStack(spacing: 12) {
-            Text("CHANNEL")
-                .frame(minWidth: 162, maxWidth: 220, alignment: .leading)
-            Text("METER")
-                .frame(width: 106, alignment: .leading)
-            Text("BUS / OUTPUT")
-                .frame(minWidth: 210, maxWidth: .infinity, alignment: .leading)
-            Text("GAIN")
-                .frame(width: 172, alignment: .leading)
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 12) {
+                Text("ORDER")
+                    .frame(width: 48, alignment: .leading)
+                Text("INPUT APP")
+                    .frame(minWidth: 134, maxWidth: 200, alignment: .leading)
+                Text("METER")
+                    .frame(width: 88, alignment: .leading)
+                Text("OUTPUT")
+                    .frame(minWidth: 168, maxWidth: .infinity, alignment: .leading)
+                Text("GAIN")
+                    .frame(width: 148, alignment: .leading)
+            }
+
+            HStack(spacing: 8) {
+                Text("ORDER")
+                    .frame(width: 48, alignment: .leading)
+                Text("INPUT APP")
+                Spacer()
+                Text("OUTPUT")
+            }
         }
         .font(.system(size: 9, weight: .bold, design: .monospaced))
         .foregroundStyle(.secondary)
@@ -574,6 +963,7 @@ private struct StudioPatchBayHeader: View {
 private struct StudioChannelStrip: View {
     let source: AudioSource
     @ObservedObject var store: AudioRouterStore
+    @State private var isDropTargeted = false
 
     private var isSelected: Bool {
         store.selectedSourceID == source.id
@@ -584,26 +974,7 @@ private struct StudioChannelStrip: View {
     }
 
     var body: some View {
-        Button {
-            store.selectedSourceID = source.id
-        } label: {
-            HStack(spacing: 12) {
-                channelIdentity
-                    .frame(minWidth: 162, maxWidth: 220, alignment: .leading)
-
-                StudioSegmentMeter(
-                    level: store.sourceMeters[source.id] ?? 0,
-                    segmentCount: 12,
-                    tint: source.isProducingAudio ? StudioPalette.green : StudioPalette.teal
-                )
-                .frame(width: 106, alignment: .leading)
-
-                routeAssignment
-                    .frame(minWidth: 210, maxWidth: .infinity, alignment: .leading)
-
-                gainControls
-                    .frame(width: 172, alignment: .leading)
-            }
+        fullChannelRow
             .padding(.horizontal, 11)
             .padding(.vertical, 10)
             .background(channelBackground, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
@@ -615,27 +986,106 @@ private struct StudioChannelStrip: View {
             }
             .overlay {
                 RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .stroke(isSelected ? StudioPalette.amber.opacity(0.95) : StudioPalette.stroke, lineWidth: isSelected ? 1.5 : 1)
+                    .stroke(rowStrokeColor, lineWidth: rowStrokeWidth)
             }
-        }
-        .buttonStyle(.plain)
-        .contextMenu {
-            Button("Follow System Output") {
-                store.resetSourceToSystemOutput(source)
-            }
-            Button(source.isMuted ? "Unmute" : "Mute") {
-                store.setSourceMuted(source: source, isMuted: !source.isMuted)
-            }
-            if store.isUserAddedRouteApp(source) {
-                Divider()
-                Button("Remove App from Dashboard", role: .destructive) {
-                    store.removeRouteApp(source)
+            .overlay(alignment: .topTrailing) {
+                if isDropTargeted {
+                    Text("DROP TO REORDER")
+                        .font(.system(size: 8, weight: .heavy, design: .monospaced))
+                        .foregroundStyle(StudioPalette.amber)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(StudioPalette.amber.opacity(0.14), in: Capsule())
+                        .padding(6)
                 }
             }
+            .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+            .onTapGesture {
+                store.selectedSourceID = source.id
+            }
+            .contextMenu {
+                Button("Follow System Output") {
+                    store.resetSourceToSystemOutput(source)
+                }
+                Button(source.isMuted ? "Unmute" : "Mute") {
+                    store.setSourceMuted(source: source, isMuted: !source.isMuted)
+                }
+                Divider()
+                Button("Move Up") {
+                    store.moveRouteApp(source, offset: -1)
+                }
+                .disabled(!store.canMoveRouteApp(source, offset: -1))
+                Button("Move Down") {
+                    store.moveRouteApp(source, offset: 1)
+                }
+                .disabled(!store.canMoveRouteApp(source, offset: 1))
+                if store.isUserAddedRouteApp(source) || store.isDefaultRouteApp(source) {
+                    Divider()
+                    Button(store.isDefaultRouteApp(source) ? "Hide App from Dashboard" : "Remove App from Dashboard", role: .destructive) {
+                        store.removeRouteApp(source)
+                    }
+                }
+            }
+        .draggable(source.id) {
+            StudioSourceDragPreview(source: source, outputName: store.routeOutputName(for: source))
+        }
+        .dropDestination(for: String.self) { sourceIDs, _ in
+            guard let draggedSourceID = sourceIDs.first else { return false }
+            return store.reorderRouteApp(draggedSourceID: draggedSourceID, targetSourceID: source.id)
+        } isTargeted: { isTargeted in
+            isDropTargeted = isTargeted
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("\(source.appName), output \(store.routeOutputName(for: source)), \(store.routeStatus(for: source))")
-        .accessibilityHint("Selects this source for route controls. Use the output menu to change where it plays.")
+        .accessibilityHint("Selects this source for route controls. Drag this row onto another input app to reorder it, or drag it onto an output device to route it.")
+    }
+
+    private var fullChannelRow: some View {
+        HStack(spacing: 12) {
+            orderControls
+                .frame(width: 48, alignment: .leading)
+
+            channelIdentity
+                .frame(minWidth: 134, maxWidth: 200, alignment: .leading)
+
+            StudioSegmentMeter(
+                level: store.sourceMeters[source.id] ?? 0,
+                segmentCount: 12,
+                tint: source.isProducingAudio ? StudioPalette.green : StudioPalette.teal
+            )
+            .frame(width: 88, alignment: .leading)
+
+            routeAssignment
+                .frame(minWidth: 168, maxWidth: .infinity, alignment: .leading)
+
+            gainControls
+                .frame(width: 148, alignment: .leading)
+        }
+    }
+
+    private var orderControls: some View {
+        HStack(spacing: 2) {
+            Button {
+                store.moveRouteApp(source, offset: -1)
+            } label: {
+                Image(systemName: "chevron.up")
+            }
+            .buttonStyle(.borderless)
+            .disabled(!store.canMoveRouteApp(source, offset: -1))
+            .help("Move \(source.appName) up")
+            .accessibilityLabel("Move \(source.appName) up")
+
+            Button {
+                store.moveRouteApp(source, offset: 1)
+            } label: {
+                Image(systemName: "chevron.down")
+            }
+            .buttonStyle(.borderless)
+            .disabled(!store.canMoveRouteApp(source, offset: 1))
+            .help("Move \(source.appName) down")
+            .accessibilityLabel("Move \(source.appName) down")
+        }
+        .font(.system(size: 10, weight: .bold))
     }
 
     private var channelIdentity: some View {
@@ -720,6 +1170,9 @@ private struct StudioChannelStrip: View {
     }
 
     private var channelBackground: Color {
+        if isDropTargeted {
+            return StudioPalette.amber.opacity(0.12)
+        }
         if isSelected {
             return StudioPalette.strip.opacity(0.95)
         }
@@ -727,6 +1180,20 @@ private struct StudioChannelStrip: View {
             return Color.orange.opacity(0.10)
         }
         return StudioPalette.strip.opacity(0.74)
+    }
+
+    private var rowStrokeColor: Color {
+        if isDropTargeted {
+            return StudioPalette.amber.opacity(0.95)
+        }
+        return isSelected ? StudioPalette.amber.opacity(0.95) : StudioPalette.stroke
+    }
+
+    private var rowStrokeWidth: CGFloat {
+        if isDropTargeted {
+            return 2
+        }
+        return isSelected ? 1.5 : 1
     }
 
     private var outputSelection: Binding<String> {
@@ -756,6 +1223,42 @@ private struct StudioRouteCable: View {
                 .foregroundStyle(status.foreground)
         }
         .accessibilityHidden(true)
+    }
+}
+
+private struct StudioSourceDragPreview: View {
+    let source: AudioSource
+    let outputName: String
+
+    var body: some View {
+        HStack(spacing: 9) {
+            AppSourceIcon(source: source)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(source.appName)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                Text("Drag to reorder or route")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            Image(systemName: "arrow.right")
+                .font(.caption.weight(.heavy))
+                .foregroundStyle(StudioPalette.amber)
+            Text(outputName)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(StudioPalette.header.opacity(0.96), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(StudioPalette.amber.opacity(0.45), lineWidth: 1)
+        }
+        .frame(maxWidth: 260)
     }
 }
 
@@ -862,11 +1365,19 @@ private struct StudioRouteInspector: View {
                     Label("Delete Route", systemImage: "trash")
                 }
                 .accessibilityHint("Deletes this saved route and follows the system output")
-                if store.isUserAddedRouteApp(source) {
+                if routeCanRetry {
+                    Button {
+                        store.retrySourceRoute(source)
+                    } label: {
+                        Label("Retry Route", systemImage: "arrow.clockwise.circle")
+                    }
+                    .accessibilityHint("Retries the saved custom route for \(source.appName)")
+                }
+                if store.isUserAddedRouteApp(source) || store.isDefaultRouteApp(source) {
                     Button(role: .destructive) {
                         store.removeRouteApp(source)
                     } label: {
-                        Label("Remove App", systemImage: "minus.circle")
+                        Label(store.isDefaultRouteApp(source) ? "Hide App" : "Remove App", systemImage: "minus.circle")
                     }
                     .accessibilityHint("Removes \(source.appName) from the routing dashboard")
                 }
@@ -895,6 +1406,11 @@ private struct StudioRouteInspector: View {
                 }
             }
         )
+    }
+
+    private var routeCanRetry: Bool {
+        let route = store.route(for: source)
+        return route.routeMode == .customOutput && route.status != .active
     }
 }
 
@@ -960,18 +1476,28 @@ private struct StudioOutputRackPanel: View {
             VStack(spacing: 8) {
                 ForEach(store.outputDevices) { device in
                     StudioOutputModule(device: device, store: store)
-                        .dropDestination(for: String.self) { sourceIDs, _ in
-                            guard let sourceID = sourceIDs.first,
-                                  let source = store.audioSources.first(where: { $0.id == sourceID }) else {
-                                return false
-                            }
-                            store.assignSourceOutput(source: source, uid: device.uid)
-                            store.selectedSourceID = source.id
-                            return true
+                        .onDrop(of: [.text, .plainText], isTargeted: nil) { providers in
+                            routeDroppedSource(from: providers, to: device)
                         }
                 }
             }
         }
+    }
+
+    private func routeDroppedSource(from providers: [NSItemProvider], to device: AudioDevice) -> Bool {
+        guard let provider = providers.first(where: { $0.canLoadObject(ofClass: NSString.self) }) else {
+            return false
+        }
+
+        provider.loadObject(ofClass: NSString.self) { object, _ in
+            guard let sourceID = object as? String else { return }
+            Task { @MainActor in
+                guard let source = store.audioSources.first(where: { $0.id == sourceID }) else { return }
+                store.assignSourceOutput(source: source, uid: device.uid)
+                store.selectedSourceID = source.id
+            }
+        }
+        return true
     }
 }
 
@@ -1040,16 +1566,10 @@ private struct StudioOutputModule: View {
             routedSources
         }
         .padding(10)
-        .background(device.isDefault ? StudioPalette.teal.opacity(0.12) : StudioPalette.strip.opacity(0.76), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
-        .overlay(alignment: .top) {
-            Rectangle()
-                .fill(device.isDefault ? StudioPalette.teal.opacity(0.85) : StudioPalette.stroke)
-                .frame(height: 2)
-                .clipShape(RoundedRectangle(cornerRadius: 2, style: .continuous))
-        }
+        .background(StudioPalette.strip.opacity(0.76), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .stroke(device.isDefault ? StudioPalette.teal.opacity(0.70) : StudioPalette.stroke, lineWidth: device.isDefault ? 1.5 : 1)
+                .stroke(StudioPalette.stroke, lineWidth: 1)
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("\(device.name), \(device.typeDescription), \(device.isDefault ? "system output" : "available output")")

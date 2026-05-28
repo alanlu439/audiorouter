@@ -41,13 +41,20 @@ public final class AudioRouterStore: ObservableObject {
     private var pendingRefreshTask: Task<Void, Never>?
     private var meterPhase: Double = 0
     private var lastRefreshUsedDemoMode: Bool?
+    private var stableSystemOutputUID: String?
     private var cancellables: Set<AnyCancellable> = []
     private let outputGroupsURL: URL
     private let appSourcesURL: URL
+    private let hiddenDefaultSourcesURL: URL
+    private let sourceOrderURL: URL
     private var userSourceSpecs: [FocusedSourceSpec]
-    private let refreshInterval: TimeInterval = 10
-    private let meterInterval: TimeInterval = 0.24
-    private let meterPublishThreshold = 0.012
+    private var hiddenDefaultSourceIDs: Set<String>
+    private var sourceOrderIDs: [String]
+    private var pendingDeviceDisconnectTasks: [String: Task<Void, Never>] = [:]
+    private let refreshInterval: TimeInterval = 18
+    private let meterInterval: TimeInterval = 0.14
+    private let meterPublishThreshold = 0.008
+    private let deviceDisconnectGraceInterval: TimeInterval = 12
 
     public init(
         deviceManager: AudioDeviceManaging = AudioDeviceService(),
@@ -59,7 +66,9 @@ public final class AudioRouterStore: ObservableObject {
         audioRoutingManager: AudioRoutingManager = AudioRoutingManager(),
         processAudioMonitor: ProcessAudioMonitor = ProcessAudioMonitor(),
         outputGroupsURL: URL = try! AppSupport.fileURL(named: "output-groups.json"),
-        appSourcesURL: URL = try! AppSupport.fileURL(named: "audio-sources.json")
+        appSourcesURL: URL = try! AppSupport.fileURL(named: "audio-sources.json"),
+        hiddenDefaultSourcesURL: URL = try! AppSupport.fileURL(named: "hidden-default-sources.json"),
+        sourceOrderURL: URL = try! AppSupport.fileURL(named: "source-order.json")
     ) {
         self.deviceManager = deviceManager
         self.volumeManager = SystemVolumeManager(deviceManager: deviceManager)
@@ -72,7 +81,11 @@ public final class AudioRouterStore: ObservableObject {
         self.processAudioMonitor = processAudioMonitor
         self.outputGroupsURL = outputGroupsURL
         self.appSourcesURL = appSourcesURL
+        self.hiddenDefaultSourcesURL = hiddenDefaultSourcesURL
+        self.sourceOrderURL = sourceOrderURL
         self.userSourceSpecs = Self.loadUserSourceSpecs(from: appSourcesURL)
+        self.hiddenDefaultSourceIDs = Self.loadHiddenDefaultSourceIDs(from: hiddenDefaultSourcesURL)
+        self.sourceOrderIDs = Self.loadSourceOrderIDs(from: sourceOrderURL)
         self.outputGroups = (try? Data(contentsOf: outputGroupsURL))
             .flatMap { try? JSONDecoder().decode([OutputDeviceGroup].self, from: $0) } ?? []
 
@@ -304,6 +317,7 @@ public final class AudioRouterStore: ObservableObject {
                 self?.refresh(silent: true)
             }
         }
+        refreshTimer?.tolerance = 2
         configureMeterTimer()
     }
 
@@ -324,6 +338,8 @@ public final class AudioRouterStore: ObservableObject {
         pendingSourceVolumeTasks.removeAll()
         pendingRefreshTask?.cancel()
         pendingRefreshTask = nil
+        pendingDeviceDisconnectTasks.values.forEach { $0.cancel() }
+        pendingDeviceDisconnectTasks.removeAll()
         deviceObservation?.cancel()
         deviceObservation = nil
     }
@@ -331,8 +347,9 @@ public final class AudioRouterStore: ObservableObject {
     public func refresh(silent: Bool = false) {
         do {
             let usingDemoMode = settings.demoMode
-            let previousOutputUIDs = Set(outputDevices.map(\.uid))
-            let refreshedDevices: [AudioDevice]
+            let previousOutputUIDs = Self.aliveOutputUIDs(from: devices)
+            let previousDefaultOutputUID = stableSystemOutputUID ?? Self.defaultOutputUID(from: devices)
+            var refreshedDevices: [AudioDevice]
             if usingDemoMode {
                 deviceObservation?.cancel()
                 deviceObservation = nil
@@ -343,7 +360,17 @@ public final class AudioRouterStore: ObservableObject {
                 }
             } else {
                 refreshedDevices = try deviceManager.refreshDevices()
+                refreshedDevices = try preserveCurrentOutputWhenDeviceIsAdded(
+                    refreshedDevices,
+                    previousOutputUIDs: previousOutputUIDs,
+                    previousDefaultOutputUID: previousDefaultOutputUID
+                )
             }
+            updateStableSystemOutputUID(
+                from: refreshedDevices,
+                previousOutputUIDs: previousOutputUIDs,
+                previousDefaultOutputUID: previousDefaultOutputUID
+            )
             if refreshedDevices != devices {
                 devices = refreshedDevices
             }
@@ -358,18 +385,24 @@ public final class AudioRouterStore: ObservableObject {
             if meteringNote != nextMeteringNote {
                 meteringNote = nextMeteringNote
             }
-            let currentOutputUIDs = Set(outputDevices.map(\.uid))
+            let currentOutputUIDs = Self.aliveOutputUIDs(from: devices)
             for disconnectedUID in previousOutputUIDs.subtracting(currentOutputUIDs) {
-                audioRoutingManager.handleDeviceDisconnected(deviceID: disconnectedUID)
+                scheduleDeviceMissingCheck(for: disconnectedUID)
             }
             for reconnectedUID in currentOutputUIDs.subtracting(previousOutputUIDs) {
-                audioRoutingManager.handleDeviceReconnected(deviceID: reconnectedUID)
+                pendingDeviceDisconnectTasks[reconnectedUID]?.cancel()
+                pendingDeviceDisconnectTasks.removeValue(forKey: reconnectedUID)
+                if audioRoutingManager.hasDeviceMissingRoute(forDeviceID: reconnectedUID) {
+                    audioRoutingManager.handleDeviceReconnected(deviceID: reconnectedUID)
+                }
             }
             let refreshedSources = usingDemoMode ? demoSources : focusedSources(from: audioRoutingManager.getActiveAudioSources())
             if refreshedSources != audioSources {
                 audioSources = refreshedSources
             }
-            updateAvailableAppCandidates()
+            if !silent || availableAppCandidates.isEmpty {
+                updateAvailableAppCandidates()
+            }
             configureMeterTimer()
             if let warning = audioRoutingManager.lastWarning, unsupportedNote != warning {
                 unsupportedNote = warning
@@ -404,6 +437,19 @@ public final class AudioRouterStore: ObservableObject {
 
     public func openLatestRelease() {
         updateManager.openLatestRelease()
+    }
+
+    public func openSystemAudioPermissionSettings() {
+        PermissionsManager.openSystemAudioRecordingSettings()
+    }
+
+    public func completeOnboarding() {
+        settings.hasCompletedOnboarding = true
+    }
+
+    public func showOnboarding() {
+        settings.hasCompletedOnboarding = false
+        selectedSettingsSection = .dashboard
     }
 
     public func setDefaultDevice(_ device: AudioDevice) {
@@ -443,7 +489,7 @@ public final class AudioRouterStore: ObservableObject {
         let taskKey = device.id
         pendingVolumeTasks[taskKey]?.cancel()
         pendingVolumeTasks[taskKey] = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 140_000_000)
+            try? await Task.sleep(nanoseconds: 90_000_000)
             guard !Task.isCancelled else { return }
             await MainActor.run { [weak self] in
                 self?.commitDeviceVolume(device, volume: clamped)
@@ -479,7 +525,7 @@ public final class AudioRouterStore: ObservableObject {
         let taskKey = device.id
         pendingBalanceTasks[taskKey]?.cancel()
         pendingBalanceTasks[taskKey] = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 140_000_000)
+            try? await Task.sleep(nanoseconds: 120_000_000)
             guard !Task.isCancelled else { return }
             await MainActor.run { [weak self] in
                 self?.commitDeviceBalance(device, balance: clamped)
@@ -555,8 +601,61 @@ public final class AudioRouterStore: ObservableObject {
         configuredSourceSpecs.map(\.displayName)
     }
 
+    public var hasHiddenDefaultRouteApps: Bool {
+        !hiddenDefaultSourceIDs.isEmpty
+    }
+
     public func isUserAddedRouteApp(_ source: AudioSource) -> Bool {
         userSourceSpecs.contains { $0.bundleIdentifier == source.id }
+    }
+
+    public func isDefaultRouteApp(_ source: AudioSource) -> Bool {
+        Self.defaultSourceSpecs.contains { $0.bundleIdentifier == source.id }
+    }
+
+    public func canMoveRouteApp(_ source: AudioSource, offset: Int) -> Bool {
+        let ids = configuredSourceSpecs.map(\.bundleIdentifier)
+        guard let index = ids.firstIndex(of: source.id) else { return false }
+        return ids.indices.contains(index + offset)
+    }
+
+    public func moveRouteApp(_ source: AudioSource, offset: Int) {
+        var ids = configuredSourceSpecs.map(\.bundleIdentifier)
+        guard let currentIndex = ids.firstIndex(of: source.id) else { return }
+        let nextIndex = currentIndex + offset
+        guard ids.indices.contains(nextIndex), currentIndex != nextIndex else { return }
+        let movedID = ids.remove(at: currentIndex)
+        ids.insert(movedID, at: nextIndex)
+        sourceOrderIDs = ids
+        saveSourceOrderIDs()
+        selectedSourceID = source.id
+        refresh(silent: true)
+    }
+
+    @discardableResult
+    public func reorderRouteApp(draggedSourceID: String, targetSourceID: String) -> Bool {
+        var ids = configuredSourceSpecs.map(\.bundleIdentifier)
+        guard draggedSourceID != targetSourceID,
+              let currentIndex = ids.firstIndex(of: draggedSourceID),
+              let originalTargetIndex = ids.firstIndex(of: targetSourceID) else {
+            return false
+        }
+
+        let movedID = ids.remove(at: currentIndex)
+        guard let targetIndex = ids.firstIndex(of: targetSourceID) else { return false }
+        let insertionIndex = currentIndex < originalTargetIndex ? targetIndex + 1 : targetIndex
+        ids.insert(movedID, at: min(insertionIndex, ids.count))
+        sourceOrderIDs = ids
+        saveSourceOrderIDs()
+        selectedSourceID = draggedSourceID
+        refresh(silent: true)
+        return true
+    }
+
+    public func resetRouteAppOrder() {
+        sourceOrderIDs = Self.defaultSourceSpecs.map(\.bundleIdentifier) + userSourceSpecs.map(\.bundleIdentifier)
+        saveSourceOrderIDs()
+        refresh(silent: true)
     }
 
     public func refreshAppCandidates() {
@@ -602,15 +701,33 @@ public final class AudioRouterStore: ObservableObject {
     }
 
     public func removeRouteApp(_ source: AudioSource) {
-        guard isUserAddedRouteApp(source) else { return }
-        userSourceSpecs.removeAll { $0.bundleIdentifier == source.id }
-        saveUserSourceSpecs()
+        if isDefaultRouteApp(source) {
+            hiddenDefaultSourceIDs.insert(source.id)
+            userSourceSpecs.removeAll { $0.bundleIdentifier == source.id }
+            saveHiddenDefaultSourceIDs()
+            saveUserSourceSpecs()
+        } else if isUserAddedRouteApp(source) {
+            userSourceSpecs.removeAll { $0.bundleIdentifier == source.id }
+            sourceOrderIDs.removeAll { $0 == source.id }
+            saveUserSourceSpecs()
+            saveSourceOrderIDs()
+        } else {
+            return
+        }
         audioRoutingManager.resetSourceToSystemOutput(sourceID: source.id)
         if selectedSourceID == source.id {
             selectedSourceID = audioSources.first { $0.id != source.id }?.id
         }
         audioSources.removeAll { $0.id == source.id }
         sourceMeters.removeValue(forKey: source.id)
+        refresh(silent: true)
+    }
+
+    public func restoreDefaultRouteApps() {
+        guard !hiddenDefaultSourceIDs.isEmpty else { return }
+        hiddenDefaultSourceIDs.removeAll()
+        saveHiddenDefaultSourceIDs()
+        ensureSourceOrderContains(Self.defaultSourceSpecs.map(\.bundleIdentifier))
         refresh(silent: true)
     }
 
@@ -664,6 +781,21 @@ public final class AudioRouterStore: ObservableObject {
 
     public func resetSourceToSystemOutput(_ source: AudioSource) {
         assignSourceOutput(source: source, uid: nil)
+    }
+
+    public func retrySourceRoute(_ source: AudioSource) {
+        selectedSourceID = source.id
+        audioRoutingManager.retryRoute(sourceID: source.id)
+        let route = audioRoutingManager.route(for: source.id)
+        updateAudioSource(source.id) { current in
+            current.assignedOutputDeviceID = route.outputDeviceID
+            current.routeMode = route.routeMode
+            current.followsSystemOutput = route.routeMode == .followSystemOutput
+        }
+        configureMeterTimer()
+        if let warning = audioRoutingManager.lastWarning {
+            showUnsupportedNote(warning)
+        }
     }
 
     public func toggleSelectedSourceMute() {
@@ -1061,6 +1193,12 @@ public final class AudioRouterStore: ObservableObject {
         eqManager.applyPreset(.flat)
         shortcutManager.reset()
         presetManager.reset()
+        userSourceSpecs.removeAll()
+        hiddenDefaultSourceIDs.removeAll()
+        sourceOrderIDs = Self.defaultSourceSpecs.map(\.bundleIdentifier)
+        saveUserSourceSpecs()
+        saveHiddenDefaultSourceIDs()
+        saveSourceOrderIDs()
         audioSources = audioSources.map {
             var source = $0
             source.volume = 1
@@ -1112,7 +1250,7 @@ public final class AudioRouterStore: ObservableObject {
         pendingSourceVolumes[sourceID] = volume
         pendingSourceVolumeTasks[sourceID]?.cancel()
         pendingSourceVolumeTasks[sourceID] = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 220_000_000)
+            try? await Task.sleep(nanoseconds: 120_000_000)
             guard !Task.isCancelled else { return }
             await MainActor.run { [weak self] in
                 self?.audioRoutingManager.setSourceVolume(sourceID: sourceID, volume: volume, persist: true)
@@ -1131,9 +1269,83 @@ public final class AudioRouterStore: ObservableObject {
         guard !settings.demoMode, deviceObservation == nil else { return }
         deviceObservation = deviceManager.observeDeviceChanges { [weak self] in
             Task { @MainActor [weak self] in
-                self?.refreshAfterDelay(interval: 0.25)
+                self?.refresh(silent: true)
+                self?.refreshAfterDelay(interval: 1.8)
             }
         }
+    }
+
+    private func scheduleDeviceMissingCheck(for uid: String) {
+        pendingDeviceDisconnectTasks[uid]?.cancel()
+        pendingDeviceDisconnectTasks[uid] = Task { @MainActor [weak self] in
+            guard let self else { return }
+            try? await Task.sleep(nanoseconds: UInt64(deviceDisconnectGraceInterval * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            if !Self.aliveOutputUIDs(from: devices).contains(uid) {
+                audioRoutingManager.handleDeviceDisconnected(deviceID: uid)
+                if let warning = audioRoutingManager.lastWarning {
+                    showUnsupportedNote(warning)
+                }
+            } else {
+                audioRoutingManager.handleDeviceReconnected(deviceID: uid)
+            }
+            pendingDeviceDisconnectTasks.removeValue(forKey: uid)
+        }
+    }
+
+    private func preserveCurrentOutputWhenDeviceIsAdded(
+        _ refreshedDevices: [AudioDevice],
+        previousOutputUIDs: Set<String>,
+        previousDefaultOutputUID: String?
+    ) throws -> [AudioDevice] {
+        guard let previousDefaultOutputUID else {
+            return refreshedDevices
+        }
+
+        let currentOutputUIDs = Self.aliveOutputUIDs(from: refreshedDevices)
+        let addedOutputUIDs = currentOutputUIDs.subtracting(previousOutputUIDs)
+        let outputSetChanged = currentOutputUIDs != previousOutputUIDs
+        let currentDefaultWasAdded = Self.defaultOutputUID(from: refreshedDevices).map { addedOutputUIDs.contains($0) } ?? false
+        let preservedOutputReappeared = addedOutputUIDs.contains(previousDefaultOutputUID)
+            || !previousOutputUIDs.contains(previousDefaultOutputUID)
+
+        guard outputSetChanged,
+              currentOutputUIDs.contains(previousDefaultOutputUID),
+              let currentDefaultOutputUID = Self.defaultOutputUID(from: refreshedDevices),
+              currentDefaultOutputUID != previousDefaultOutputUID,
+              currentDefaultWasAdded || preservedOutputReappeared else {
+            return refreshedDevices
+        }
+
+        try deviceManager.setDefaultDevice(uid: previousDefaultOutputUID, kind: .output)
+        return try deviceManager.refreshDevices()
+    }
+
+    private func updateStableSystemOutputUID(
+        from refreshedDevices: [AudioDevice],
+        previousOutputUIDs: Set<String>,
+        previousDefaultOutputUID: String?
+    ) {
+        guard let currentDefaultOutputUID = Self.defaultOutputUID(from: refreshedDevices) else { return }
+        let currentOutputUIDs = Self.aliveOutputUIDs(from: refreshedDevices)
+        let addedOutputUIDs = currentOutputUIDs.subtracting(previousOutputUIDs)
+
+        if let previousDefaultOutputUID,
+           currentDefaultOutputUID != previousDefaultOutputUID,
+           (!currentOutputUIDs.contains(previousDefaultOutputUID) || addedOutputUIDs.contains(currentDefaultOutputUID)) {
+            stableSystemOutputUID = previousDefaultOutputUID
+            return
+        }
+
+        stableSystemOutputUID = currentDefaultOutputUID
+    }
+
+    private static func aliveOutputUIDs(from devices: [AudioDevice]) -> Set<String> {
+        Set(devices.filter { $0.kind == .output && $0.isAlive }.map(\.uid))
+    }
+
+    private static func defaultOutputUID(from devices: [AudioDevice]) -> String? {
+        devices.first { $0.kind == .output && $0.isDefault && $0.isAlive }?.uid
     }
 
     private func saveOutputGroups() {
@@ -1149,7 +1361,17 @@ public final class AudioRouterStore: ObservableObject {
             return
         }
 
+        if Self.defaultSourceSpecs.contains(where: { $0.bundleIdentifier == normalized.bundleIdentifier }) {
+            hiddenDefaultSourceIDs.remove(normalized.bundleIdentifier)
+            saveHiddenDefaultSourceIDs()
+            ensureSourceOrderContains([normalized.bundleIdentifier])
+            selectedSourceID = normalized.bundleIdentifier
+            refresh(silent: true)
+            return
+        }
+
         userSourceSpecs.append(normalized)
+        ensureSourceOrderContains([normalized.bundleIdentifier])
         saveUserSourceSpecs()
         selectedSourceID = normalized.bundleIdentifier
         refresh(silent: true)
@@ -1175,6 +1397,34 @@ public final class AudioRouterStore: ObservableObject {
         try? data.write(to: appSourcesURL, options: .atomic)
     }
 
+    private func saveHiddenDefaultSourceIDs() {
+        let ids = Array(hiddenDefaultSourceIDs).sorted()
+        guard let data = try? JSONEncoder().encode(ids) else { return }
+        try? data.write(to: hiddenDefaultSourcesURL, options: .atomic)
+    }
+
+    private func saveSourceOrderIDs() {
+        let validIDs = Set((Self.defaultSourceSpecs + userSourceSpecs).map(\.bundleIdentifier))
+        let orderedIDs = sourceOrderIDs.filter { validIDs.contains($0) }
+        guard let data = try? JSONEncoder().encode(orderedIDs) else { return }
+        try? data.write(to: sourceOrderURL, options: .atomic)
+    }
+
+    private func ensureSourceOrderContains(_ ids: [String]) {
+        var changed = false
+        if sourceOrderIDs.isEmpty {
+            sourceOrderIDs = Self.defaultSourceSpecs.map(\.bundleIdentifier) + userSourceSpecs.map(\.bundleIdentifier)
+            changed = true
+        }
+        for id in ids where !sourceOrderIDs.contains(id) {
+            sourceOrderIDs.append(id)
+            changed = true
+        }
+        if changed {
+            saveSourceOrderIDs()
+        }
+    }
+
     private static func loadUserSourceSpecs(from url: URL) -> [FocusedSourceSpec] {
         guard let data = try? Data(contentsOf: url),
               let specs = try? JSONDecoder().decode([FocusedSourceSpec].self, from: data) else {
@@ -1192,6 +1442,24 @@ public final class AudioRouterStore: ObservableObject {
         }
     }
 
+    private static func loadHiddenDefaultSourceIDs(from url: URL) -> Set<String> {
+        guard let data = try? Data(contentsOf: url),
+              let ids = try? JSONDecoder().decode([String].self, from: data) else {
+            return []
+        }
+        let defaultIDs = Set(defaultSourceSpecs.map(\.bundleIdentifier))
+        return Set(ids.filter { defaultIDs.contains($0) })
+    }
+
+    private static func loadSourceOrderIDs(from url: URL) -> [String] {
+        guard let data = try? Data(contentsOf: url),
+              let ids = try? JSONDecoder().decode([String].self, from: data) else {
+            return []
+        }
+        var seen = Set<String>()
+        return ids.filter { seen.insert($0).inserted }
+    }
+
     private func configureMeterTimer() {
         let shouldAnimate = settings.demoMode || liveMeteringAvailable
         if shouldAnimate {
@@ -1201,6 +1469,7 @@ public final class AudioRouterStore: ObservableObject {
                     self?.tickMeters()
                 }
             }
+            meterTimer?.tolerance = 0.025
         } else {
             meterTimer?.invalidate()
             meterTimer = nil
@@ -1384,11 +1653,21 @@ public final class AudioRouterStore: ObservableObject {
 
     private var configuredSourceSpecs: [FocusedSourceSpec] {
         var seen = Set<String>()
-        return (Self.defaultSourceSpecs + userSourceSpecs).compactMap { spec in
+        let visibleDefaults = Self.defaultSourceSpecs.filter { !hiddenDefaultSourceIDs.contains($0.bundleIdentifier) }
+        let specs: [FocusedSourceSpec] = (visibleDefaults + userSourceSpecs).compactMap { spec in
             let normalized = spec.normalized
             guard seen.insert(normalized.bundleIdentifier).inserted else { return nil }
             return normalized
         }
+        let order = Dictionary(uniqueKeysWithValues: sourceOrderIDs.enumerated().map { ($0.element, $0.offset) })
+        return specs.enumerated().sorted { left, right in
+            let leftOrder = order[left.element.bundleIdentifier] ?? Int.max
+            let rightOrder = order[right.element.bundleIdentifier] ?? Int.max
+            if leftOrder != rightOrder {
+                return leftOrder < rightOrder
+            }
+            return left.offset < right.offset
+        }.map { $0.element }
     }
 
     private struct FocusedSourceSpec: Codable, Hashable {

@@ -119,7 +119,9 @@ final class ProcessTapRoutingEngine {
             var sampleCount = 0
             for frame in 0..<frameCount {
                 for channel in 0..<outputChannelCount {
-                    var sample = sampleAt(frame: frame, channel: channel, inputBuffers: inputBuffers) * gain
+                    var sample = Self.peakLimited(
+                        sampleAt(frame: frame, channel: channel, inputBuffers: inputBuffers) * gain
+                    )
                     squareSum += Double(sample) * Double(sample)
                     sampleCount += 1
                     withUnsafeBytes(of: &sample) { sampleBytes in
@@ -194,6 +196,16 @@ final class ProcessTapRoutingEngine {
                 return samples[frame]
             }
             return samples[frame * inputChannelCount + min(channel, inputChannelCount - 1)]
+        }
+
+        private static func peakLimited(_ sample: Float32) -> Float32 {
+            guard sample.isFinite else { return 0 }
+            let magnitude = abs(sample)
+            guard magnitude > 1 else { return sample }
+
+            let overshoot = magnitude - 1
+            let softened = 1 + overshoot / (1 + overshoot)
+            return copysign(min(1.18, softened), sample)
         }
     }
 
@@ -334,8 +346,8 @@ final class ProcessTapRoutingEngine {
                 guard canReadFloat32(tapFormat) else {
                     throw AudioRoutingBackendError.unsupported("This app's process tap uses an audio format AudioRouter cannot route yet.")
                 }
-                let playbackFormat = Self.playbackFormat(from: tapFormat)
-                let pipe = PCMBufferPipe(format: playbackFormat)
+                let playbackFormat = Self.playbackFormat(from: tapFormat, outputDevice: outputDevice)
+                let pipe = PCMBufferPipe(format: playbackFormat, seconds: 1.5)
                 let outputRenderer = try RouteOutputRenderer(
                     format: playbackFormat,
                     outputDeviceUID: outputDevice.uid,
@@ -375,7 +387,7 @@ final class ProcessTapRoutingEngine {
 
                     do {
                         try check(AudioDeviceStart(aggregateDeviceID, ioProcID), "Start route IO")
-                        guard startProbe.wait(seconds: 1.0) || control.hasReceivedBuffers() else {
+                        guard startProbe.wait(seconds: 0.35) || control.hasReceivedBuffers() else {
                             throw AudioRoutingBackendError.unsupported("The route started, but the process tap did not deliver audio. Start playback in \(source.appName), refresh, then assign the output again.")
                         }
                         sessions[source.id] = RouteSession(
@@ -449,7 +461,7 @@ final class ProcessTapRoutingEngine {
         let tap: [String: Any] = [
             kAudioSubTapUIDKey: tapUID,
             kAudioSubTapDriftCompensationKey: 1,
-            kAudioSubTapDriftCompensationQualityKey: kAudioAggregateDriftCompensationMediumQuality
+            kAudioSubTapDriftCompensationQualityKey: kAudioAggregateDriftCompensationHighQuality
         ]
         let description: [String: Any] = [
             kAudioAggregateDeviceUIDKey: aggregateUID,
@@ -520,13 +532,18 @@ final class ProcessTapRoutingEngine {
         }
     }
 
-    private static func playbackFormat(from tapFormat: AudioStreamBasicDescription) -> AudioStreamBasicDescription {
-        let channels = min(max(1, tapFormat.mChannelsPerFrame), 2)
+    private static func playbackFormat(
+        from tapFormat: AudioStreamBasicDescription,
+        outputDevice: AudioDevice
+    ) -> AudioStreamBasicDescription {
+        let tapChannels = max(1, Int(tapFormat.mChannelsPerFrame))
+        let outputChannels = max(1, outputDevice.channelCount)
+        let channels = UInt32(max(1, min(tapChannels, outputChannels, 8)))
         let bytesPerFrame = channels * UInt32(MemoryLayout<Float32>.size)
         return AudioStreamBasicDescription(
-            mSampleRate: tapFormat.mSampleRate > 0 ? tapFormat.mSampleRate : 48_000,
+            mSampleRate: preferredSampleRate(tapFormat: tapFormat, outputDevice: outputDevice),
             mFormatID: kAudioFormatLinearPCM,
-            mFormatFlags: kAudioFormatFlagIsFloat | kAudioFormatFlagIsPacked,
+            mFormatFlags: kAudioFormatFlagIsFloat | kAudioFormatFlagIsPacked | kAudioFormatFlagsNativeEndian,
             mBytesPerPacket: bytesPerFrame,
             mFramesPerPacket: 1,
             mBytesPerFrame: bytesPerFrame,
@@ -534,6 +551,19 @@ final class ProcessTapRoutingEngine {
             mBitsPerChannel: 32,
             mReserved: 0
         )
+    }
+
+    private static func preferredSampleRate(
+        tapFormat: AudioStreamBasicDescription,
+        outputDevice: AudioDevice
+    ) -> Double {
+        if tapFormat.mSampleRate > 0 {
+            return tapFormat.mSampleRate
+        }
+        if let outputRate = outputDevice.sampleRate, outputRate > 0 {
+            return outputRate
+        }
+        return 48_000
     }
 
     private static func capture(

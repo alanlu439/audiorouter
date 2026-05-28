@@ -10,6 +10,7 @@ func runChecks() throws {
     checkFocusedOutputFiltering()
     checkRouteBackwardCompatibility()
     try checkRoutingManagerRoutesAndFallback()
+    try checkDeviceAdditionPreservesCurrentOutput()
     try checkCustomRouteAppPersistence()
     checkUpdateVersionComparison()
     try checkRouteHealthDiagnostics()
@@ -121,7 +122,81 @@ func checkRoutingManagerRoutesAndFallback() throws {
     precondition(reloaded.route(for: "spotify").outputDeviceID == "speaker", "Route did not persist")
 
     reloaded.handleDeviceDisconnected(deviceID: "speaker")
-    precondition(reloaded.route(for: "spotify").routeMode == .followSystemOutput, "Disconnected route should fall back")
+    precondition(reloaded.route(for: "spotify").routeMode == .customOutput, "Disconnected route should keep the saved custom route")
+    precondition(reloaded.route(for: "spotify").status == .deviceMissing, "Disconnected route should be marked missing instead of reset")
+    reloaded.handleDeviceReconnected(deviceID: "speaker")
+    precondition(reloaded.route(for: "spotify").status == .savedOnly, "Reconnected route should be ready to retry")
+}
+
+@MainActor
+func checkDeviceAdditionPreservesCurrentOutput() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+
+    let builtIn = AudioDevice(
+        audioObjectID: 1,
+        uid: "speaker",
+        name: "MacBook Speakers",
+        kind: .output,
+        channelCount: 2,
+        transport: .builtIn,
+        isDefault: true,
+        isAlive: true
+    )
+    let airPods = AudioDevice(
+        audioObjectID: 2,
+        uid: "airpods",
+        name: "AirPods",
+        kind: .output,
+        channelCount: 2,
+        transport: .bluetoothLE,
+        isDefault: true,
+        isAlive: true
+    )
+
+    let deviceManager = FakeDeviceManager(devices: [builtIn])
+    let settings = AppSettingsStore(defaults: UserDefaults(suiteName: "AudioRouterChecks-\(UUID().uuidString)")!)
+    let routingManager = AudioRoutingManager(
+        backend: FakeRoutingBackend(),
+        fileURL: directory.appendingPathComponent("routes.json")
+    )
+    routingManager.assignOutputDevice(sourceID: "spotify", deviceID: "speaker")
+    let store = AudioRouterStore(
+        deviceManager: deviceManager,
+        settings: settings,
+        audioRoutingManager: routingManager,
+        outputGroupsURL: directory.appendingPathComponent("groups.json"),
+        appSourcesURL: directory.appendingPathComponent("sources.json"),
+        hiddenDefaultSourcesURL: directory.appendingPathComponent("hidden-defaults.json"),
+        sourceOrderURL: directory.appendingPathComponent("source-order.json")
+    )
+
+    store.refresh(silent: true)
+    precondition(store.currentOutput?.uid == "speaker", "Initial current output should be the built-in speaker")
+
+    deviceManager.devices = [airPods]
+    store.refresh(silent: true)
+    precondition(deviceManager.defaultOutputSetRequests.isEmpty, "AudioRouter should not switch outputs while the previous output is temporarily absent")
+
+    deviceManager.devices = [
+        AudioDevice(
+            audioObjectID: builtIn.audioObjectID,
+            uid: builtIn.uid,
+            name: builtIn.name,
+            kind: builtIn.kind,
+            channelCount: builtIn.channelCount,
+            transport: builtIn.transport,
+            isDefault: false,
+            isAlive: builtIn.isAlive
+        ),
+        airPods
+    ]
+    store.refresh(silent: true)
+
+    precondition(deviceManager.defaultOutputSetRequests.contains("speaker"), "Newly added default output should not steal system audio")
+    precondition(store.currentOutput?.uid == "speaker", "AudioRouter should keep the previous output active after device addition")
+    precondition(routingManager.route(for: "spotify").outputDeviceID == "speaker", "Existing custom route should remain assigned")
+    precondition(routingManager.route(for: "spotify").routeMode == .customOutput, "Existing custom route should not reset on device addition")
 }
 
 func checkUpdateVersionComparison() {
@@ -144,7 +219,9 @@ func checkRouteHealthDiagnostics() throws {
         settings: settings,
         audioRoutingManager: AudioRoutingManager(backend: FakeRoutingBackend(), fileURL: directory.appendingPathComponent("routes.json")),
         outputGroupsURL: directory.appendingPathComponent("groups.json"),
-        appSourcesURL: directory.appendingPathComponent("sources.json")
+        appSourcesURL: directory.appendingPathComponent("sources.json"),
+        hiddenDefaultSourcesURL: directory.appendingPathComponent("hidden-defaults.json"),
+        sourceOrderURL: directory.appendingPathComponent("source-order.json")
     )
     store.refresh()
     guard let source = store.audioSources.first else {
@@ -182,20 +259,48 @@ func checkCustomRouteAppPersistence() throws {
     let appSourcesURL = directory.appendingPathComponent("app-sources.json")
     let routesURL = directory.appendingPathComponent("routes.json")
     let outputGroupsURL = directory.appendingPathComponent("output-groups.json")
+    let hiddenDefaultSourcesURL = directory.appendingPathComponent("hidden-defaults.json")
+    let sourceOrderURL = directory.appendingPathComponent("source-order.json")
     let store = AudioRouterStore(
         settings: settings,
         audioRoutingManager: AudioRoutingManager(backend: FakeRoutingBackend(), fileURL: routesURL),
         outputGroupsURL: outputGroupsURL,
-        appSourcesURL: appSourcesURL
+        appSourcesURL: appSourcesURL,
+        hiddenDefaultSourcesURL: hiddenDefaultSourcesURL,
+        sourceOrderURL: sourceOrderURL
     )
+
+    precondition(store.routeAppDisplayNames.contains("Spotify"), "Default route apps should be visible")
+    store.refresh()
+    guard let spotify = store.audioSources.first(where: { $0.bundleIdentifier == "com.spotify.client" }) else {
+        preconditionFailure("Default Spotify source should be present in demo mode")
+    }
+    store.removeRouteApp(spotify)
+    precondition(!store.routeAppDisplayNames.contains("Spotify"), "Default route app should be hideable")
+    store.restoreDefaultRouteApps()
+    precondition(store.routeAppDisplayNames.contains("Spotify"), "Hidden default route apps should be restorable")
 
     store.addRouteApp(bundleURL: fakeAppURL)
     precondition(store.routeAppDisplayNames.contains("WaveLab"), "Added app should appear in route app list")
+    precondition(store.routeAppDisplayNames.last == "WaveLab", "New route apps should be added after default apps")
     precondition(store.audioSources.contains { $0.bundleIdentifier == "com.example.WaveLab" }, "Added app should appear as an audio source")
 
     let countAfterFirstAdd = store.routeAppDisplayNames.count
     store.addRouteApp(bundleURL: fakeAppURL)
     precondition(store.routeAppDisplayNames.count == countAfterFirstAdd, "Adding the same app twice should not duplicate it")
+
+    guard let waveLab = store.audioSources.first(where: { $0.bundleIdentifier == "com.example.WaveLab" }) else {
+        preconditionFailure("Added route app should be available for ordering")
+    }
+    while store.canMoveRouteApp(waveLab, offset: -1) {
+        store.moveRouteApp(waveLab, offset: -1)
+    }
+    precondition(store.routeAppDisplayNames.first == "WaveLab", "Custom app order should be editable")
+    precondition(
+        store.reorderRouteApp(draggedSourceID: waveLab.id, targetSourceID: "com.google.Chrome"),
+        "Drag/drop route app ordering should accept source and target IDs"
+    )
+    precondition(store.routeAppDisplayNames.last == "WaveLab", "Drag/drop route app ordering should move the dragged app")
 
     let reloadedSettings = AppSettingsStore(defaults: settingsSuite)
     reloadedSettings.demoMode = true
@@ -203,9 +308,12 @@ func checkCustomRouteAppPersistence() throws {
         settings: reloadedSettings,
         audioRoutingManager: AudioRoutingManager(backend: FakeRoutingBackend(), fileURL: routesURL),
         outputGroupsURL: outputGroupsURL,
-        appSourcesURL: appSourcesURL
+        appSourcesURL: appSourcesURL,
+        hiddenDefaultSourcesURL: hiddenDefaultSourcesURL,
+        sourceOrderURL: sourceOrderURL
     )
     precondition(reloaded.routeAppDisplayNames.contains("WaveLab"), "Added route app should persist")
+    precondition(reloaded.routeAppDisplayNames.last == "WaveLab", "Custom route app order should persist")
 
     reloaded.refresh()
     guard let customSource = reloaded.audioSources.first(where: { $0.bundleIdentifier == "com.example.WaveLab" }) else {
@@ -250,6 +358,93 @@ private final class FakeRoutingBackend: AudioRoutingBackend {
     func routeSourceToDevice(sourceID: String, deviceID: String?) throws {}
     func setSourceVolume(sourceID: String, volume: Double) throws {}
     func muteSource(sourceID: String, muted: Bool) throws {}
+}
+
+private final class FakeDeviceManager: AudioDeviceManaging {
+    var devices: [AudioDevice]
+    private(set) var defaultOutputSetRequests: [String] = []
+
+    init(devices: [AudioDevice]) {
+        self.devices = devices
+    }
+
+    func refreshDevices() throws -> [AudioDevice] {
+        devices
+    }
+
+    func listOutputDevices() throws -> [AudioOutputDevice] {
+        devices.filter { $0.kind == .output }
+    }
+
+    func listInputDevices() throws -> [AudioDevice] {
+        devices.filter { $0.kind == .input }
+    }
+
+    func getDefaultOutputDevice() throws -> AudioOutputDevice? {
+        try listOutputDevices().first { $0.isDefault }
+    }
+
+    func getDefaultInputDevice() throws -> AudioDevice? {
+        try listInputDevices().first { $0.isDefault }
+    }
+
+    func setDefaultOutputDevice(deviceID: String) throws {
+        try setDefaultDevice(uid: deviceID, kind: .output)
+    }
+
+    func setDefaultInputDevice(deviceID: String) throws {
+        try setDefaultDevice(uid: deviceID, kind: .input)
+    }
+
+    func setDefaultDevice(uid: String, kind: AudioDeviceKind) throws {
+        if kind == .output {
+            defaultOutputSetRequests.append(uid)
+        }
+        devices = devices.map { device in
+            AudioDevice(
+                audioObjectID: device.audioObjectID,
+                uid: device.uid,
+                name: device.name,
+                kind: device.kind,
+                channelCount: device.channelCount,
+                transport: device.transport,
+                isDefault: device.kind == kind && device.uid == uid,
+                isAlive: device.isAlive,
+                volume: device.volume,
+                isMuted: device.isMuted,
+                balance: device.balance,
+                sampleRate: device.sampleRate,
+                canSetVolume: device.canSetVolume,
+                canSetMute: device.canSetMute,
+                canSetBalance: device.canSetBalance
+            )
+        }
+    }
+
+    func getDeviceVolume(deviceID: String) throws -> Double? {
+        devices.first { $0.uid == deviceID }?.volume
+    }
+
+    func setVolume(uid: String, kind: AudioDeviceKind, volume: Double) throws {}
+    func setDeviceVolume(deviceID: String, volume: Double) throws {}
+
+    func getDeviceMute(deviceID: String) throws -> Bool? {
+        devices.first { $0.uid == deviceID }?.isMuted
+    }
+
+    func setMuted(uid: String, kind: AudioDeviceKind, isMuted: Bool) throws {}
+    func setDeviceMute(deviceID: String, muted: Bool) throws {}
+
+    func getDeviceBalance(deviceID: String) throws -> Double? {
+        devices.first { $0.uid == deviceID }?.balance
+    }
+
+    func setBalance(uid: String, kind: AudioDeviceKind, balance: Double) throws {}
+    func setDeviceBalance(deviceID: String, balance: Double) throws {}
+
+    func observeDeviceChanges(_ onChange: @escaping @Sendable () -> Void) -> DevicePropertyObservation? {
+        nil
+    }
 }
 
 do {
