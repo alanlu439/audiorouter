@@ -429,7 +429,7 @@ private struct StudioPatchBayPanel: View {
                     detail: "Choose one input app and one output destination",
                     tint: StudioPalette.teal
                 )
-                StudioRouteBuilder(store: store)
+                StudioSmoothRouteBuilder(store: store)
 
                 StudioSectionMarker(
                     title: "Input Apps",
@@ -549,10 +549,11 @@ private struct StudioSectionMarker: View {
     }
 }
 
-private struct StudioRouteBuilder: View {
+private struct StudioSmoothRouteBuilder: View {
     @ObservedObject var store: AudioRouterStore
     @State private var selectedSourceID = ""
     @State private var selectedOutputID = ""
+    @State private var lastAppliedSignature: String?
 
     private var selectedSource: AudioSource? {
         let id = selectedSourceID.isEmpty ? (store.selectedSourceID ?? store.audioSources.first?.id ?? "") : selectedSourceID
@@ -560,25 +561,61 @@ private struct StudioRouteBuilder: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 9) {
+        VStack(alignment: .leading, spacing: 10) {
+            setupRail
+
             HStack(alignment: .top, spacing: 10) {
-                inputEndpoint
-                    .frame(minWidth: 190, maxWidth: .infinity, alignment: .topLeading)
+                SmoothRouteColumn(title: "Input", systemImage: "app.fill", tint: StudioPalette.blue) {
+                    ScrollView {
+                        LazyVStack(spacing: 7) {
+                            ForEach(store.audioSources) { source in
+                                SmoothSourceChoice(
+                                    source: source,
+                                    isSelected: source.id == selectedSource?.id,
+                                    meterLevel: store.sourceMeters[source.id] ?? 0
+                                ) {
+                                    selectedSourceID = source.id
+                                    store.selectedSourceID = source.id
+                                    syncOutputToSelectedSource()
+                                }
+                            }
+                        }
+                    }
+                    .frame(maxHeight: 170)
+                }
+                .frame(minWidth: 220, maxWidth: .infinity, alignment: .topLeading)
+
                 routeGlyph
-                outputEndpoint
-                    .frame(minWidth: 190, maxWidth: .infinity, alignment: .topLeading)
-                routeActionStack
-                    .frame(width: 128, alignment: .top)
+                    .frame(width: 42)
+
+                SmoothRouteColumn(title: "Output", systemImage: "speaker.wave.2.fill", tint: StudioPalette.teal) {
+                    ScrollView {
+                        LazyVStack(spacing: 7) {
+                            ForEach(routeTargets) { target in
+                                SmoothOutputChoice(target: target, isSelected: target.selectionID == selectedOutputID) {
+                                    selectedOutputID = target.selectionID
+                                    lastAppliedSignature = nil
+                                }
+                            }
+                        }
+                    }
+                    .frame(maxHeight: 170)
+                }
+                .frame(minWidth: 240, maxWidth: .infinity, alignment: .topLeading)
+
+                previewPanel
+                    .frame(width: 152, alignment: .top)
             }
 
             HStack(spacing: 8) {
-                Image(systemName: "hand.draw")
-                    .foregroundStyle(StudioPalette.amber)
-                Text("You can also drag a source row onto an output card, or use each source row's output menu.")
-                    .font(.caption2)
+                StudioLED(color: routeAlreadySet ? StudioPalette.green : StudioPalette.amber)
+                Text(routeSummary)
+                    .font(.caption2.weight(.semibold))
                     .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
             }
+            .padding(.horizontal, 2)
         }
         .padding(.horizontal, 11)
         .padding(.vertical, 9)
@@ -590,139 +627,292 @@ private struct StudioRouteBuilder: View {
         .onChange(of: store.audioSources) { _, _ in
             if selectedSource == nil {
                 selectedSourceID = store.selectedSourceID ?? store.audioSources.first?.id ?? ""
+                syncOutputToSelectedSource()
             }
         }
+        .onChange(of: store.selectedSourceID) { _, _ in syncFromStoreSelection() }
         .onAppear {
             selectedSourceID = store.selectedSourceID ?? store.audioSources.first?.id ?? ""
-            selectedOutputID = selectedSource.flatMap { $0.assignedOutputDeviceID } ?? ""
+            syncOutputToSelectedSource()
         }
     }
 
-    private var inputEndpoint: some View {
-        StudioRouteEndpoint(
-            title: "Input",
-            subtitle: selectedSource?.appName ?? "Choose app",
-            systemImage: "app.fill",
-            tint: StudioPalette.blue
-        ) {
-            Picker("Input App", selection: sourceSelection) {
-                ForEach(store.audioSources) { source in
-                    Text(source.appName).tag(source.id)
-                }
-            }
-            .labelsHidden()
-            .pickerStyle(.menu)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .accessibilityHint("Choose the app you want to route")
+    private var setupRail: some View {
+        HStack(spacing: 8) {
+            SmoothSetupStep(number: "1", title: "Input", detail: selectedSource?.appName ?? "Choose", tint: StudioPalette.blue, isActive: selectedSource != nil)
+            SmoothSetupStep(number: "2", title: "Output", detail: outputDisplayName, tint: StudioPalette.teal, isActive: selectedSource != nil)
+            SmoothSetupStep(number: "3", title: routeAlreadySet ? "Set" : "Apply", detail: routeActionTitle, tint: routeAlreadySet ? StudioPalette.green : StudioPalette.amber, isActive: selectedSource != nil)
         }
-    }
-
-    private var outputEndpoint: some View {
-        StudioRouteEndpoint(
-            title: "Output",
-            subtitle: outputSubtitle,
-            systemImage: selectedOutputID.isEmpty ? "arrow.triangle.branch" : "speaker.wave.2.fill",
-            tint: StudioPalette.teal
-        ) {
-            Picker("Output Device", selection: $selectedOutputID) {
-                Text("Follow System").tag("")
-                ForEach(store.outputDevices) { device in
-                    Text(device.name).tag(device.uid)
-                }
-                if !store.outputGroups.isEmpty {
-                    Divider()
-                    ForEach(store.outputGroups) { group in
-                        Text("\(group.name) (Group)").tag(group.routeTargetID)
-                    }
-                }
-            }
-            .labelsHidden()
-            .pickerStyle(.menu)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .accessibilityHint("Choose the output device for the selected app")
-        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Route setup, input \(selectedSource?.appName ?? "not selected"), output \(outputDisplayName), \(routeActionTitle)")
     }
 
     private var routeGlyph: some View {
-        VStack(spacing: 5) {
-            Text("ROUTE")
+        VStack(spacing: 6) {
+            Text("TO")
                 .font(.system(size: 8, weight: .heavy, design: .monospaced))
                 .foregroundStyle(.secondary)
             Image(systemName: "arrow.right")
-                .font(.system(size: 16, weight: .heavy))
-                .foregroundStyle(StudioPalette.amber)
-            StudioLED(color: selectedOutputID.isEmpty ? StudioPalette.blue : StudioPalette.teal)
+                .font(.system(size: 17, weight: .heavy))
+                .foregroundStyle(routeAlreadySet ? StudioPalette.green : StudioPalette.amber)
+            StudioLED(color: routeAlreadySet ? StudioPalette.green : StudioPalette.amber)
         }
-        .padding(.top, 10)
-        .frame(width: 54)
+        .padding(.top, 48)
         .accessibilityHidden(true)
     }
 
-    private var routeActionStack: some View {
-        VStack(spacing: 8) {
+    private var previewPanel: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            HStack(spacing: 6) {
+                Image(systemName: routeAlreadySet ? "checkmark.circle.fill" : "point.3.connected.trianglepath.dotted")
+                    .foregroundStyle(routeAlreadySet ? StudioPalette.green : StudioPalette.amber)
+                Text(routeAlreadySet ? "Connected" : "Preview")
+                    .font(.system(size: 9, weight: .heavy, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                Spacer(minLength: 0)
+            }
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(selectedSource?.appName ?? "No Input")
+                    .font(.caption.weight(.bold))
+                    .lineLimit(1)
+                HStack(spacing: 6) {
+                    Capsule()
+                        .fill(routeAlreadySet ? StudioPalette.green : StudioPalette.amber)
+                        .frame(width: 28, height: 3)
+                    Image(systemName: "arrow.right")
+                        .font(.caption2.weight(.heavy))
+                        .foregroundStyle(routeAlreadySet ? StudioPalette.green : StudioPalette.amber)
+                }
+                Text(outputDisplayName)
+                    .font(.caption.weight(.bold))
+                    .lineLimit(2)
+            }
+
             Button {
                 applyRoute()
             } label: {
-                Label(selectedOutputID.isEmpty ? "Follow System" : "Patch Route", systemImage: selectedOutputID.isEmpty ? "arrow.triangle.branch" : "point.3.connected.trianglepath.dotted")
+                Label(routeActionTitle, systemImage: routeAlreadySet ? "checkmark" : "bolt.fill")
+                    .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
-            .tint(selectedOutputID.isEmpty ? StudioPalette.blue : StudioPalette.teal)
-            .disabled(selectedSource == nil)
-            .accessibilityHint("Applies the selected app to output route")
+            .controlSize(.small)
+            .tint(routeAlreadySet ? StudioPalette.green : StudioPalette.teal)
+            .disabled(selectedSource == nil || routeAlreadySet)
+            .accessibilityHint("Applies the selected input to output route")
 
-            Text("INPUT -> OUTPUT")
-                .font(.system(size: 8, weight: .heavy, design: .monospaced))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
+            HStack(spacing: 5) {
+                sourceMenu
+                outputMenu
+                Spacer(minLength: 0)
+                Button {
+                    selectedOutputID = ""
+                    applyRoute()
+                } label: {
+                    Image(systemName: "arrow.triangle.branch")
+                }
+                .buttonStyle(.borderless)
+                .disabled(selectedSource == nil)
+                .help("Follow system output")
+                .accessibilityLabel("Follow system output")
+            }
+        }
+        .padding(10)
+        .background(StudioPalette.strip.opacity(0.70), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .stroke((routeAlreadySet ? StudioPalette.green : StudioPalette.amber).opacity(0.24), lineWidth: 1)
         }
     }
 
-    private var sourceSelection: Binding<String> {
-        Binding(
-            get: { selectedSourceID.isEmpty ? (store.selectedSourceID ?? store.audioSources.first?.id ?? "") : selectedSourceID },
-            set: { value in
-                selectedSourceID = value
-                store.selectedSourceID = value
-                selectedOutputID = selectedSource.flatMap { $0.assignedOutputDeviceID } ?? ""
+    private var sourceMenu: some View {
+        Menu {
+            ForEach(store.audioSources) { source in
+                Button(source.appName) {
+                    selectedSourceID = source.id
+                    store.selectedSourceID = source.id
+                    syncOutputToSelectedSource()
+                }
             }
-        )
+        } label: {
+            Image(systemName: "app.badge")
+        }
+        .menuStyle(.borderlessButton)
+        .help("More input choices")
+        .accessibilityLabel("More input choices")
+    }
+
+    private var outputMenu: some View {
+        Menu {
+            Button("Follow System") {
+                selectedOutputID = ""
+                lastAppliedSignature = nil
+            }
+            Divider()
+            ForEach(store.outputDevices) { device in
+                Button(device.name) {
+                    selectedOutputID = device.uid
+                    lastAppliedSignature = nil
+                }
+            }
+            if !store.outputGroups.isEmpty {
+                Divider()
+                ForEach(store.outputGroups) { group in
+                    Button("\(group.name) Group") {
+                        selectedOutputID = group.routeTargetID
+                        lastAppliedSignature = nil
+                    }
+                }
+            }
+        } label: {
+            Image(systemName: "speaker.badge.gearshape")
+        }
+        .menuStyle(.borderlessButton)
+        .help("More output choices")
+        .accessibilityLabel("More output choices")
+    }
+
+    private var routeTargets: [SmoothRouteTarget] {
+        var targets = [
+            SmoothRouteTarget(
+                id: "follow-system",
+                selectionID: "",
+                title: "Follow System",
+                detail: store.currentOutput?.name ?? "Current output",
+                systemImage: "arrow.triangle.branch",
+                tint: StudioPalette.blue
+            )
+        ]
+
+        targets += store.outputDevices.map { device in
+            SmoothRouteTarget(
+                id: "device-\(device.uid)",
+                selectionID: device.uid,
+                title: device.name,
+                detail: device.isDefault ? "\(device.typeDescription) · Main" : device.typeDescription,
+                systemImage: device.kind.systemImage,
+                tint: device.transport == .builtIn ? StudioPalette.amber : StudioPalette.teal
+            )
+        }
+
+        targets += store.outputGroups.map { group in
+            SmoothRouteTarget(
+                id: "group-\(group.id.uuidString)",
+                selectionID: group.routeTargetID,
+                title: group.name,
+                detail: "\(group.deviceUIDs.count) outputs · Group",
+                systemImage: "speaker.3.fill",
+                tint: StudioPalette.teal
+            )
+        }
+
+        return targets
+    }
+
+    private var routeAlreadySet: Bool {
+        guard let selectedSource else { return false }
+        let route = store.route(for: selectedSource)
+        let currentSelection = route.routeMode == .followSystemOutput ? "" : (route.outputDeviceID ?? "")
+        return currentSelection == selectedOutputID
+    }
+
+    private var routeActionTitle: String {
+        if selectedSource == nil { return "Choose" }
+        if routeAlreadySet { return "Set" }
+        return selectedOutputID.isEmpty ? "Follow" : "Connect"
+    }
+
+    private var routeSummary: String {
+        guard let selectedSource else {
+            return "Choose an input app to configure a route."
+        }
+        if routeAlreadySet {
+            return "\(selectedSource.appName) is set to \(outputDisplayName)."
+        }
+        if lastAppliedSignature == routeSignature {
+            return "\(selectedSource.appName) route saved."
+        }
+        return "\(selectedSource.appName) -> \(outputDisplayName)"
+    }
+
+    private var routeSignature: String {
+        "\(selectedSource?.id ?? "")|\(selectedOutputID)"
+    }
+
+    private var outputDisplayName: String {
+        if selectedOutputID.isEmpty {
+            return "Follow System"
+        }
+        return routeTargets.first { $0.selectionID == selectedOutputID }?.title ?? "Missing Output"
+    }
+
+    private func syncFromStoreSelection() {
+        guard let storeSelection = store.selectedSourceID,
+              storeSelection != selectedSourceID else {
+            return
+        }
+        selectedSourceID = storeSelection
+        syncOutputToSelectedSource()
+    }
+
+    private func syncOutputToSelectedSource() {
+        selectedOutputID = selectedSource.flatMap { source in
+            source.followsSystemOutput ? "" : (source.assignedOutputDeviceID ?? "")
+        } ?? ""
+        lastAppliedSignature = nil
     }
 
     private func applyRoute() {
         guard let selectedSource else { return }
         store.assignSourceOutput(source: selectedSource, uid: selectedOutputID.isEmpty ? nil : selectedOutputID)
-    }
-
-    private var outputSubtitle: String {
-        if selectedOutputID.isEmpty {
-            return "Follow System"
-        }
-        if let device = store.outputDevices.first(where: { $0.uid == selectedOutputID }) {
-            return device.name
-        }
-        if let group = store.outputGroups.first(where: { $0.routeTargetID == selectedOutputID }) {
-            return group.name
-        }
-        return "Missing Output"
+        lastAppliedSignature = routeSignature
     }
 }
 
-private struct StudioRouteEndpoint<Content: View>: View {
+private struct SmoothSetupStep: View {
+    let number: String
     let title: String
-    let subtitle: String
+    let detail: String
+    let tint: Color
+    let isActive: Bool
+
+    var body: some View {
+        HStack(spacing: 7) {
+            Text(number)
+                .font(.system(size: 10, weight: .heavy, design: .monospaced))
+                .foregroundStyle(isActive ? .black : .secondary)
+                .frame(width: 18, height: 18)
+                .background((isActive ? tint : StudioPalette.stroke), in: Circle())
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title.uppercased())
+                    .font(.system(size: 8, weight: .heavy, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                Text(detail)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.primary.opacity(isActive ? 0.88 : 0.45))
+                    .lineLimit(1)
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(StudioPalette.strip.opacity(0.58), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .stroke(tint.opacity(isActive ? 0.20 : 0.08), lineWidth: 1)
+        }
+    }
+}
+
+private struct SmoothRouteColumn<Content: View>: View {
+    let title: String
     let systemImage: String
     let tint: Color
     let content: Content
 
-    init(
-        title: String,
-        subtitle: String,
-        systemImage: String,
-        tint: Color,
-        @ViewBuilder content: () -> Content
-    ) {
+    init(title: String, systemImage: String, tint: Color, @ViewBuilder content: () -> Content) {
         self.title = title
-        self.subtitle = subtitle
         self.systemImage = systemImage
         self.tint = tint
         self.content = content()
@@ -730,33 +920,139 @@ private struct StudioRouteEndpoint<Content: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
+            HStack(spacing: 7) {
                 Image(systemName: systemImage)
-                    .font(.system(size: 13, weight: .bold))
+                    .font(.system(size: 11, weight: .bold))
                     .foregroundStyle(tint)
-                    .frame(width: 22, height: 22)
+                    .frame(width: 20, height: 20)
                     .background(tint.opacity(0.13), in: RoundedRectangle(cornerRadius: 5, style: .continuous))
-
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(title.uppercased())
-                        .font(.system(size: 9, weight: .heavy, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                    Text(subtitle)
-                        .font(.caption.weight(.semibold))
-                        .lineLimit(1)
-                }
+                Text(title.uppercased())
+                    .font(.system(size: 9, weight: .heavy, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                Spacer(minLength: 0)
             }
 
             content
         }
         .padding(10)
-        .background(StudioPalette.strip.opacity(0.72), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+        .background(StudioPalette.strip.opacity(0.68), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 7, style: .continuous)
-                .stroke(tint.opacity(0.22), lineWidth: 1)
+                .stroke(tint.opacity(0.18), lineWidth: 1)
         }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("\(title), \(subtitle)")
+    }
+}
+
+private struct SmoothSourceChoice: View {
+    let source: AudioSource
+    let isSelected: Bool
+    let meterLevel: Double
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 9) {
+                AppSourceIcon(source: source)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(source.appName)
+                        .font(.caption.weight(.bold))
+                        .lineLimit(1)
+                    Text(source.isRunning ? "Running" : "Ready")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+
+                Spacer(minLength: 0)
+
+                SmoothMiniMeter(level: meterLevel, tint: source.isProducingAudio ? StudioPalette.green : StudioPalette.blue)
+                    .frame(width: 38)
+
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(isSelected ? StudioPalette.blue : .secondary.opacity(0.55))
+            }
+            .padding(8)
+            .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
+            .background(isSelected ? StudioPalette.blue.opacity(0.13) : StudioPalette.inset.opacity(0.68), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .stroke(isSelected ? StudioPalette.blue.opacity(0.70) : StudioPalette.stroke, lineWidth: isSelected ? 1.4 : 1)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(source.appName), \(isSelected ? "selected" : "not selected")")
+    }
+}
+
+private struct SmoothRouteTarget: Identifiable {
+    let id: String
+    let selectionID: String
+    let title: String
+    let detail: String
+    let systemImage: String
+    let tint: Color
+}
+
+private struct SmoothOutputChoice: View {
+    let target: SmoothRouteTarget
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 9) {
+                Image(systemName: target.systemImage)
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(target.tint)
+                    .frame(width: 28, height: 28)
+                    .background(target.tint.opacity(0.13), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(target.title)
+                        .font(.caption.weight(.bold))
+                        .lineLimit(1)
+                    Text(target.detail)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+
+                Spacer(minLength: 0)
+
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(isSelected ? StudioPalette.teal : .secondary.opacity(0.55))
+            }
+            .padding(8)
+            .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
+            .background(isSelected ? StudioPalette.teal.opacity(0.12) : StudioPalette.inset.opacity(0.68), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .stroke(isSelected ? StudioPalette.teal.opacity(0.68) : StudioPalette.stroke, lineWidth: isSelected ? 1.4 : 1)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(target.title), \(target.detail), \(isSelected ? "selected" : "not selected")")
+    }
+}
+
+private struct SmoothMiniMeter: View {
+    let level: Double
+    let tint: Color
+
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(0..<5, id: \.self) { index in
+                let threshold = Double(index + 1) / 5
+                RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+                    .fill(tint.opacity(threshold <= level.clampedUnit ? 0.95 : 0.20))
+                    .frame(width: 4, height: 8 + CGFloat(index * 3))
+            }
+        }
+        .frame(height: 22, alignment: .bottom)
+        .accessibilityHidden(true)
     }
 }
 
