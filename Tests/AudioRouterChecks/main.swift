@@ -200,7 +200,7 @@ func checkDeviceAdditionPreservesCurrentOutput() throws {
 }
 
 func checkUpdateVersionComparison() {
-    precondition(UpdateManager.releaseAssetName == "AudioRouter-macOS.dmg", "Updater should fetch the DMG release asset")
+    precondition(UpdateManager.releaseAssetName == "AudioRouter-macOS.zip", "Updater should fetch the ZIP release asset")
     precondition(UpdateManager.isVersion("0.1.2", newerThan: "0.1.1"), "Patch update should compare newer")
     precondition(UpdateManager.isVersion("0.2.0", newerThan: "0.1.9"), "Minor update should compare newer")
     precondition(UpdateManager.isVersion("v0.1.10", newerThan: "0.1.9"), "Version tags with v prefixes should compare correctly")

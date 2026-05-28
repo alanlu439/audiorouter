@@ -3,7 +3,7 @@ import Foundation
 
 @MainActor
 public final class UpdateManager: ObservableObject {
-    nonisolated public static let releaseAssetName = "AudioRouter-macOS.dmg"
+    nonisolated public static let releaseAssetName = "AudioRouter-macOS.zip"
 
     public struct UpdateInfo: Equatable {
         public let version: String
@@ -23,7 +23,7 @@ public final class UpdateManager: ObservableObject {
     private let session: URLSession
     private let currentVersionProvider: () -> String
     private let latestReleaseURL = URL(string: "https://api.github.com/repos/alanlu439/audiorouter/releases/latest")!
-    private let latestDownloadURL = URL(string: "https://github.com/alanlu439/audiorouter/releases/latest/download/AudioRouter-macOS.dmg")!
+    private let latestDownloadURL = URL(string: "https://github.com/alanlu439/audiorouter/releases/latest/download/AudioRouter-macOS.zip")!
 
     public init(
         session: URLSession = .shared,
@@ -91,12 +91,12 @@ public final class UpdateManager: ObservableObject {
 
         if let existingURL = existingDownloadedUpdateURL(for: availableUpdate), FileManager.default.fileExists(atPath: existingURL.path) {
             downloadedUpdateURL = existingURL
-            message = "AudioRouter \(availableUpdate.version) is downloaded. Open the DMG to install."
+            message = "AudioRouter \(availableUpdate.version) is downloaded. Open the ZIP to install."
             return
         }
 
         isDownloading = true
-        message = "Downloading AudioRouter \(availableUpdate.version) DMG..."
+        message = "Downloading AudioRouter \(availableUpdate.version) ZIP..."
         Task {
             await performUpdateDownload(availableUpdate)
         }
@@ -108,7 +108,7 @@ public final class UpdateManager: ObservableObject {
             return
         }
         NSWorkspace.shared.open(downloadedUpdateURL)
-        message = "Opened the AudioRouter DMG. Drag AudioRouter to Applications to finish installing."
+        message = "Opened the AudioRouter ZIP. Move AudioRouter to Applications to finish installing."
     }
 
     private func performUpdateCheck(autoFetch: Bool) async {
@@ -139,7 +139,7 @@ public final class UpdateManager: ObservableObject {
                 availableUpdate = update
                 downloadedUpdateURL = existingDownloadedUpdateURL(for: update)
                 if downloadedUpdateURL != nil {
-                    message = "AudioRouter \(latestVersion) is downloaded. Open the DMG to install."
+                    message = "AudioRouter \(latestVersion) is downloaded. Open the ZIP to install."
                 } else if autoFetch {
                     message = "AudioRouter \(latestVersion) is available."
                     fetchAvailableUpdate()
@@ -181,7 +181,7 @@ public final class UpdateManager: ObservableObject {
             }
             try FileManager.default.moveItem(at: temporaryURL, to: destinationURL)
             downloadedUpdateURL = destinationURL
-            message = "AudioRouter \(update.version) is downloaded. Open the DMG to install."
+            message = "AudioRouter \(update.version) is downloaded. Open the ZIP to install."
         } catch {
             downloadedUpdateURL = nil
             message = "Could not download update: \(error.localizedDescription)"
@@ -202,7 +202,7 @@ public final class UpdateManager: ObservableObject {
         return baseURL
             .appendingPathComponent("AudioRouter", isDirectory: true)
             .appendingPathComponent("Updates", isDirectory: true)
-            .appendingPathComponent("AudioRouter-\(update.version)-macOS.dmg")
+            .appendingPathComponent("AudioRouter-\(update.version)-macOS.zip")
     }
 
     nonisolated public static func displayVersion(from tag: String) -> String {

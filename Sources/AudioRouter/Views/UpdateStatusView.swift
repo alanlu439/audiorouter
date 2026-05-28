@@ -35,7 +35,7 @@ struct UpdateStatusView: View {
                     ProgressView()
                         .controlSize(.small)
                         .accessibilityLabel("Downloading update")
-                    Text("Fetching DMG")
+                    Text("Fetching ZIP")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
                 } else if store.updateManager.hasDownloadedUpdate {
@@ -46,16 +46,16 @@ struct UpdateStatusView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(.teal)
-                    .accessibilityHint("Opens the downloaded AudioRouter DMG")
+                    .accessibilityHint("Opens the downloaded AudioRouter ZIP")
                 } else if store.updateManager.hasUpdate {
                     Button {
                         store.downloadAvailableUpdate()
                     } label: {
-                        Label("Fetch DMG", systemImage: "square.and.arrow.down")
+                        Label("Fetch ZIP", systemImage: "square.and.arrow.down")
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(.teal)
-                    .accessibilityHint("Downloads the newest AudioRouter DMG")
+                    .accessibilityHint("Downloads the newest AudioRouter ZIP")
                 } else if !compact {
                     Button {
                         store.openLatestRelease()

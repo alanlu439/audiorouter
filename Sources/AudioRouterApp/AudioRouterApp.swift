@@ -81,7 +81,7 @@ struct AudioRouterCommands: Commands {
                 store.checkForUpdates()
             }
             .keyboardShortcut("u", modifiers: [.command, .shift])
-            Button("Fetch Latest DMG") {
+            Button("Fetch Latest ZIP") {
                 store.openUpdateDownload()
             }
             Button("Install Downloaded Update") {

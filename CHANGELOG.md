@@ -14,7 +14,7 @@
 - Kept saved custom routes intact during Bluetooth/AirPods device-change bursts instead of immediately resetting them.
 - Preserved the current system output when a newly connected device tries to become default, so adding AirPods does not interrupt existing playback.
 - Smoothed meters with faster lightweight updates and refreshed Core Audio device changes less aggressively.
-- Made release packaging warn clearly when a DMG is ad-hoc signed or not notarized.
+- Switched release packaging and updates from DMG to ZIP, while still refusing unsafe public archives unless Developer ID signing and Apple notarization are configured.
 
 ## 1.0.1 - 2026-05-26
 
@@ -28,7 +28,7 @@
 
 ## 1.0.0 - 2026-05-26
 
-AudioRouter 1.0.0 is the first large public DMG release of the app.
+AudioRouter 1.0.0 is the first large public release of the app.
 
 ### Highlights
 
@@ -38,8 +38,8 @@ AudioRouter 1.0.0 is the first large public DMG release of the app.
 - Visual app routing interface for Spotify, Apple Music, Chrome, and user-added apps.
 - Experimental public Core Audio process-tap routing and metering path on supported macOS versions.
 - Clear route health and backend status badges so users can see what is live, saved, simulated, or backend-required.
-- DMG-only public release package.
-- In-app GitHub updater that auto-fetches newer DMG builds and prompts the user to install.
+- Public release package.
+- In-app GitHub updater that auto-fetches newer builds and prompts the user to install.
 - Dark, production-console-inspired interface with accessibility labels, hints, values, keyboard commands, and Reduce Motion-aware meters.
 
 ### Important Notes

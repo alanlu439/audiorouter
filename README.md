@@ -6,11 +6,11 @@ AudioRouter is a native SwiftUI macOS menu-bar app for visual audio control. It 
 
 Download the latest stable build here:
 
-[Download AudioRouter DMG](https://github.com/alanlu439/audiorouter/releases/latest/download/AudioRouter-macOS.dmg)
+[Download AudioRouter ZIP](https://github.com/alanlu439/audiorouter/releases/latest/download/AudioRouter-macOS.zip)
 
 Those links point to the newest GitHub release assets when a new release is published.
 
-Note: the current public build is not Apple-notarized yet. macOS may ask you to approve it the first time you open it from Downloads, or it may block the DMG on stricter systems. A download that opens cleanly on other Macs requires Developer ID signing plus Apple notarization.
+The public ZIP must contain a Developer ID signed and Apple-notarized app before upload. If macOS says the download is unsafe or cannot be opened, that release asset was built as a local/ad-hoc test archive and should be replaced with a notarized ZIP.
 
 ## License
 
@@ -117,27 +117,28 @@ macOS system prompts cannot be auto-approved by AudioRouter or any normal app. A
 
 ## Updates And Releases
 
-AudioRouter can check GitHub Releases from the app, auto-fetch the newest DMG when a newer version is available, and prompt you to install once the download is ready. Automatic checks run at launch when enabled, no more than every six hours. The updater uses the latest release API, follows `v`-prefixed semantic version tags, times out quickly on network problems, and shows readable errors if GitHub cannot be reached.
+AudioRouter can check GitHub Releases from the app, auto-fetch the newest ZIP when a newer version is available, and prompt you to install once the download is ready. Automatic checks run at launch when enabled, no more than every six hours. The updater uses the latest release API, follows `v`-prefixed semantic version tags, times out quickly on network problems, and shows readable errors if GitHub cannot be reached.
 
-This is a lightweight public-release updater, not a silent in-place installer. The Install button opens the downloaded DMG so you can replace the app in Applications. Future work can replace it with Sparkle once a Developer ID signing and update-feed workflow is ready.
+This is a lightweight public-release updater, not a silent in-place installer. The Install button opens the downloaded ZIP so you can move the app to Applications. Future work can replace it with Sparkle once a Developer ID signing and update-feed workflow is ready.
 
-Release builds produce a DMG only:
-
-```bash
-./script/package_release.sh
-```
-
-For Developer ID signing and notarization, set the signing and notary credentials before packaging:
+Public release builds produce a ZIP only and refuse to create `AudioRouter-macOS.zip` unless Developer ID signing and Apple notarization are configured:
 
 ```bash
 export DEVELOPER_ID_APPLICATION="Developer ID Application: Your Name (TEAMID)"
-export DEVELOPER_ID_INSTALLER="Developer ID Installer: Your Name (TEAMID)"
 export NOTARYTOOL_PROFILE="AudioRouterNotary"
 export NOTARIZE=1
 ./script/package_release.sh
 ```
 
-`NOTARYTOOL_PROFILE` should be created with `xcrun notarytool store-credentials`. Without those Apple credentials, the script creates an ad-hoc signed DMG artifact and skips notarization. Ad-hoc DMGs are useful for local testing, but they are the reason macOS may say a downloaded app is unsafe or cannot be opened.
+`NOTARYTOOL_PROFILE` should be created with `xcrun notarytool store-credentials`. The script signs the app with `DEVELOPER_ID_APPLICATION`, submits a ZIP to Apple's notary service, staples the notarization ticket to the app, validates the staple, runs Gatekeeper assessment with `spctl`, then recreates the final ZIP with the stapled app inside.
+
+For a local-only test image that is expected to be blocked after download, use:
+
+```bash
+LOCAL_TEST_ZIP=1 ./script/package_release.sh
+```
+
+That creates `dist/AudioRouter-macOS-local-untrusted.zip`. Do not upload that file to GitHub Releases. The updater and README download link use only `AudioRouter-macOS.zip`, which should be the notarized public asset.
 
 ## Build From Source
 
@@ -196,8 +197,7 @@ AudioRouter starts with Spotify, Apple Music, and Chrome as source apps. You can
 swift build
 swift run AudioRouterChecks
 ./script/build_and_run.sh --verify
-./script/build_and_run.sh --package
-./script/package_release.sh
+LOCAL_TEST_ZIP=1 ./script/package_release.sh
 plutil -lint dist/AudioRouter.app/Contents/Info.plist
 codesign --verify --deep --strict dist/AudioRouter.app
 ```
@@ -207,8 +207,8 @@ This Command Line Tools install does not include `XCTest` or Swift's `Testing` m
 ## Future Work
 
 - Harden the experimental process-tap aggregate-device IO pipeline across more devices and formats.
-- Sparkle-based automatic in-place updates after Developer ID signing is configured.
+- Sparkle-based automatic in-place updates after the notarized Developer ID release workflow is in place.
 - Routing plugin or virtual audio device for production-grade per-app output routing.
 - Real EQ processing in the backend audio graph.
 - Real simultaneous output groups.
-- Signed and notarized app bundle with production launch-at-login behavior.
+- Production launch-at-login behavior.
