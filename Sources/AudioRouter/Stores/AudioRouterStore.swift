@@ -998,7 +998,7 @@ public final class AudioRouterStore: ObservableObject {
         case .active:
             return nil
         case .savedOnly:
-            return "Saved route. Start playback and refresh; AudioRouter will retry the live route."
+            return "Saved route. Start playback, then click Retry Route; AudioRouter will also retry when it sees audio."
         case .simulated:
             return "Simulated route. Switch to Live Mode to use Core Audio."
         case .requiresBackend:
@@ -1006,7 +1006,7 @@ public final class AudioRouterStore: ObservableObject {
                 return "This macOS version cannot use Core Audio process taps."
             }
             if source.audioObjectID == nil {
-                return "Start playback in \(source.appName), refresh, then assign the output again."
+                return "Start playback in \(source.appName), then click Retry Route."
             }
             return audioRoutingManager.lastWarning ?? "The public process-tap route could not start for this app/device."
         case .deviceMissing:
@@ -1039,7 +1039,7 @@ public final class AudioRouterStore: ObservableObject {
             return "This macOS/backend cannot start a live process-tap route."
         }
         if source.audioObjectID == nil {
-            return "Start playback in \(source.appName), then refresh so macOS exposes its audio process."
+            return "Start playback in \(source.appName), then retry so AudioRouter can find its Core Audio process."
         }
         if !source.isProducingAudio && route.status != .active {
             return "\(source.appName) is not producing audio right now."
@@ -1072,7 +1072,7 @@ public final class AudioRouterStore: ObservableObject {
             RouteHealthItem(
                 id: "audio-object",
                 title: "Audio detected",
-                detail: source.audioObjectID == nil ? "Start playback, then refresh" : "Core Audio process object available",
+                detail: source.audioObjectID == nil ? "Start playback, then retry" : "Core Audio process object available",
                 state: source.audioObjectID == nil ? .savedOnly : .working
             ),
             RouteHealthItem(
@@ -1632,11 +1632,7 @@ public final class AudioRouterStore: ObservableObject {
 
     private func focusedSources(from detectedSources: [AudioSource]) -> [AudioSource] {
         configuredSourceSpecs.map { spec in
-            let detectedSource = detectedSources.first { detected in
-                detected.bundleIdentifier == spec.bundleIdentifier
-                    || detected.id == spec.bundleIdentifier
-                    || detected.appName.localizedCaseInsensitiveContains(spec.matchName)
-            }
+            let detectedSource = bestDetectedSource(for: spec, in: detectedSources)
 
             let route = audioRoutingManager.route(for: spec.bundleIdentifier)
             return AudioSource(
@@ -1657,6 +1653,38 @@ public final class AudioRouterStore: ObservableObject {
                 followsSystemOutput: route.routeMode == .followSystemOutput
             )
         }
+    }
+
+    private func bestDetectedSource(for spec: FocusedSourceSpec, in sources: [AudioSource]) -> AudioSource? {
+        sources
+            .map { source in (source, detectedSourceScore(source, for: spec)) }
+            .filter { $0.1 > 0 }
+            .max { lhs, rhs in lhs.1 < rhs.1 }?
+            .0
+    }
+
+    private func detectedSourceScore(_ source: AudioSource, for spec: FocusedSourceSpec) -> Int {
+        var score = 0
+        let bundleIdentifier = source.bundleIdentifier ?? ""
+        if bundleIdentifier == spec.bundleIdentifier || source.id == spec.bundleIdentifier {
+            score += 1_000
+        } else if bundleIdentifier.hasPrefix("\(spec.bundleIdentifier).") || source.id.hasPrefix("\(spec.bundleIdentifier).") {
+            score += 850
+        } else if source.appName.localizedCaseInsensitiveContains(spec.matchName)
+                    || bundleIdentifier.localizedCaseInsensitiveContains(spec.matchName)
+                    || source.id.localizedCaseInsensitiveContains(spec.matchName) {
+            score += 500
+        }
+        if source.audioObjectID != nil {
+            score += 120
+        }
+        if source.isProducingAudio {
+            score += 80
+        }
+        if source.isRunning {
+            score += 10
+        }
+        return score
     }
 
     private func retryReadySavedRoutes(using sources: [AudioSource]) {

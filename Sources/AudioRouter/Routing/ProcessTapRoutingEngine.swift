@@ -320,7 +320,7 @@ final class ProcessTapRoutingEngine {
             throw AudioRoutingBackendError.unsupported("The selected output device is not available.")
         }
         guard let processObjectID = source.audioObjectID else {
-            throw AudioRoutingBackendError.unsupported("Start playback in \(source.appName), refresh AudioRouter, then assign the output again.")
+            throw AudioRoutingBackendError.unsupported("Start playback in \(source.appName), then click Retry Route.")
         }
         if let session = sessions[source.id], session.outputDeviceUID == outputDevice.uid {
             return
@@ -387,9 +387,7 @@ final class ProcessTapRoutingEngine {
 
                     do {
                         try check(AudioDeviceStart(aggregateDeviceID, ioProcID), "Start route IO")
-                        guard startProbe.wait(seconds: 0.35) || control.hasReceivedBuffers() else {
-                            throw AudioRoutingBackendError.unsupported("The route started, but the process tap did not deliver audio. Start playback in \(source.appName), refresh, then assign the output again.")
-                        }
+                        _ = startProbe.wait(seconds: 0.75) || control.hasReceivedBuffers()
                         sessions[source.id] = RouteSession(
                             sourceID: source.id,
                             outputDeviceUID: outputDevice.uid,
@@ -468,7 +466,7 @@ final class ProcessTapRoutingEngine {
             kAudioAggregateDeviceNameKey: "AudioRouter Route \(sourceName)",
             kAudioAggregateDeviceIsPrivateKey: 1,
             kAudioAggregateDeviceTapListKey: [tap],
-            kAudioAggregateDeviceTapAutoStartKey: 0
+            kAudioAggregateDeviceTapAutoStartKey: 1
         ]
 
         var aggregateDeviceID = AudioObjectID(kAudioObjectUnknown)

@@ -979,7 +979,7 @@ private struct StudioSmoothRouteBuilder: View {
             return "Saves this output choice. This Mac cannot start live process-tap routing with the current backend."
         }
         if selectedSource.audioObjectID == nil {
-            return "Saves this output choice. Start playback in \(selectedSource.appName), refresh, then try live routing."
+            return "Saves this output choice. Start playback in \(selectedSource.appName), then try live routing."
         }
         if !selectedOutputReady {
             return "Choose a connected output before trying a live route."

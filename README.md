@@ -171,7 +171,7 @@ The script builds the SwiftPM product, stages `dist/AudioRouter.app`, writes the
 9. Use the per-app volume and mute controls on the source card to adjust that route.
 10. Use `Follow System Output` to remove a custom route and send the app back to the normal system output.
 
-If the backend panel says `Saved Only`, leave the source app playing, click Refresh, then assign the output again. If it says `Requires Backend`, the chosen app/device pair could not be made live through public Core Audio process taps, but the route preference is saved for a future routing backend.
+If the backend panel says `Saved Only`, leave the source app playing and click `Retry Route`. If it says `Requires Backend`, the chosen app/device pair could not be made live through public Core Audio process taps, but the route preference is saved for a future routing backend.
 
 AudioRouter starts with Spotify, Apple Music, and Chrome as source apps. You can add more apps from the Routing Dashboard. Output choices are connected Bluetooth devices plus the built-in/system speaker.
 
@@ -185,7 +185,7 @@ AudioRouter starts with Spotify, Apple Music, and Chrome as source apps. You can
 
 ## Troubleshooting
 
-- If the route does not start, make sure the source app is actively playing audio, then refresh AudioRouter and assign the output again.
+- If the route does not start, make sure the source app is actively playing audio, then click `Retry Route`.
 - If permission was denied, open System Settings, grant AudioRouter System Audio Recording permission, then quit and reopen AudioRouter.
 - If the selected Bluetooth speaker is missing, connect it in macOS System Settings first.
 - If the app still plays through the original output, remove the route with `Follow System Output`, start playback again, and reassign the output.
