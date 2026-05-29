@@ -94,7 +94,7 @@ public final class AudioRoutingManager {
                 : "This backend cannot render app audio to a separate output."
             lastWarning = nil
         } catch {
-            route.status = .requiresBackend
+            route.status = backend.supportsPerAppRouting ? .savedOnly : .requiresBackend
             routesBySourceID[sourceID] = route
             saveRoutes()
             let message = "\(error.localizedDescription) AudioRouter saved the route preference."

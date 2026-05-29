@@ -39,10 +39,12 @@ public final class AudioRouterStore: ObservableObject {
     private var pendingBalanceTasks: [String: Task<Void, Never>] = [:]
     private var pendingSourceVolumeTasks: [String: Task<Void, Never>] = [:]
     private var pendingSourceVolumes: [String: Double] = [:]
+    private var lastDeviceVolumeCommitDates: [String: Date] = [:]
     private var pendingRefreshTask: Task<Void, Never>?
     private var meterPhase: Double = 0
     private var lastRefreshUsedDemoMode: Bool?
     private var stableSystemOutputUID: String?
+    private var autoRetriedRouteSignatures: Set<String> = []
     private var cancellables: Set<AnyCancellable> = []
     private let outputGroupsURL: URL
     private let appSourcesURL: URL
@@ -53,8 +55,9 @@ public final class AudioRouterStore: ObservableObject {
     private var sourceOrderIDs: [String]
     private var pendingDeviceDisconnectTasks: [String: Task<Void, Never>] = [:]
     private let refreshInterval: TimeInterval = 18
-    private let meterInterval: TimeInterval = 0.14
-    private let meterPublishThreshold = 0.008
+    private let meterInterval: TimeInterval = 0.10
+    private let meterPublishThreshold = 0.005
+    private let deviceVolumeCommitInterval: TimeInterval = 0.045
     private let deviceDisconnectGraceInterval: TimeInterval = 12
 
     public init(
@@ -329,6 +332,7 @@ public final class AudioRouterStore: ObservableObject {
         meterTimer = nil
         pendingVolumeTasks.values.forEach { $0.cancel() }
         pendingVolumeTasks.removeAll()
+        lastDeviceVolumeCommitDates.removeAll()
         pendingBalanceTasks.values.forEach { $0.cancel() }
         pendingBalanceTasks.removeAll()
         for (sourceID, volume) in pendingSourceVolumes {
@@ -401,6 +405,7 @@ public final class AudioRouterStore: ObservableObject {
             if refreshedSources != audioSources {
                 audioSources = refreshedSources
             }
+            retryReadySavedRoutes(using: refreshedSources)
             if !silent || availableAppCandidates.isEmpty {
                 updateAvailableAppCandidates()
             }
@@ -506,10 +511,20 @@ public final class AudioRouterStore: ObservableObject {
         }
         let taskKey = device.id
         pendingVolumeTasks[taskKey]?.cancel()
+        let now = Date()
+        let elapsed = now.timeIntervalSince(lastDeviceVolumeCommitDates[taskKey] ?? .distantPast)
+        if elapsed >= deviceVolumeCommitInterval {
+            lastDeviceVolumeCommitDates[taskKey] = now
+            commitDeviceVolume(device, volume: clamped)
+            return
+        }
+
+        let delay = max(0.01, deviceVolumeCommitInterval - elapsed)
         pendingVolumeTasks[taskKey] = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 90_000_000)
+            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
             guard !Task.isCancelled else { return }
             await MainActor.run { [weak self] in
+                self?.lastDeviceVolumeCommitDates[taskKey] = Date()
                 self?.commitDeviceVolume(device, volume: clamped)
                 self?.pendingVolumeTasks.removeValue(forKey: taskKey)
             }
@@ -780,6 +795,7 @@ public final class AudioRouterStore: ObservableObject {
 
     public func assignSourceOutput(source: AudioSource, uid: String?) {
         selectedSourceID = source.id
+        autoRetriedRouteSignatures.remove(routeSignature(sourceID: source.id, outputDeviceID: uid))
         if let uid {
             audioRoutingManager.assignOutputDevice(sourceID: source.id, deviceID: uid)
         } else {
@@ -803,6 +819,9 @@ public final class AudioRouterStore: ObservableObject {
 
     public func retrySourceRoute(_ source: AudioSource) {
         selectedSourceID = source.id
+        if let outputID = route(for: source).outputDeviceID {
+            autoRetriedRouteSignatures.remove(routeSignature(sourceID: source.id, outputDeviceID: outputID))
+        }
         audioRoutingManager.retryRoute(sourceID: source.id)
         let route = audioRoutingManager.route(for: source.id)
         updateAudioSource(source.id) { current in
@@ -1228,6 +1247,7 @@ public final class AudioRouterStore: ObservableObject {
             return source
         }
         outputGroups.removeAll()
+        autoRetriedRouteSignatures.removeAll()
     }
 
     public func showUnsupportedNote(_ note: String) {
@@ -1587,7 +1607,7 @@ public final class AudioRouterStore: ObservableObject {
         if oldValue == 0 || newValue == 0 {
             return newValue
         }
-        let blend = newValue > oldValue ? 0.62 : 0.36
+        let blend = newValue > oldValue ? 0.72 : 0.42
         return oldValue + (newValue - oldValue) * blend
     }
 
@@ -1637,6 +1657,38 @@ public final class AudioRouterStore: ObservableObject {
                 followsSystemOutput: route.routeMode == .followSystemOutput
             )
         }
+    }
+
+    private func retryReadySavedRoutes(using sources: [AudioSource]) {
+        guard !settings.demoMode, audioRoutingManager.supportsTruePerAppRouting else { return }
+
+        for source in sources {
+            let route = audioRoutingManager.route(for: source.id)
+            guard route.routeMode == .customOutput,
+                  route.status != .active,
+                  let outputID = route.outputDeviceID,
+                  outputDevices.contains(where: { $0.uid == outputID }),
+                  source.audioObjectID != nil,
+                  source.isProducingAudio || (source.currentLevel ?? 0) > 0.015 else {
+                continue
+            }
+            guard !outputGroups.contains(where: { $0.routeTargetID == outputID }) else { continue }
+
+            let signature = routeSignature(sourceID: source.id, outputDeviceID: outputID)
+            guard autoRetriedRouteSignatures.insert(signature).inserted else { continue }
+
+            audioRoutingManager.retryRoute(sourceID: source.id)
+            let updatedRoute = audioRoutingManager.route(for: source.id)
+            updateAudioSource(source.id) { current in
+                current.assignedOutputDeviceID = updatedRoute.outputDeviceID
+                current.routeMode = updatedRoute.routeMode
+                current.followsSystemOutput = updatedRoute.routeMode == .followSystemOutput
+            }
+        }
+    }
+
+    private func routeSignature(sourceID: String, outputDeviceID: String?) -> String {
+        "\(sourceID)|\(outputDeviceID ?? "system")"
     }
 
     private var demoDevices: [AudioDevice] {

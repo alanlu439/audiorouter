@@ -26,6 +26,8 @@ struct MixerView: View {
                         value: output.volume,
                         isEnabled: output.canSetVolume,
                         systemImage: "speaker.wave.2.fill",
+                        accent: .teal,
+                        showsStepButtons: true,
                         onChange: store.setSystemOutputVolume
                     )
                     Button {
@@ -46,6 +48,8 @@ struct MixerView: View {
                         value: input.volume,
                         isEnabled: input.canSetVolume,
                         systemImage: "mic.fill",
+                        accent: .cyan,
+                        showsStepButtons: true,
                         onChange: store.setInputVolume
                     )
                 }
@@ -84,13 +88,17 @@ private struct MixerSourceCard: View {
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(.secondary)
             }
-            HStack {
-                Slider(value: Binding(get: { source.volume }, set: { store.setSourceVolume(source: source, volume: $0) }), in: 0...1.5)
-                    .disabled(!store.supportsPerAppVolume)
-                Text("\(Int((source.volume * 100).rounded()))%")
-                    .font(.caption.monospacedDigit())
-                    .frame(width: 42)
-            }
+            InlineVolumeSlider(
+                value: source.volume,
+                isEnabled: store.supportsPerAppVolume,
+                systemImage: "speaker.wave.2.fill",
+                range: 0...1.5,
+                accent: .green,
+                accessibilityLabel: "\(source.appName) volume",
+                accessibilityHint: store.supportsPerAppVolume ? "Adjusts this app route volume" : "Per-app gain requires an audio backend",
+                onChange: { store.setSourceVolume(source: source, volume: $0) }
+            )
+            .help(store.supportsPerAppVolume ? "Set source volume" : "Per-app gain requires an audio backend.")
             HStack {
                 Button {
                     store.setSourceMuted(source: source, isMuted: !source.isMuted)

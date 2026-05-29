@@ -136,33 +136,208 @@ struct VolumeSlider: View {
     let value: Double?
     let isEnabled: Bool
     let systemImage: String
+    let range: ClosedRange<Double>
+    let accent: Color
+    let showsStepButtons: Bool
     let onChange: (Double) -> Void
+
+    @State private var draftValue: Double?
+    @State private var isEditing = false
+
+    init(
+        title: String,
+        value: Double?,
+        isEnabled: Bool,
+        systemImage: String,
+        range: ClosedRange<Double> = 0...1,
+        accent: Color = .teal,
+        showsStepButtons: Bool = false,
+        onChange: @escaping (Double) -> Void
+    ) {
+        self.title = title
+        self.value = value
+        self.isEnabled = isEnabled
+        self.systemImage = systemImage
+        self.range = range
+        self.accent = accent
+        self.showsStepButtons = showsStepButtons
+        self.onChange = onChange
+    }
 
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: systemImage)
-                .foregroundStyle(isEnabled ? .primary : .secondary)
+                .foregroundStyle(isEnabled ? accent : .secondary)
                 .frame(width: 18)
             Text(title)
                 .font(.caption)
                 .foregroundStyle(.secondary)
-                .frame(width: 48, alignment: .leading)
+                .frame(width: 52, alignment: .leading)
+            if showsStepButtons {
+                nudgeButton(systemImage: "minus", delta: -stepSize)
+            }
             Slider(
                 value: Binding(
-                    get: { value ?? 0 },
-                    set: { onChange($0) }
+                    get: { displayedValue },
+                    set: { updateValue($0) }
                 ),
-                in: 0...1
+                in: range,
+                onEditingChanged: { editing in
+                    isEditing = editing
+                    if !editing {
+                        onChange(displayedValue)
+                        draftValue = nil
+                    }
+                }
             )
             .disabled(!isEnabled)
+            .tint(accent)
             .accessibilityLabel("\(title) volume")
-            .accessibilityValue(value?.roundedPercentDescription ?? "Not available")
+            .accessibilityValue(accessibilityValue)
             .accessibilityHint(isEnabled ? "Adjusts \(title.lowercased()) volume" : "\(title) volume is not exposed by this device")
-            Text(value?.roundedPercentDescription ?? "N/A")
-                .font(.caption.monospacedDigit())
-                .foregroundStyle(.secondary)
-                .frame(width: 42, alignment: .trailing)
+            if showsStepButtons {
+                nudgeButton(systemImage: "plus", delta: stepSize)
+            }
+            percentPill
         }
         .help(isEnabled ? "\(title) volume" : "\(title) volume is not exposed by this device.")
+        .animation(.easeOut(duration: 0.12), value: displayedValue)
+    }
+
+    private var displayedValue: Double {
+        range.clamped(draftValue ?? value ?? range.lowerBound)
+    }
+
+    private var accessibilityValue: String {
+        value == nil ? "Not available" : displayedValue.roundedPercentDescription
+    }
+
+    private var stepSize: Double {
+        range.upperBound > 1 ? 0.05 : 0.02
+    }
+
+    private var percentPill: some View {
+        Text(value == nil ? "N/A" : displayedValue.roundedPercentDescription)
+            .font(.caption.monospacedDigit().weight(.semibold))
+            .foregroundStyle(isEnabled ? accent : .secondary)
+            .frame(minWidth: 46, alignment: .trailing)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 3)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(isEnabled ? accent.opacity(isEditing ? 0.22 : 0.12) : Color.secondary.opacity(0.08))
+            )
+    }
+
+    private func updateValue(_ newValue: Double) {
+        let clamped = range.clamped(newValue)
+        draftValue = clamped
+        onChange(clamped)
+    }
+
+    private func nudgeButton(systemImage: String, delta: Double) -> some View {
+        Button {
+            updateValue(displayedValue + delta)
+            draftValue = nil
+        } label: {
+            Image(systemName: systemImage)
+                .font(.caption.weight(.bold))
+                .frame(width: 18, height: 18)
+        }
+        .buttonStyle(.borderless)
+        .foregroundStyle(isEnabled ? .secondary : .tertiary)
+        .disabled(!isEnabled || value == nil)
+        .accessibilityLabel(delta < 0 ? "Decrease \(title) volume" : "Increase \(title) volume")
+    }
+}
+
+struct InlineVolumeSlider: View {
+    let value: Double?
+    let isEnabled: Bool
+    let systemImage: String
+    let range: ClosedRange<Double>
+    let accent: Color
+    let accessibilityLabel: String
+    let accessibilityHint: String
+    let onChange: (Double) -> Void
+
+    @State private var draftValue: Double?
+    @State private var isEditing = false
+
+    init(
+        value: Double?,
+        isEnabled: Bool,
+        systemImage: String = "speaker.wave.2.fill",
+        range: ClosedRange<Double> = 0...1,
+        accent: Color = .teal,
+        accessibilityLabel: String,
+        accessibilityHint: String,
+        onChange: @escaping (Double) -> Void
+    ) {
+        self.value = value
+        self.isEnabled = isEnabled
+        self.systemImage = systemImage
+        self.range = range
+        self.accent = accent
+        self.accessibilityLabel = accessibilityLabel
+        self.accessibilityHint = accessibilityHint
+        self.onChange = onChange
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: systemImage)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(isEnabled ? accent : .secondary)
+                .frame(width: 16)
+
+            Slider(
+                value: Binding(
+                    get: { displayedValue },
+                    set: { updateValue($0) }
+                ),
+                in: range,
+                onEditingChanged: { editing in
+                    isEditing = editing
+                    if !editing {
+                        onChange(displayedValue)
+                        draftValue = nil
+                    }
+                }
+            )
+            .tint(accent)
+            .disabled(!isEnabled)
+            .accessibilityLabel(accessibilityLabel)
+            .accessibilityValue(value == nil ? "Not available" : displayedValue.roundedPercentDescription)
+            .accessibilityHint(accessibilityHint)
+
+            Text(value == nil ? "N/A" : displayedValue.roundedPercentDescription)
+                .font(.caption2.monospacedDigit().weight(.bold))
+                .foregroundStyle(isEnabled ? accent : .secondary)
+                .frame(width: 44, alignment: .trailing)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 3)
+                .background(
+                    Capsule(style: .continuous)
+                        .fill(isEnabled ? accent.opacity(isEditing ? 0.22 : 0.12) : Color.secondary.opacity(0.08))
+                )
+        }
+        .animation(.easeOut(duration: 0.12), value: displayedValue)
+    }
+
+    private var displayedValue: Double {
+        range.clamped(draftValue ?? value ?? range.lowerBound)
+    }
+
+    private func updateValue(_ newValue: Double) {
+        let clamped = range.clamped(newValue)
+        draftValue = clamped
+        onChange(clamped)
+    }
+}
+
+private extension ClosedRange where Bound == Double {
+    func clamped(_ value: Double) -> Double {
+        Swift.min(Swift.max(value, lowerBound), upperBound)
     }
 }

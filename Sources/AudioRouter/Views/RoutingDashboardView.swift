@@ -573,6 +573,7 @@ private struct StudioSmoothRouteBuilder: View {
         VStack(alignment: .leading, spacing: 10) {
             setupRail
             configurationToolbar
+            routeReadinessStrip
 
             HStack(alignment: .top, spacing: 10) {
                 SmoothRouteColumn(title: "Input", systemImage: "app.fill", tint: StudioPalette.blue) {
@@ -721,6 +722,37 @@ private struct StudioSmoothRouteBuilder: View {
         }
     }
 
+    private var routeReadinessStrip: some View {
+        HStack(spacing: 7) {
+            SmoothReadinessBadge(
+                title: "App",
+                value: selectedSource?.isRunning == true ? "Running" : "Open",
+                systemImage: selectedSource?.isRunning == true ? "checkmark.circle.fill" : "play.circle",
+                tint: selectedSource?.isRunning == true ? StudioPalette.green : StudioPalette.amber
+            )
+            SmoothReadinessBadge(
+                title: "Audio",
+                value: selectedSource?.audioObjectID == nil ? "Play sound" : "Detected",
+                systemImage: selectedSource?.audioObjectID == nil ? "waveform.badge.exclamationmark" : "waveform.circle.fill",
+                tint: selectedSource?.audioObjectID == nil ? StudioPalette.amber : StudioPalette.green
+            )
+            SmoothReadinessBadge(
+                title: "Output",
+                value: selectedOutputReadyLabel,
+                systemImage: selectedOutputReady ? "speaker.wave.2.fill" : "speaker.slash.fill",
+                tint: selectedOutputReady ? StudioPalette.teal : StudioPalette.amber
+            )
+            SmoothReadinessBadge(
+                title: "Result",
+                value: routeReadinessLabel,
+                systemImage: routeReadinessIcon,
+                tint: routeReadinessTint
+            )
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Route readiness. App \(selectedSource?.isRunning == true ? "running" : "not running"), audio \(selectedSource?.audioObjectID == nil ? "not detected" : "detected"), output \(selectedOutputReadyLabel), result \(routeReadinessLabel)")
+    }
+
     private var suggestedTargetStrip: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
@@ -766,8 +798,8 @@ private struct StudioSmoothRouteBuilder: View {
                 .foregroundStyle(.secondary)
             Image(systemName: "arrow.right")
                 .font(.system(size: 17, weight: .heavy))
-                .foregroundStyle(routeAlreadySet ? StudioPalette.green : StudioPalette.amber)
-            StudioLED(color: routeAlreadySet ? StudioPalette.green : StudioPalette.amber)
+                .foregroundStyle(routeReadinessTint)
+            StudioLED(color: routeReadinessTint)
         }
         .padding(.top, 48)
         .accessibilityHidden(true)
@@ -776,9 +808,9 @@ private struct StudioSmoothRouteBuilder: View {
     private var previewPanel: some View {
         VStack(alignment: .leading, spacing: 9) {
             HStack(spacing: 6) {
-                Image(systemName: routeAlreadySet ? "checkmark.circle.fill" : "point.3.connected.trianglepath.dotted")
-                    .foregroundStyle(routeAlreadySet ? StudioPalette.green : StudioPalette.amber)
-                Text(routeAlreadySet ? "Connected" : "Preview")
+                Image(systemName: previewStatusIcon)
+                    .foregroundStyle(routeReadinessTint)
+                Text(previewStatusTitle)
                     .font(.system(size: 9, weight: .heavy, design: .monospaced))
                     .foregroundStyle(.secondary)
                 Spacer(minLength: 0)
@@ -790,11 +822,11 @@ private struct StudioSmoothRouteBuilder: View {
                     .lineLimit(1)
                 HStack(spacing: 6) {
                     Capsule()
-                        .fill(routeAlreadySet ? StudioPalette.green : StudioPalette.amber)
+                        .fill(routeReadinessTint)
                         .frame(width: 28, height: 3)
                     Image(systemName: "arrow.right")
                         .font(.caption2.weight(.heavy))
-                        .foregroundStyle(routeAlreadySet ? StudioPalette.green : StudioPalette.amber)
+                        .foregroundStyle(routeReadinessTint)
                 }
                 Text(outputDisplayName)
                     .font(.caption.weight(.bold))
@@ -804,14 +836,15 @@ private struct StudioSmoothRouteBuilder: View {
             Button {
                 applyRoute()
             } label: {
-                Label(routeActionTitle, systemImage: routeAlreadySet ? "checkmark" : "bolt.fill")
+                Label(routeActionTitle, systemImage: routeActionIcon)
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
-            .tint(routeAlreadySet ? StudioPalette.green : StudioPalette.teal)
-            .disabled(selectedSource == nil || routeAlreadySet)
-            .accessibilityHint("Applies the selected input to output route")
+            .tint(routeButtonTint)
+            .disabled(routeActionDisabled)
+            .help(routeActionHelp)
+            .accessibilityHint(routeActionHelp)
 
             HStack(spacing: 5) {
                 sourceMenu
@@ -833,7 +866,7 @@ private struct StudioSmoothRouteBuilder: View {
         .background(StudioPalette.strip.opacity(0.70), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 7, style: .continuous)
-                .stroke((routeAlreadySet ? StudioPalette.green : StudioPalette.amber).opacity(0.24), lineWidth: 1)
+                .stroke(routeReadinessTint.opacity(0.24), lineWidth: 1)
         }
     }
 
@@ -855,8 +888,7 @@ private struct StudioSmoothRouteBuilder: View {
     private var outputMenu: some View {
         Menu {
             Button("Follow System") {
-                selectedOutputID = ""
-                lastAppliedSignature = nil
+                selectOutput("")
             }
             Divider()
             ForEach(store.outputDevices) { device in
@@ -924,15 +956,110 @@ private struct StudioSmoothRouteBuilder: View {
         return currentSelection == selectedOutputID
     }
 
+    private var selectedRoute: AudioRoute? {
+        selectedSource.map { store.route(for: $0) }
+    }
+
     private var routeActionTitle: String {
         if selectedSource == nil { return "Choose" }
-        if routeAlreadySet { return "Set" }
-        return selectedOutputID.isEmpty ? "Follow" : "Connect"
+        if selectedOutputID.isEmpty {
+            return routeAlreadySet ? "Following" : "Follow System"
+        }
+        if routeAlreadySet, selectedRoute?.status == .active {
+            return "Live"
+        }
+        if canAttemptLiveRoute {
+            return routeAlreadySet ? "Try Live" : "Save & Try"
+        }
+        return routeAlreadySet ? "Saved" : "Save Route"
+    }
+
+    private var previewStatusTitle: String {
+        if routeAlreadySet, selectedRoute?.status == .active, !selectedOutputID.isEmpty {
+            return "Live"
+        }
+        if routeAlreadySet {
+            return selectedOutputID.isEmpty ? "System" : "Saved"
+        }
+        return "Preview"
+    }
+
+    private var previewStatusIcon: String {
+        switch previewStatusTitle {
+        case "Live": return "checkmark.circle.fill"
+        case "System": return "arrow.triangle.branch.circle.fill"
+        case "Saved": return "tray.and.arrow.down.fill"
+        default: return "point.3.connected.trianglepath.dotted"
+        }
+    }
+
+    private var routeActionIcon: String {
+        if selectedOutputID.isEmpty { return "arrow.triangle.branch" }
+        if routeAlreadySet, selectedRoute?.status == .active { return "checkmark" }
+        if canAttemptLiveRoute { return "bolt.fill" }
+        return routeAlreadySet ? "tray.and.arrow.down.fill" : "square.and.arrow.down"
+    }
+
+    private var routeButtonTint: Color {
+        if selectedRoute?.status == .active && !selectedOutputID.isEmpty { return StudioPalette.green }
+        if canAttemptLiveRoute { return StudioPalette.teal }
+        return selectedOutputID.isEmpty ? StudioPalette.blue : StudioPalette.amber
+    }
+
+    private var routeActionDisabled: Bool {
+        guard selectedSource != nil else { return true }
+        if selectedOutputID.isEmpty {
+            return routeAlreadySet
+        }
+        if routeAlreadySet, selectedRoute?.status == .active {
+            return true
+        }
+        if routeAlreadySet {
+            return !canAttemptLiveRoute
+        }
+        return false
+    }
+
+    private var routeActionHelp: String {
+        guard let selectedSource else { return "Choose an app source first" }
+        if selectedOutputID.isEmpty {
+            return routeAlreadySet
+                ? "\(selectedSource.appName) already follows the system output"
+                : "Reset \(selectedSource.appName) to follow the current system output"
+        }
+        if routeAlreadySet, selectedRoute?.status == .active {
+            return "\(selectedSource.appName) is already live on \(outputDisplayName)"
+        }
+        if routeTargetIsGroup {
+            return "Saves this group route. Real multi-output playback requires a future audio backend."
+        }
+        if !store.supportsTruePerAppRouting {
+            return "Saves this output choice. This Mac cannot start live process-tap routing with the current backend."
+        }
+        if selectedSource.audioObjectID == nil {
+            return "Saves this output choice. Start playback in \(selectedSource.appName), refresh, then try live routing."
+        }
+        if !selectedOutputReady {
+            return "Choose a connected output before trying a live route."
+        }
+        return "Saves the output choice and tries to start the live Core Audio process-tap route."
     }
 
     private var routeSummary: String {
         guard let selectedSource else {
             return "Choose an input app to configure a route."
+        }
+        if routeTargetIsGroup {
+            return "Output group saved. Multi-output playback needs a production routing backend."
+        }
+        if routeAlreadySet, selectedOutputID.isEmpty {
+            return "\(selectedSource.appName) follows the current system output."
+        }
+        if routeAlreadySet, selectedRoute?.status == .active, !selectedOutputID.isEmpty {
+            return "\(selectedSource.appName) is live on \(outputDisplayName)."
+        }
+        if routeAlreadySet, !canAttemptLiveRoute, !selectedOutputID.isEmpty {
+            return "\(selectedSource.appName) route is saved. \(routeActionHelp)"
         }
         if let recentlyAppliedRoute, !routeAlreadySet {
             return "\(recentlyAppliedRoute) saved. \(selectedSource.appName) is ready next."
@@ -955,6 +1082,64 @@ private struct StudioSmoothRouteBuilder: View {
             return "Follow System"
         }
         return routeTargets.first { $0.selectionID == selectedOutputID }?.title ?? "Missing Output"
+    }
+
+    private var selectedOutputReady: Bool {
+        selectedOutputID.isEmpty
+            || store.outputDevices.contains { $0.uid == selectedOutputID }
+            || store.outputGroups.contains { $0.routeTargetID == selectedOutputID }
+    }
+
+    private var selectedOutputReadyLabel: String {
+        if selectedOutputID.isEmpty { return "System" }
+        if routeTargetIsGroup { return "Group" }
+        return selectedOutputReady ? "Ready" : "Missing"
+    }
+
+    private var routeTargetIsGroup: Bool {
+        store.outputGroups.contains { $0.routeTargetID == selectedOutputID }
+    }
+
+    private var canAttemptLiveRoute: Bool {
+        guard let selectedSource,
+              !store.settings.demoMode,
+              store.supportsTruePerAppRouting,
+              !selectedOutputID.isEmpty,
+              selectedOutputReady,
+              !routeTargetIsGroup,
+              selectedSource.audioObjectID != nil else {
+            return false
+        }
+        return true
+    }
+
+    private var routeReadinessLabel: String {
+        if store.settings.demoMode { return "Demo" }
+        if selectedOutputID.isEmpty { return "System" }
+        if selectedRoute?.status == .active && routeAlreadySet { return "Live" }
+        if canAttemptLiveRoute { return "Ready" }
+        if routeTargetIsGroup || !store.supportsTruePerAppRouting { return "Backend" }
+        return "Saved"
+    }
+
+    private var routeReadinessIcon: String {
+        switch routeReadinessLabel {
+        case "Live": return "checkmark.circle.fill"
+        case "Ready": return "bolt.circle.fill"
+        case "Backend": return "exclamationmark.triangle.fill"
+        case "Demo": return "sparkles"
+        case "System": return "arrow.triangle.branch"
+        default: return "tray.and.arrow.down.fill"
+        }
+    }
+
+    private var routeReadinessTint: Color {
+        switch routeReadinessLabel {
+        case "Live", "Ready": return StudioPalette.green
+        case "Backend", "Saved": return StudioPalette.amber
+        case "System": return StudioPalette.blue
+        default: return StudioPalette.teal
+        }
     }
 
     private var customRouteCount: Int {
@@ -1258,6 +1443,41 @@ private struct SmoothOutputChoice: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("\(target.title), \(target.detail), \(isSelected ? "selected" : "not selected")")
+    }
+}
+
+private struct SmoothReadinessBadge: View {
+    let title: String
+    let value: String
+    let systemImage: String
+    let tint: Color
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: systemImage)
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(tint)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title.uppercased())
+                    .font(.system(size: 7, weight: .heavy, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                Text(value)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.primary.opacity(0.88))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(StudioPalette.strip.opacity(0.58), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .stroke(tint.opacity(0.18), lineWidth: 1)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(title), \(value)")
     }
 }
 
@@ -1704,23 +1924,17 @@ private struct StudioChannelStrip: View {
             .accessibilityLabel(source.isMuted ? "Unmute \(source.appName)" : "Mute \(source.appName)")
             .accessibilityHint(store.supportsPerAppMute ? "Toggles mute for this source" : "Per-app mute requires an audio backend")
 
-            Slider(
-                value: Binding(
-                    get: { source.volume },
-                    set: { store.setSourceVolume(source: source, volume: $0) }
-                ),
-                in: 0...1.5
+            InlineVolumeSlider(
+                value: source.volume,
+                isEnabled: store.supportsPerAppVolume,
+                systemImage: "slider.horizontal.3",
+                range: 0...1.5,
+                accent: StudioPalette.amber,
+                accessibilityLabel: "\(source.appName) gain",
+                accessibilityHint: store.supportsPerAppVolume ? "Adjusts app route volume" : "Per-app gain requires an audio backend",
+                onChange: { store.setSourceVolume(source: source, volume: $0) }
             )
-            .disabled(!store.supportsPerAppVolume)
             .help(store.supportsPerAppVolume ? "Set source volume" : "Per-app gain requires an audio backend.")
-            .accessibilityLabel("\(source.appName) gain")
-            .accessibilityValue(source.volume.roundedPercentDescription)
-            .accessibilityHint(store.supportsPerAppVolume ? "Adjusts app route volume" : "Per-app gain requires an audio backend")
-
-            Text("\(Int((source.volume * 100).rounded()))")
-                .font(.system(size: 11, weight: .bold, design: .monospaced))
-                .foregroundStyle(StudioPalette.amber)
-                .frame(width: 28, alignment: .trailing)
         }
     }
 
@@ -2087,6 +2301,7 @@ private struct StudioOutputModule: View {
                 value: device.volume,
                 isEnabled: device.canSetVolume,
                 systemImage: device.kind.systemImage,
+                accent: StudioPalette.teal,
                 onChange: { store.setDeviceVolume(device, volume: $0) }
             )
             .controlSize(.small)

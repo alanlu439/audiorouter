@@ -87,25 +87,17 @@ struct AppAudioRowView: View {
             }
 
             HStack(spacing: 10) {
-                Image(systemName: "slider.horizontal.3")
-                    .foregroundStyle(.secondary)
-                    .frame(width: 18)
-                Slider(
-                    value: Binding(
-                        get: { source.volume },
-                        set: { store.setSourceVolume(source: source, volume: $0) }
-                    ),
-                    in: 0...1.5
+                InlineVolumeSlider(
+                    value: source.volume,
+                    isEnabled: store.supportsPerAppVolume,
+                    systemImage: "speaker.wave.2.fill",
+                    range: 0...1.5,
+                    accent: .green,
+                    accessibilityLabel: "\(source.appName) volume",
+                    accessibilityHint: store.supportsPerAppVolume ? "Adjusts this app route volume" : "Per-app gain requires an audio backend",
+                    onChange: { store.setSourceVolume(source: source, volume: $0) }
                 )
-                .disabled(!store.supportsPerAppVolume)
                 .help(store.supportsPerAppVolume ? "Set source volume" : "Per-app gain requires an audio backend.")
-                .accessibilityLabel("\(source.appName) volume")
-                .accessibilityValue(source.volume.roundedPercentDescription)
-                .accessibilityHint(store.supportsPerAppVolume ? "Adjusts this app route volume" : "Per-app gain requires an audio backend")
-                Text(source.volume.roundedPercentDescription)
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
-                    .frame(width: 46, alignment: .trailing)
             }
 
             HStack(spacing: 10) {

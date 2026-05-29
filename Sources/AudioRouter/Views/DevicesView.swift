@@ -75,6 +75,7 @@ private struct DeviceRow: View {
                 value: device.volume,
                 isEnabled: device.canSetVolume,
                 systemImage: device.kind.systemImage,
+                accent: device.kind == .input ? .cyan : .teal,
                 onChange: { store.setDeviceVolume(device, volume: $0) }
             )
             HStack {
@@ -176,14 +177,15 @@ private struct OutputGroupCard: View {
                         Text(device.name)
                             .font(.caption.weight(.semibold))
                     }
-                    Slider(
-                        value: groupVolumeBinding(device),
-                        in: 0...1
+                    InlineVolumeSlider(
+                        value: group.perDeviceVolumes[device.uid] ?? device.volume ?? 1,
+                        isEnabled: group.deviceUIDs.contains(device.uid) && device.canSetVolume,
+                        systemImage: device.kind.systemImage,
+                        accent: .teal,
+                        accessibilityLabel: "\(device.name) group volume",
+                        accessibilityHint: group.deviceUIDs.contains(device.uid) ? "Adjusts saved group volume for this device" : "Include this device before changing its group volume",
+                        onChange: { store.setOutputGroupVolume(group, deviceUID: device.uid, volume: $0) }
                     )
-                    .disabled(!group.deviceUIDs.contains(device.uid) || !device.canSetVolume)
-                    .accessibilityLabel("\(device.name) group volume")
-                    .accessibilityValue((group.perDeviceVolumes[device.uid] ?? device.volume ?? 1).roundedPercentDescription)
-                    .accessibilityHint(group.deviceUIDs.contains(device.uid) ? "Adjusts saved group volume for this device" : "Include this device before changing its group volume")
                 }
             }
             Button(role: .destructive) {
@@ -216,10 +218,4 @@ private struct OutputGroupCard: View {
         )
     }
 
-    private func groupVolumeBinding(_ device: AudioDevice) -> Binding<Double> {
-        Binding(
-            get: { group.perDeviceVolumes[device.uid] ?? device.volume ?? 1 },
-            set: { store.setOutputGroupVolume(group, deviceUID: device.uid, volume: $0) }
-        )
-    }
 }

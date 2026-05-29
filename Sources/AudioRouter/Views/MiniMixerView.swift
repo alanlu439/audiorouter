@@ -58,22 +58,15 @@ private struct MiniSystemRow: View {
             }
 
             HStack(spacing: 8) {
-                Slider(
-                    value: Binding(
-                        get: { output.volume ?? 0 },
-                        set: { store.setSystemOutputVolume($0) }
-                    ),
-                    in: 0...1
+                InlineVolumeSlider(
+                    value: output.volume,
+                    isEnabled: output.canSetVolume,
+                    systemImage: "speaker.wave.2.fill",
+                    accent: .teal,
+                    accessibilityLabel: "System output volume",
+                    accessibilityHint: output.canSetVolume ? "Adjusts \(output.name)" : "Volume is not supported by this output",
+                    onChange: store.setSystemOutputVolume
                 )
-                .disabled(!output.canSetVolume)
-                .accessibilityLabel("System output volume")
-                .accessibilityValue((output.volume ?? 0).roundedPercentDescription)
-                .accessibilityHint(output.canSetVolume ? "Adjusts \(output.name)" : "Volume is not supported by this output")
-
-                Text((output.volume ?? 0).roundedPercentDescription)
-                    .font(.caption2.monospacedDigit())
-                    .foregroundStyle(.secondary)
-                    .frame(width: 38, alignment: .trailing)
             }
         }
         .padding(9)
@@ -119,21 +112,16 @@ private struct MiniSourceRow: View {
             HStack(spacing: 8) {
                 MeterView(level: store.sourceMeters[source.id] ?? 0, barCount: 8, height: 12, color: source.isProducingAudio ? .green : .cyan)
                     .frame(width: 78)
-                Slider(
-                    value: Binding(
-                        get: { source.volume },
-                        set: { store.setSourceVolume(source: source, volume: $0) }
-                    ),
-                    in: 0...1.5
+                InlineVolumeSlider(
+                    value: source.volume,
+                    isEnabled: store.supportsPerAppVolume,
+                    systemImage: "speaker.wave.2.fill",
+                    range: 0...1.5,
+                    accent: .green,
+                    accessibilityLabel: "\(source.appName) volume",
+                    accessibilityHint: store.supportsPerAppVolume ? "Adjusts this app route volume" : "Per-app volume requires an audio backend",
+                    onChange: { store.setSourceVolume(source: source, volume: $0) }
                 )
-                .disabled(!store.supportsPerAppVolume)
-                .accessibilityLabel("\(source.appName) volume")
-                .accessibilityValue(source.volume.roundedPercentDescription)
-                .accessibilityHint(store.supportsPerAppVolume ? "Adjusts this app route volume" : "Per-app volume requires an audio backend")
-                Text(source.volume.roundedPercentDescription)
-                    .font(.caption2.monospacedDigit())
-                    .foregroundStyle(.secondary)
-                    .frame(width: 38, alignment: .trailing)
             }
         }
         .padding(9)

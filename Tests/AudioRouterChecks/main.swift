@@ -10,6 +10,7 @@ func runChecks() throws {
     checkFocusedOutputFiltering()
     checkRouteBackwardCompatibility()
     try checkRoutingManagerRoutesAndFallback()
+    try checkSupportedBackendFailuresStaySaved()
     try checkDeviceAdditionPreservesCurrentOutput()
     try checkCustomRouteAppPersistence()
     checkUpdateVersionComparison()
@@ -127,6 +128,21 @@ func checkRoutingManagerRoutesAndFallback() throws {
     precondition(reloaded.route(for: "spotify").status == .deviceMissing, "Disconnected route should be marked missing instead of reset")
     reloaded.handleDeviceReconnected(deviceID: "speaker")
     precondition(reloaded.route(for: "spotify").status == .savedOnly, "Reconnected route should be ready to retry")
+}
+
+func checkSupportedBackendFailuresStaySaved() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    let manager = AudioRoutingManager(
+        backend: FakeFailingSupportedRoutingBackend(),
+        fileURL: directory.appendingPathComponent("routes.json")
+    )
+
+    manager.assignOutputDevice(sourceID: "spotify", deviceID: "speaker")
+    let route = manager.route(for: "spotify")
+    precondition(route.routeMode == .customOutput, "Failed supported route should keep the custom route")
+    precondition(route.status == .savedOnly, "Recoverable supported-backend failures should be saved-only, not backend-required")
+    precondition(manager.routeMessage(for: "spotify")?.contains("saved") == true, "Failed supported route should explain that the preference was saved")
 }
 
 @MainActor
@@ -375,6 +391,47 @@ private final class FakeRoutingBackend: AudioRoutingBackend {
     }
 
     func routeSourceToDevice(sourceID: String, deviceID: String?) throws {}
+    func setSourceVolume(sourceID: String, volume: Double) throws {}
+    func muteSource(sourceID: String, muted: Bool) throws {}
+}
+
+private final class FakeFailingSupportedRoutingBackend: AudioRoutingBackend {
+    let supportsPerAppRouting = true
+    let backendName = "Failing Supported Fake"
+
+    func listAudioSources() throws -> [AudioSource] {
+        [
+            AudioSource(
+                id: "spotify",
+                appName: "Spotify",
+                bundleIdentifier: "com.spotify.client",
+                processID: 42,
+                audioObjectID: 99,
+                icon: nil,
+                isProducingAudio: true
+            )
+        ]
+    }
+
+    func listOutputDevices() throws -> [AudioDevice] {
+        [
+            AudioDevice(
+                audioObjectID: 1,
+                uid: "speaker",
+                name: "Bluetooth Speaker",
+                kind: .output,
+                channelCount: 2,
+                transport: .bluetooth,
+                isDefault: false,
+                isAlive: true
+            )
+        ]
+    }
+
+    func routeSourceToDevice(sourceID: String, deviceID: String?) throws {
+        throw AudioRoutingBackendError.unsupported("Start playback, refresh, then retry.")
+    }
+
     func setSourceVolume(sourceID: String, volume: Double) throws {}
     func muteSource(sourceID: String, muted: Bool) throws {}
 }
