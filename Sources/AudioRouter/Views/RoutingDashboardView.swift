@@ -7,22 +7,8 @@ struct RoutingDashboardView: View {
 
     var body: some View {
         StudioConsoleFrame {
-            VStack(alignment: .leading, spacing: 14) {
-                consoleHeader
-                consoleStatusRail
-                if !store.settings.hasCompletedOnboarding {
-                    StudioOnboardingCard(store: store)
-                }
-
-                if let note = store.unsupportedNote {
-                    SupportNote(note: note) {
-                        store.dismissUnsupportedNote()
-                    }
-                }
-
-                consoleSurface
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            StudioPatchBayPanel(store: store)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
@@ -91,23 +77,6 @@ struct RoutingDashboardView: View {
             StudioBackendStrip(store: store)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    @ViewBuilder
-    private var consoleSurface: some View {
-        ScrollView(.horizontal) {
-            HStack(alignment: .top, spacing: 14) {
-                StudioPatchBayPanel(store: store)
-                    .frame(minWidth: 700, idealWidth: 760, maxWidth: .infinity, alignment: .top)
-                StudioOutputRackPanel(store: store)
-                    .frame(minWidth: 300, idealWidth: 328, maxWidth: 360, alignment: .top)
-            }
-            .containerRelativeFrame(.horizontal, alignment: .topLeading) { length, _ in
-                max(length, 1_014)
-            }
-        }
-        .scrollIndicators(.visible)
-        .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 
     private var demoBinding: Binding<Bool> {
@@ -418,25 +387,14 @@ private struct StudioPatchBayPanel: View {
 
     var body: some View {
         StudioPanel(
-            title: "Patch Bay",
-            systemImage: "point.3.connected.trianglepath.dotted",
-            trailing: store.routeSummaryText
+            title: "Input Apps",
+            systemImage: "app.connected.to.app.below.fill",
+            trailing: "\(store.routeAppDisplayNames.count) configured"
         ) {
             VStack(spacing: 9) {
-                StudioSectionMarker(
-                    title: "Controls",
-                    detail: "\(store.routeAppDisplayNames.count) configured inputs",
-                    tint: StudioPalette.blue
-                )
                 StudioPatchBayActions(store: store) {
                     isAddingApp = true
                 }
-                StudioSectionMarker(
-                    title: "Route Builder",
-                    detail: "Choose one input app and one output destination",
-                    tint: StudioPalette.teal
-                )
-                StudioSmoothRouteBuilder(store: store)
 
                 StudioSectionMarker(
                     title: "Input Apps",
@@ -448,27 +406,11 @@ private struct StudioPatchBayPanel: View {
                 ForEach(store.audioSources) { source in
                     StudioChannelStrip(source: source, store: store)
                 }
-
-                if let selectedSource {
-                    Divider()
-                        .overlay(StudioPalette.stroke)
-                        .padding(.vertical, 4)
-                    StudioSectionMarker(
-                        title: "Selected Route",
-                        detail: selectedSource.appName,
-                        tint: store.statusStyle(for: selectedSource).foreground
-                    )
-                    StudioRouteInspector(source: selectedSource, store: store)
-                }
             }
         }
         .sheet(isPresented: $isAddingApp) {
             AddRouteAppSheet(store: store)
         }
-    }
-
-    private var selectedSource: AudioSource? {
-        store.selectedSourceID.flatMap { id in store.audioSources.first { $0.id == id } }
     }
 }
 
