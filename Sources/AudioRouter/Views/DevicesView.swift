@@ -4,154 +4,337 @@ struct DevicesView: View {
     @ObservedObject var store: AudioRouterStore
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Devices")
-                .font(.largeTitle.weight(.bold))
-            DeviceGroupView(title: "Output Devices", devices: store.outputDevices, store: store)
-            DeviceGroupView(title: "Input Devices", devices: store.inputDevices, store: store)
-            OutputGroupsView(store: store)
+        VStack(alignment: .leading, spacing: 12) {
+            DeviceOverviewHeader(store: store)
+            DeviceStatsStrip(store: store)
+
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .top, spacing: 12) {
+                    CompactDeviceSection(
+                        title: "Outputs",
+                        devices: store.outputDevices,
+                        fallbackIcon: "speaker.wave.2.fill",
+                        tint: .teal,
+                        store: store
+                    )
+                    CompactDeviceSection(
+                        title: "Inputs",
+                        devices: store.inputDevices,
+                        fallbackIcon: "mic.fill",
+                        tint: .cyan,
+                        store: store
+                    )
+                }
+
+                VStack(alignment: .leading, spacing: 12) {
+                    CompactDeviceSection(
+                        title: "Outputs",
+                        devices: store.outputDevices,
+                        fallbackIcon: "speaker.wave.2.fill",
+                        tint: .teal,
+                        store: store
+                    )
+                    CompactDeviceSection(
+                        title: "Inputs",
+                        devices: store.inputDevices,
+                        fallbackIcon: "mic.fill",
+                        tint: .cyan,
+                        store: store
+                    )
+                }
+            }
+
+            CompactOutputGroupsSection(store: store)
         }
     }
 }
 
-private struct DeviceGroupView: View {
+private struct DeviceOverviewHeader: View {
+    @ObservedObject var store: AudioRouterStore
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Devices")
+                    .font(.title2.weight(.bold))
+                Text("Macro view of every audio device AudioRouter can see.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            Button {
+                store.refresh()
+            } label: {
+                Label("Refresh", systemImage: "arrow.clockwise")
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .accessibilityHint("Reloads audio inputs, outputs, and output groups")
+        }
+        .padding(.horizontal, 2)
+    }
+}
+
+private struct DeviceStatsStrip: View {
+    @ObservedObject var store: AudioRouterStore
+
+    private var connectedCount: Int {
+        (store.outputDevices + store.inputDevices).filter(\.isAlive).count
+    }
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 8) {
+                DeviceStatTile(title: "Outputs", value: "\(store.outputDevices.count)", systemImage: "speaker.wave.2.fill", tint: .teal)
+                DeviceStatTile(title: "Inputs", value: "\(store.inputDevices.count)", systemImage: "mic.fill", tint: .cyan)
+                DeviceStatTile(title: "Connected", value: "\(connectedCount)", systemImage: "checkmark.circle.fill", tint: .green)
+                DeviceStatTile(title: "Groups", value: "\(store.outputGroups.count)", systemImage: "speaker.3.fill", tint: .orange)
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                DeviceStatTile(title: "Outputs", value: "\(store.outputDevices.count)", systemImage: "speaker.wave.2.fill", tint: .teal)
+                DeviceStatTile(title: "Inputs", value: "\(store.inputDevices.count)", systemImage: "mic.fill", tint: .cyan)
+                DeviceStatTile(title: "Connected", value: "\(connectedCount)", systemImage: "checkmark.circle.fill", tint: .green)
+                DeviceStatTile(title: "Groups", value: "\(store.outputGroups.count)", systemImage: "speaker.3.fill", tint: .orange)
+            }
+        }
+    }
+}
+
+private struct DeviceStatTile: View {
+    let title: String
+    let value: String
+    let systemImage: String
+    let tint: Color
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 8) {
+            Image(systemName: systemImage)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(tint)
+                .frame(width: 18, height: 18)
+
+            VStack(alignment: .leading, spacing: 0) {
+                Text(value)
+                    .font(.headline.monospacedDigit().weight(.semibold))
+                Text(title.uppercased())
+                    .font(.system(size: 8, weight: .bold, design: .monospaced))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .frame(minWidth: 112, maxWidth: .infinity, alignment: .leading)
+        .background(.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(tint.opacity(0.18), lineWidth: 1)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(title), \(value)")
+    }
+}
+
+private struct CompactDeviceSection: View {
     let title: String
     let devices: [AudioDevice]
+    let fallbackIcon: String
+    let tint: Color
     @ObservedObject var store: AudioRouterStore
 
     var body: some View {
         DockCard {
-            SectionHeader(title: title, systemImage: devices.first?.kind.systemImage ?? "speaker.wave.2")
+            SectionHeader(title: title, systemImage: devices.first?.kind.systemImage ?? fallbackIcon, trailing: "\(devices.count)")
+
             if devices.isEmpty {
-                Text("No devices found.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                CompactEmptyDeviceRow(title: "No \(title.lowercased()) found", systemImage: fallbackIcon)
             } else {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 260), spacing: 12)], spacing: 12) {
+                VStack(spacing: 6) {
                     ForEach(devices) { device in
-                        DeviceRow(device: device, store: store)
+                        CompactDeviceRow(device: device, tint: tint, store: store)
                     }
                 }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 }
 
-private struct DeviceRow: View {
-    let device: AudioDevice
-    @ObservedObject var store: AudioRouterStore
+private struct CompactEmptyDeviceRow: View {
+    let title: String
+    let systemImage: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 10) {
-                DeviceIcon(device: device)
-                VStack(alignment: .leading, spacing: 3) {
-                    HStack(spacing: 6) {
-                        Text(device.name)
-                            .font(.subheadline.weight(.semibold))
-                            .lineLimit(1)
-                        if device.isDefault {
-                            StatusBadge(text: "System", isActive: true)
-                        }
-                    }
-                    Text(device.typeDescription)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-            }
-            MeterView(level: store.deviceMeters[device.id] ?? 0, barCount: 14, color: device.kind == .input ? .cyan : .teal)
-            HStack {
-                Text(device.isAlive ? "Connected" : "Disconnected")
-                    .font(.caption)
-                    .foregroundStyle(device.isAlive ? .green : .red)
-                Spacer()
-                Text(device.sampleRateDescription)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            VolumeSlider(
-                title: "Volume",
-                value: device.volume,
-                isEnabled: device.canSetVolume,
-                systemImage: device.kind.systemImage,
-                accent: device.kind == .input ? .cyan : .teal,
-                onChange: { store.setDeviceVolume(device, volume: $0) }
-            )
-            HStack {
-                Button {
-                    store.setDeviceMuted(device, isMuted: !(device.isMuted ?? false))
-                } label: {
-                    Label((device.isMuted ?? false) ? "Muted" : "Mute", systemImage: (device.isMuted ?? false) ? "speaker.slash.fill" : "speaker.wave.1.fill")
-                }
-                .disabled(!device.canSetMute)
-                .accessibilityLabel((device.isMuted ?? false) ? "Unmute \(device.name)" : "Mute \(device.name)")
-                .accessibilityHint(device.canSetMute ? "Toggles mute for this device" : "Mute is not supported by this device")
-                if device.kind == .output {
-                    Slider(
-                        value: Binding(
-                            get: { device.balance ?? 0 },
-                            set: { store.setDeviceBalance(device, balance: $0) }
-                        ),
-                        in: -1...1
-                    )
-                    .disabled(!device.canSetBalance)
-                    .accessibilityLabel("\(device.name) balance")
-                    .accessibilityValue((device.balance ?? 0).balanceDescription)
-                    .accessibilityHint(device.canSetBalance ? "Adjusts left and right output balance" : "Balance is not supported by this device")
-                }
-                Button(device.isDefault ? "Default" : "Set as System \(device.kind.title)") {
-                    store.setDefaultDevice(device)
-                }
-                .disabled(device.isDefault)
-                .accessibilityHint(device.isDefault ? "\(device.name) is already the system \(device.kind.title.lowercased())" : "Makes \(device.name) the system \(device.kind.title.lowercased())")
-            }
-            if device.kind == .output {
-                let routed = store.routedSources(to: device)
-                if !routed.isEmpty {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Routed Apps")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                        ForEach(routed) { source in
-                            Label(source.appName, systemImage: "app.fill")
-                                .font(.caption)
-                        }
-                    }
-                }
-            }
+        HStack(spacing: 8) {
+            Image(systemName: systemImage)
+                .frame(width: 24, height: 24)
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            Spacer()
         }
-        .padding(12)
-        .background(.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .padding(10)
+        .background(.secondary.opacity(0.06), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(title)
+    }
+}
+
+private struct CompactDeviceRow: View {
+    let device: AudioDevice
+    let tint: Color
+    @ObservedObject var store: AudioRouterStore
+
+    private var routedCount: Int {
+        guard device.kind == .output else { return 0 }
+        return store.routedSources(to: device).count
+    }
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 10) {
+            DeviceIcon(device: device)
+                .frame(width: 28, height: 28)
+
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(alignment: .center, spacing: 7) {
+                    Text(device.name)
+                        .font(.subheadline.weight(.semibold))
+                        .lineLimit(1)
+
+                    if device.isDefault {
+                        CompactDeviceBadge(text: "System", tint: .green, isFilled: true)
+                    }
+
+                    if !device.isAlive {
+                        CompactDeviceBadge(text: "Missing", tint: .red, isFilled: false)
+                    }
+                }
+
+                HStack(alignment: .center, spacing: 6) {
+                    Text(device.typeDescription)
+                    Text(device.sampleRateDescription)
+                    if let volume = device.volume {
+                        Text("Vol \(volume.roundedPercentDescription)")
+                    } else {
+                        Text("Vol N/A")
+                    }
+                    if routedCount > 0 {
+                        Text("\(routedCount) app\(routedCount == 1 ? "" : "s")")
+                    }
+                }
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+
+                HStack(spacing: 5) {
+                    CapabilityChip(title: "Volume", isAvailable: device.canSetVolume)
+                    CapabilityChip(title: "Mute", isAvailable: device.canSetMute)
+                    if device.kind == .output {
+                        CapabilityChip(title: "Balance", isAvailable: device.canSetBalance)
+                    }
+                }
+            }
+
+            Spacer(minLength: 8)
+
+            MeterView(
+                level: store.deviceMeters[device.id] ?? 0,
+                barCount: 8,
+                height: 12,
+                color: tint
+            )
+            .frame(width: 78)
+
+            Button(device.isDefault ? "Default" : "Set") {
+                store.setDefaultDevice(device)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .disabled(device.isDefault || !device.isAlive)
+            .accessibilityHint(device.isDefault ? "\(device.name) is already the system \(device.kind.title.lowercased())" : "Makes \(device.name) the system \(device.kind.title.lowercased())")
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(.secondary.opacity(device.isDefault ? 0.12 : 0.06), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(device.isDefault ? tint.opacity(0.35) : Color.white.opacity(0.06), lineWidth: 1)
+        }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("\(device.name), \(device.kind.title), \(device.isAlive ? "connected" : "disconnected"), \(device.isDefault ? "system default" : "not default")")
     }
 }
 
-private struct OutputGroupsView: View {
+private struct CompactDeviceBadge: View {
+    let text: String
+    let tint: Color
+    let isFilled: Bool
+
+    var body: some View {
+        Text(text.uppercased())
+            .font(.system(size: 8, weight: .heavy, design: .monospaced))
+            .foregroundStyle(isFilled ? .black : tint)
+            .padding(.horizontal, 6)
+            .frame(height: 18)
+            .background(isFilled ? tint : tint.opacity(0.12), in: Capsule())
+            .overlay {
+                Capsule()
+                    .stroke(tint.opacity(isFilled ? 0 : 0.30), lineWidth: 1)
+            }
+    }
+}
+
+private struct CapabilityChip: View {
+    let title: String
+    let isAvailable: Bool
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Circle()
+                .fill(isAvailable ? Color.green : Color.secondary.opacity(0.45))
+                .frame(width: 5, height: 5)
+            Text(title)
+                .lineLimit(1)
+        }
+        .font(.system(size: 8, weight: .semibold, design: .monospaced))
+        .foregroundStyle(isAvailable ? .secondary : .tertiary)
+        .padding(.horizontal, 6)
+        .frame(height: 18)
+        .background(.secondary.opacity(0.07), in: Capsule())
+        .accessibilityLabel("\(title), \(isAvailable ? "available" : "unavailable")")
+    }
+}
+
+private struct CompactOutputGroupsSection: View {
     @ObservedObject var store: AudioRouterStore
 
     var body: some View {
         DockCard {
-            SectionHeader(title: "Output Groups", systemImage: "speaker.3.fill", trailing: store.outputGroups.isEmpty ? nil : "\(store.outputGroups.count)")
-            Text("Groups can be selected as route targets. AudioRouter fans a live process-tap route out to each connected device in the group; separate devices may have small latency differences.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Button {
-                store.createOutputGroup()
-            } label: {
-                Label("Create Output Group", systemImage: "plus.circle.fill")
+            HStack(alignment: .center, spacing: 10) {
+                SectionHeader(
+                    title: "Groups",
+                    systemImage: "speaker.3.fill",
+                    trailing: store.outputGroups.isEmpty ? nil : "\(store.outputGroups.count)"
+                )
+
+                Button {
+                    store.createOutputGroup()
+                } label: {
+                    Label("New", systemImage: "plus.circle.fill")
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .accessibilityHint("Creates a group play route target using all currently visible outputs")
             }
-            .buttonStyle(.borderedProminent)
-            .accessibilityHint("Creates a group play route target using all currently visible outputs")
+
             if store.outputGroups.isEmpty {
-                Text("No groups saved.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                CompactEmptyDeviceRow(title: "No output groups saved", systemImage: "speaker.3.fill")
             } else {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 280), spacing: 12)], spacing: 12) {
+                VStack(spacing: 6) {
                     ForEach(store.outputGroups) { group in
-                        OutputGroupCard(group: group, store: store)
+                        CompactOutputGroupRow(group: group, store: store)
                     }
                 }
             }
@@ -159,63 +342,74 @@ private struct OutputGroupsView: View {
     }
 }
 
-private struct OutputGroupCard: View {
+private struct CompactOutputGroupRow: View {
     let group: OutputDeviceGroup
     @ObservedObject var store: AudioRouterStore
-    @State private var name: String = ""
+
+    private var connectedOutputs: [AudioDevice] {
+        store.outputDevices(for: group)
+    }
+
+    private var routedSources: [AudioSource] {
+        store.audioSources.filter { source in
+            store.route(for: source).outputDeviceID == group.routeTargetID
+        }
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                TextField("Group name", text: nameBinding)
-                    .textFieldStyle(.roundedBorder)
-                StatusLabel(text: store.outputDevices(for: group).isEmpty ? "No Devices" : "Group Play", status: store.outputDevices(for: group).isEmpty ? .deviceMissing : .working)
-            }
-            ForEach(store.outputDevices) { device in
-                VStack(alignment: .leading, spacing: 6) {
-                    Toggle(isOn: includeBinding(device)) {
-                        Text(device.name)
-                            .font(.caption.weight(.semibold))
-                    }
-                    InlineVolumeSlider(
-                        value: group.perDeviceVolumes[device.uid] ?? device.volume ?? 1,
-                        isEnabled: group.deviceUIDs.contains(device.uid) && device.canSetVolume,
-                        systemImage: device.kind.systemImage,
-                        accent: .teal,
-                        accessibilityLabel: "\(device.name) group volume",
-                        accessibilityHint: group.deviceUIDs.contains(device.uid) ? "Adjusts saved group volume for this device" : "Include this device before changing its group volume",
-                        onChange: { store.setOutputGroupVolume(group, deviceUID: device.uid, volume: $0) }
+        HStack(alignment: .center, spacing: 10) {
+            Image(systemName: "speaker.3.fill")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.orange)
+                .frame(width: 28, height: 28)
+                .background(.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 7) {
+                    Text(group.name)
+                        .font(.subheadline.weight(.semibold))
+                        .lineLimit(1)
+                    CompactDeviceBadge(
+                        text: connectedOutputs.isEmpty ? "No Devices" : "Group",
+                        tint: connectedOutputs.isEmpty ? .red : .orange,
+                        isFilled: false
                     )
                 }
+
+                Text(groupDetail)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
+
+            Spacer()
+
             Button(role: .destructive) {
                 store.deleteOutputGroup(group)
             } label: {
-                Label("Delete Group", systemImage: "trash")
+                Image(systemName: "trash")
             }
+            .buttonStyle(.borderless)
+            .controlSize(.small)
+            .accessibilityLabel("Delete \(group.name)")
         }
-        .padding(12)
-        .background(.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .onAppear {
-            name = group.name
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(.secondary.opacity(0.06), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(Color.white.opacity(0.06), lineWidth: 1)
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("\(group.name), \(connectedOutputs.count) connected devices, \(routedSources.count) routed apps")
     }
 
-    private var nameBinding: Binding<String> {
-        Binding(
-            get: { name.isEmpty ? group.name : name },
-            set: { newValue in
-                name = newValue
-                store.renameOutputGroup(group, to: newValue)
-            }
-        )
+    private var groupDetail: String {
+        let deviceText = "\(connectedOutputs.count) speaker\(connectedOutputs.count == 1 ? "" : "s")"
+        let routeText = "\(routedSources.count) routed app\(routedSources.count == 1 ? "" : "s")"
+        if connectedOutputs.isEmpty {
+            return "No connected speakers · \(routeText)"
+        }
+        return "\(deviceText) · \(routeText)"
     }
-
-    private func includeBinding(_ device: AudioDevice) -> Binding<Bool> {
-        Binding(
-            get: { group.deviceUIDs.contains(device.uid) },
-            set: { store.setOutputGroup(group, includes: device, included: $0) }
-        )
-    }
-
 }

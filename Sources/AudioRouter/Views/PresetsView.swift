@@ -33,28 +33,6 @@ struct PresetsView: View {
                 }
             }
 
-            if !compact {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Useful Scenes")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 170), spacing: 8)], spacing: 8) {
-                        ForEach(SuggestedSetupKind.allCases) { kind in
-                            Button {
-                                store.saveSuggestedSetup(kind)
-                            } label: {
-                                Label(kind.rawValue, systemImage: kind.systemImage)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                            }
-                            .buttonStyle(.bordered)
-                            .help(kind.description)
-                        }
-                    }
-                }
-                .padding(10)
-                .background(.secondary.opacity(0.06), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-            }
-
             if showImport {
                 TextEditor(text: $importText)
                     .frame(height: 90)

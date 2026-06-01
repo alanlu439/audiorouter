@@ -27,14 +27,19 @@ struct SectionHeader: View {
     var trailing: String?
 
     var body: some View {
-        HStack(spacing: 8) {
-            Label(title, systemImage: systemImage)
+        HStack(alignment: .center, spacing: 8) {
+            Image(systemName: systemImage)
+                .font(.headline.weight(.semibold))
+                .frame(width: 20, height: 20, alignment: .center)
+            Text(title)
                 .font(.headline)
+                .lineLimit(1)
             Spacer()
             if let trailing {
                 Text(trailing)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .frame(height: 20, alignment: .center)
             }
         }
         .accessibilityElement(children: .combine)

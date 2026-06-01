@@ -1970,7 +1970,6 @@ public final class AudioRouterStore: ObservableObject {
 
 public enum SettingsSection: String, CaseIterable, Identifiable {
     case dashboard = "Dashboard"
-    case mixer = "Mixer"
     case devices = "Devices"
     case eq = "EQ"
     case setups = "Setups"
@@ -1982,7 +1981,6 @@ public enum SettingsSection: String, CaseIterable, Identifiable {
     public var systemImage: String {
         switch self {
         case .dashboard: return "point.3.connected.trianglepath.dotted"
-        case .mixer: return "slider.horizontal.3"
         case .devices: return "speaker.wave.2"
         case .eq: return "waveform"
         case .setups: return "square.stack.3d.up"

@@ -36,8 +36,6 @@ struct SettingsDetailView: View {
                     switch section {
                     case .dashboard:
                         RoutingDashboardView(store: store)
-                    case .mixer:
-                        MixerView(store: store)
                     case .devices:
                         DevicesView(store: store)
                     case .eq:

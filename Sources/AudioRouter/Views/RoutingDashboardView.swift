@@ -91,18 +91,19 @@ struct RoutingDashboardView: View {
 }
 
 private enum StudioPalette {
-    static let console = Color(red: 0.045, green: 0.047, blue: 0.052)
-    static let header = Color(red: 0.075, green: 0.079, blue: 0.088)
-    static let panel = Color(red: 0.060, green: 0.063, blue: 0.070)
-    static let strip = Color(red: 0.086, green: 0.089, blue: 0.096)
-    static let inset = Color(red: 0.026, green: 0.028, blue: 0.032)
-    static let stroke = Color.white.opacity(0.085)
-    static let strongStroke = Color.white.opacity(0.15)
-    static let green = Color(red: 0.35, green: 0.95, blue: 0.55)
-    static let amber = Color(red: 1.0, green: 0.70, blue: 0.28)
-    static let teal = Color(red: 0.24, green: 0.86, blue: 0.80)
-    static let blue = Color(red: 0.43, green: 0.65, blue: 1.0)
-    static let red = Color(red: 1.0, green: 0.32, blue: 0.32)
+    static let console = Color(red: 0.055, green: 0.057, blue: 0.062)
+    static let header = Color(red: 0.083, green: 0.087, blue: 0.095)
+    static let panel = Color(red: 0.069, green: 0.072, blue: 0.079)
+    static let strip = Color(red: 0.096, green: 0.100, blue: 0.108)
+    static let inset = Color(red: 0.038, green: 0.040, blue: 0.045)
+    static let stroke = Color.white.opacity(0.075)
+    static let strongStroke = Color.white.opacity(0.125)
+    static let green = Color(red: 0.45, green: 0.88, blue: 0.58)
+    static let amber = Color(red: 0.94, green: 0.66, blue: 0.36)
+    static let teal = Color(red: 0.36, green: 0.80, blue: 0.75)
+    static let blue = Color(red: 0.50, green: 0.63, blue: 0.92)
+    static let red = Color(red: 0.94, green: 0.38, blue: 0.36)
+    static let warmInk = Color(red: 0.11, green: 0.085, blue: 0.050)
 }
 
 private struct StudioConsoleFrame<Content: View>: View {
@@ -137,7 +138,7 @@ private struct StudioMetricTile: View {
     let tint: Color
 
     var body: some View {
-        HStack(spacing: 9) {
+        HStack(alignment: .center, spacing: 9) {
             StudioLED(color: tint)
 
             VStack(alignment: .leading, spacing: 1) {
@@ -153,6 +154,7 @@ private struct StudioMetricTile: View {
             Image(systemName: systemImage)
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(tint.opacity(0.85))
+                .frame(width: 16, height: 16, alignment: .center)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
@@ -170,7 +172,7 @@ private struct StudioBackendStrip: View {
     @ObservedObject var store: AudioRouterStore
 
     var body: some View {
-        HStack(spacing: 9) {
+        HStack(alignment: .center, spacing: 9) {
             StudioLED(color: store.backendReadinessState.visualStatus.foreground)
             Text("ENGINE")
                 .font(.system(size: 9, weight: .bold, design: .monospaced))
@@ -210,14 +212,15 @@ private struct StudioLEDLabel: View {
     let status: RouteVisualStatus
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(alignment: .center, spacing: 6) {
             StudioLED(color: status.foreground)
             Text(text.uppercased())
                 .font(.system(size: 10, weight: .bold, design: .monospaced))
                 .foregroundStyle(status.foreground)
+                .lineLimit(1)
         }
         .padding(.horizontal, 8)
-        .padding(.vertical, 5)
+        .frame(height: 22, alignment: .center)
         .background(StudioPalette.inset, in: Capsule())
         .overlay {
             Capsule()
@@ -298,7 +301,7 @@ private struct OnboardingStep: View {
         HStack(alignment: .top, spacing: 9) {
             Text(number)
                 .font(.system(size: 13, weight: .heavy, design: .monospaced))
-                .foregroundStyle(.black)
+                .foregroundStyle(StudioPalette.warmInk)
                 .frame(width: 24, height: 24)
                 .background(StudioPalette.teal, in: Circle())
 
@@ -347,12 +350,15 @@ private struct StudioPanel<Content: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 9) {
+            HStack(alignment: .center, spacing: 9) {
                 Image(systemName: systemImage)
+                    .font(.system(size: 14, weight: .heavy))
                     .foregroundStyle(StudioPalette.amber)
+                    .frame(width: 18, height: 18, alignment: .center)
                 Text(title.uppercased())
                     .font(.system(size: 12, weight: .heavy, design: .monospaced))
                     .tracking(1.2)
+                    .lineLimit(1)
                 Spacer()
                 if let trailing {
                     Text(trailing)
@@ -370,7 +376,7 @@ private struct StudioPanel<Content: View>: View {
                 .frame(height: 1)
 
             content
-                .padding(10)
+                .padding(12)
         }
         .background(StudioPalette.panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
         .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -391,7 +397,7 @@ private struct StudioPatchBayPanel: View {
             systemImage: "app.connected.to.app.below.fill",
             trailing: "\(store.routeAppDisplayNames.count) configured"
         ) {
-            VStack(spacing: 6) {
+            VStack(spacing: 8) {
                 if let note = store.unsupportedNote {
                     SupportNote(note: note) {
                         store.dismissUnsupportedNote()
@@ -416,15 +422,13 @@ private struct StudioPatchBayPanel: View {
 
                 StudioOutputActions(store: store)
 
-                StudioSectionMarker(
-                    title: "Group Play",
-                    detail: "Featured multi-speaker routes",
-                    tint: StudioPalette.amber
-                )
+                if !store.outputGroups.isEmpty {
+                    StudioSectionMarker(
+                        title: "Group Play",
+                        detail: "Multi-speaker routes",
+                        tint: StudioPalette.amber
+                    )
 
-                if store.outputGroups.isEmpty {
-                    StudioGroupPlayEmptyCard(store: store)
-                } else {
                     ForEach(store.outputGroups) { group in
                         StudioOutputGroupStrip(group: group, store: store)
                     }
@@ -501,7 +505,7 @@ private struct StudioSectionMarker: View {
     let tint: Color
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(alignment: .center, spacing: 8) {
             Capsule()
                 .fill(tint)
                 .frame(width: 4, height: 16)
@@ -509,6 +513,7 @@ private struct StudioSectionMarker: View {
             Text(title.uppercased())
                 .font(.system(size: 10, weight: .heavy, design: .monospaced))
                 .foregroundStyle(.primary.opacity(0.9))
+                .lineLimit(1)
             Rectangle()
                 .fill(StudioPalette.stroke)
                 .frame(height: 1)
@@ -516,6 +521,7 @@ private struct StudioSectionMarker: View {
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
+                .frame(height: 16, alignment: .center)
         }
         .padding(.horizontal, 11)
         .padding(.top, 3)
@@ -1477,7 +1483,7 @@ private struct SmoothSuggestionButton: View {
                         .font(.system(size: 8, weight: .heavy))
                 }
             }
-            .foregroundStyle(isSelected ? .black : target.tint)
+            .foregroundStyle(isSelected ? StudioPalette.warmInk : target.tint)
             .padding(.horizontal, 8)
             .padding(.vertical, 5)
             .frame(maxWidth: .infinity)
@@ -1907,26 +1913,26 @@ private struct StudioChannelStrip: View {
             return StudioPalette.amber.opacity(0.12)
         }
         if isSelected {
-            return StudioPalette.strip.opacity(0.95)
+            return StudioPalette.strip.opacity(0.86)
         }
         if store.routeStatusIsWarning(for: source) {
-            return Color.orange.opacity(0.10)
+            return StudioPalette.amber.opacity(0.08)
         }
         return StudioPalette.strip.opacity(0.74)
     }
 
     private var rowStrokeColor: Color {
         if isDropTargeted {
-            return StudioPalette.amber.opacity(0.95)
+            return StudioPalette.amber.opacity(0.70)
         }
-        return isSelected ? StudioPalette.amber.opacity(0.95) : StudioPalette.stroke
+        return isSelected ? StudioPalette.amber.opacity(0.58) : StudioPalette.stroke
     }
 
     private var rowStrokeWidth: CGFloat {
         if isDropTargeted {
-            return 2
+            return 1.5
         }
-        return isSelected ? 1.5 : 1
+        return isSelected ? 1.2 : 1
     }
 
     private var outputSelection: Binding<String> {
@@ -1975,55 +1981,6 @@ private struct StudioOutputActions: View {
             RoundedRectangle(cornerRadius: 6, style: .continuous)
                 .stroke(StudioPalette.stroke, lineWidth: 1)
         }
-    }
-}
-
-private struct StudioGroupPlayEmptyCard: View {
-    @ObservedObject var store: AudioRouterStore
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "speaker.3.fill")
-                .font(.system(size: 24, weight: .heavy))
-                .foregroundStyle(.black)
-                .frame(width: 46, height: 46)
-                .background(StudioPalette.amber, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text("Create a Group Play route")
-                    .font(.headline.weight(.bold))
-                    .lineLimit(1)
-                Text("Bundle your connected speakers, then drop an app here to play through all of them.")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-            }
-
-            Spacer()
-
-            Button {
-                store.createOutputGroup()
-            } label: {
-                Label("New Group Play", systemImage: "plus.circle.fill")
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.small)
-            .tint(StudioPalette.amber)
-        }
-        .padding(14)
-        .background(StudioPalette.amber.opacity(0.10), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .overlay(alignment: .leading) {
-            Rectangle()
-                .fill(StudioPalette.amber)
-                .frame(width: 5)
-                .clipShape(RoundedRectangle(cornerRadius: 2.5, style: .continuous))
-        }
-        .overlay {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(StudioPalette.amber.opacity(0.42), lineWidth: 1.5)
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Create a Group Play route. Bundle connected speakers and route an app to all of them.")
     }
 }
 
@@ -2154,114 +2111,24 @@ private struct StudioOutputStrip: View {
 private struct StudioOutputGroupStrip: View {
     let group: OutputDeviceGroup
     @ObservedObject var store: AudioRouterStore
+    @State private var isControlsPresented = false
+    @State private var selectedGroupSourceID = ""
 
     private var connectedOutputs: [AudioDevice] {
         store.outputDevices(for: group)
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top, spacing: 12) {
-                Image(systemName: "speaker.3.fill")
-                    .font(.system(size: 24, weight: .heavy))
-                    .foregroundStyle(.black)
-                    .frame(width: 46, height: 46)
-                    .background(StudioPalette.amber, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 8) {
-                        Text("GROUP PLAY")
-                            .font(.system(size: 9, weight: .heavy, design: .monospaced))
-                            .foregroundStyle(StudioPalette.amber)
-                            .tracking(1.1)
-                        Text("FEATURED")
-                            .font(.system(size: 8, weight: .heavy, design: .monospaced))
-                            .foregroundStyle(.black)
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 4)
-                            .background(StudioPalette.amber, in: Capsule())
-                        StudioLEDLabel(
-                            text: connectedOutputs.isEmpty ? "No Devices" : "Multi Out",
-                            status: connectedOutputs.isEmpty ? .deviceMissing : .working
-                        )
-                    }
-
-                    TextField("Group name", text: nameBinding)
-                        .textFieldStyle(.plain)
-                        .font(.title3.weight(.bold))
-                        .accessibilityLabel("Output group name")
-
-                    Text("\(connectedOutputs.count) connected speaker\(connectedOutputs.count == 1 ? "" : "s") ready for fan-out playback")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-
-                Spacer()
-
-                VStack(alignment: .trailing, spacing: 8) {
-                    Text("\(group.deviceUIDs.count) selected")
-                        .font(.caption2.weight(.heavy))
-                        .foregroundStyle(StudioPalette.amber)
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 5)
-                        .background(StudioPalette.amber.opacity(0.13), in: Capsule())
-
-                    Button(role: .destructive) {
-                        store.deleteOutputGroup(group)
-                    } label: {
-                        Label("Delete", systemImage: "trash")
-                    }
-                    .buttonStyle(.borderless)
-                    .controlSize(.small)
-                    .help("Delete group")
-                    .accessibilityLabel("Delete \(group.name)")
-                }
-            }
-
-            groupRouteFlow
-
-            HStack(spacing: 10) {
-                HStack(spacing: -4) {
-                    ForEach(connectedOutputs.prefix(5)) { device in
-                        DeviceIcon(device: device)
-                            .frame(width: 26, height: 26)
-                            .background(StudioPalette.inset, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
-                            .overlay {
-                                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                    .stroke(StudioPalette.amber.opacity(0.42), lineWidth: 1)
-                            }
-                    }
-                }
-
-                Text("Select speakers in this group")
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(.secondary)
-
-                Spacer()
-            }
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 7) {
-                    ForEach(store.outputDevices) { device in
-                        groupDeviceChip(device)
-                    }
-                }
-            }
+        Button {
+            isControlsPresented = true
+        } label: {
+            compactCard
         }
-        .padding(14)
-        .background(StudioPalette.amber.opacity(0.095), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .overlay(alignment: .leading) {
-            Rectangle()
-                .fill(StudioPalette.amber)
-                .frame(width: 5)
-                .clipShape(RoundedRectangle(cornerRadius: 2.5, style: .continuous))
+        .buttonStyle(.plain)
+        .popover(isPresented: $isControlsPresented, arrowEdge: .trailing) {
+            groupControlsPopover
+                .frame(width: 520)
         }
-        .overlay {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(StudioPalette.amber.opacity(0.46), lineWidth: 1.6)
-        }
-        .shadow(color: StudioPalette.amber.opacity(0.10), radius: 10, y: 2)
         .dropDestination(for: String.self) { sourceIDs, _ in
             guard let sourceID = sourceIDs.first,
                   let source = store.audioSources.first(where: { $0.id == sourceID }) else {
@@ -2271,14 +2138,151 @@ private struct StudioOutputGroupStrip: View {
             store.selectedSourceID = source.id
             return true
         }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("\(group.name), output group, \(connectedOutputs.count) connected devices")
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(group.name), group, \(connectedOutputs.count) speakers, \(routedGroupSources.count) routed apps")
+        .accessibilityHint("Opens Group Play controls")
+    }
+
+    private var compactCard: some View {
+        HStack(alignment: .center, spacing: 14) {
+            Image(systemName: "speaker.wave.3.fill")
+                .font(.system(size: 22, weight: .heavy))
+                .foregroundStyle(StudioPalette.amber)
+                .frame(width: 56, height: 56)
+                .background(StudioPalette.amber.opacity(0.14), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .center, spacing: 8) {
+                    Text(group.name)
+                        .font(.title3.weight(.bold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+
+                    Text("GROUP")
+                        .font(.system(size: 10, weight: .heavy, design: .monospaced))
+                        .foregroundStyle(StudioPalette.amber)
+                        .padding(.horizontal, 8)
+                        .frame(height: 22)
+                        .background(StudioPalette.amber.opacity(0.12), in: Capsule())
+                        .overlay {
+                            Capsule()
+                                .stroke(StudioPalette.amber.opacity(0.25), lineWidth: 1)
+                        }
+                }
+
+                Text("\(connectedOutputs.count) speaker\(connectedOutputs.count == 1 ? "" : "s") · \(routedGroupSources.count) routed app\(routedGroupSources.count == 1 ? "" : "s")")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 12)
+
+            Image(systemName: "slider.horizontal.3")
+                .font(.system(size: 14, weight: .bold))
+                .foregroundStyle(.secondary)
+                .frame(width: 26, height: 26)
+                .background(StudioPalette.inset.opacity(0.80), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 14)
+        .frame(maxWidth: .infinity, minHeight: 92, alignment: .leading)
+        .background(StudioPalette.strip.opacity(0.72), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(StudioPalette.stroke, lineWidth: 1)
+        }
+        .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
+
+    private var groupControlsPopover: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center, spacing: 12) {
+                Image(systemName: "speaker.3.fill")
+                    .font(.system(size: 20, weight: .heavy))
+                    .foregroundStyle(StudioPalette.warmInk)
+                    .frame(width: 42, height: 42, alignment: .center)
+                    .background(StudioPalette.amber.opacity(0.82), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Group Play Controls")
+                        .font(.headline.weight(.bold))
+                    Text("\(connectedOutputs.count) speaker\(connectedOutputs.count == 1 ? "" : "s") · \(routedGroupSources.count) routed app\(routedGroupSources.count == 1 ? "" : "s")")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                StudioLEDLabel(
+                    text: connectedOutputs.isEmpty ? "No Devices" : "Group",
+                    status: connectedOutputs.isEmpty ? .deviceMissing : .working
+                )
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("NAME")
+                    .font(.system(size: 8, weight: .heavy, design: .monospaced))
+                    .foregroundStyle(.secondary)
+
+                TextField("Group name", text: nameBinding)
+                    .textFieldStyle(.roundedBorder)
+                    .accessibilityLabel("Output group name")
+            }
+
+            groupRouteFlow
+
+            VStack(alignment: .leading, spacing: 7) {
+                Text("SPEAKERS")
+                    .font(.system(size: 8, weight: .heavy, design: .monospaced))
+                    .foregroundStyle(.secondary)
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 7) {
+                        ForEach(store.outputDevices) { device in
+                            groupDeviceChip(device)
+                        }
+                    }
+                }
+            }
+
+            HStack(spacing: 8) {
+                Text("Choose a source app above, or drop a route app on the dashboard card to send it to this group.")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+
+                Spacer()
+
+                Button(role: .destructive) {
+                    isControlsPresented = false
+                    store.deleteOutputGroup(group)
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+                .controlSize(.small)
+                .help("Delete group")
+                .accessibilityLabel("Delete \(group.name)")
+            }
+        }
+        .padding(14)
+        .background(StudioPalette.panel)
     }
 
     private var nameBinding: Binding<String> {
         Binding(
             get: { group.name },
             set: { store.renameOutputGroup(group, to: $0) }
+        )
+    }
+
+    private var groupSourceSelection: Binding<String> {
+        Binding(
+            get: { selectedGroupSourceID },
+            set: { sourceID in
+                selectedGroupSourceID = sourceID
+                assignSourceToGroup(sourceID)
+            }
         )
     }
 
@@ -2310,7 +2314,7 @@ private struct StudioOutputGroupStrip: View {
         .background(StudioPalette.inset.opacity(0.46), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(StudioPalette.amber.opacity(0.24), lineWidth: 1)
+                .stroke(StudioPalette.amber.opacity(0.18), lineWidth: 1)
         }
     }
 
@@ -2319,27 +2323,72 @@ private struct StudioOutputGroupStrip: View {
             Text("SOURCE APPS")
                 .font(.system(size: 8, weight: .heavy, design: .monospaced))
                 .foregroundStyle(.secondary)
-            if routedGroupSources.isEmpty {
-                Label("Drop app here", systemImage: "hand.draw")
-                    .font(.caption.weight(.bold))
+
+            HStack(spacing: 8) {
+                Image(systemName: "app.badge")
+                    .font(.system(size: 13, weight: .heavy))
                     .foregroundStyle(StudioPalette.amber)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 7)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(StudioPalette.amber.opacity(0.13), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                    .frame(width: 22, height: 22)
+
+                Picker("Source app", selection: groupSourceSelection) {
+                    Text("Choose source app").tag("")
+                    ForEach(store.audioSources) { source in
+                        Text(source.appName).tag(source.id)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .controlSize(.small)
+                .disabled(store.audioSources.isEmpty)
+                .accessibilityLabel("Group Play source app")
+                .accessibilityHint("Routes the selected source app to this speaker group")
+
+                Spacer(minLength: 8)
+
+                if !routedGroupSources.isEmpty {
+                    Text("\(routedGroupSources.count) routed")
+                        .font(.system(size: 8, weight: .heavy, design: .monospaced))
+                        .foregroundStyle(StudioPalette.amber)
+                        .padding(.horizontal, 7)
+                        .frame(height: 18)
+                        .background(StudioPalette.amber.opacity(0.10), in: Capsule())
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(StudioPalette.amber.opacity(0.09), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .stroke(StudioPalette.amber.opacity(0.18), lineWidth: 1)
+            }
+
+            if routedGroupSources.isEmpty {
+                Text("No source apps routed yet")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
             } else {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 96), spacing: 6)], alignment: .leading, spacing: 6) {
                     ForEach(routedGroupSources) { source in
                         Label(source.appName, systemImage: "app.fill")
                             .font(.caption.weight(.bold))
-                            .foregroundStyle(.black)
+                            .foregroundStyle(StudioPalette.warmInk)
                             .padding(.horizontal, 9)
                             .padding(.vertical, 6)
-                            .background(StudioPalette.amber, in: Capsule())
+                            .background(StudioPalette.amber.opacity(0.82), in: Capsule())
                     }
                 }
             }
         }
+    }
+
+    private func assignSourceToGroup(_ sourceID: String) {
+        guard !sourceID.isEmpty,
+              let source = store.audioSources.first(where: { $0.id == sourceID }) else {
+            return
+        }
+        store.prepareAndAssignSourceOutput(source: source, uid: group.routeTargetID)
+        store.selectedSourceID = source.id
     }
 
     private var groupFanoutCable: some View {
@@ -2378,10 +2427,10 @@ private struct StudioOutputGroupStrip: View {
                             .foregroundStyle(StudioPalette.amber)
                             .padding(.horizontal, 9)
                             .padding(.vertical, 6)
-                            .background(StudioPalette.amber.opacity(0.13), in: Capsule())
+                            .background(StudioPalette.amber.opacity(0.09), in: Capsule())
                             .overlay {
                                 Capsule()
-                                    .stroke(StudioPalette.amber.opacity(0.28), lineWidth: 1)
+                                    .stroke(StudioPalette.amber.opacity(0.22), lineWidth: 1)
                             }
                     }
                 }
@@ -2400,13 +2449,13 @@ private struct StudioOutputGroupStrip: View {
                     .lineLimit(1)
             }
             .font(.caption2.weight(.semibold))
-            .foregroundStyle(isIncluded ? .black : StudioPalette.amber)
+            .foregroundStyle(isIncluded ? StudioPalette.warmInk : StudioPalette.amber)
             .padding(.horizontal, 9)
             .padding(.vertical, 6)
-            .background(isIncluded ? StudioPalette.amber : StudioPalette.amber.opacity(0.13), in: Capsule())
+            .background(isIncluded ? StudioPalette.amber.opacity(0.82) : StudioPalette.amber.opacity(0.09), in: Capsule())
             .overlay {
                 Capsule()
-                    .stroke(StudioPalette.amber.opacity(isIncluded ? 0 : 0.32), lineWidth: 1)
+                    .stroke(StudioPalette.amber.opacity(isIncluded ? 0 : 0.24), lineWidth: 1)
             }
         }
         .buttonStyle(.plain)
@@ -2414,28 +2463,6 @@ private struct StudioOutputGroupStrip: View {
         .accessibilityLabel("\(isIncluded ? "Remove" : "Add") \(device.name) \(isIncluded ? "from" : "to") \(group.name)")
     }
 
-    @ViewBuilder
-    private var routedSources: some View {
-        if routedGroupSources.isEmpty {
-            Label("Drop app here", systemImage: "hand.draw")
-                .font(.caption.weight(.bold))
-                .foregroundStyle(StudioPalette.amber)
-                .padding(.horizontal, 9)
-                .padding(.vertical, 6)
-                .background(StudioPalette.amber.opacity(0.13), in: Capsule())
-        } else {
-            HStack(spacing: 6) {
-                ForEach(routedGroupSources) { source in
-                    Label(source.appName, systemImage: "app.fill")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(.black)
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 6)
-                        .background(StudioPalette.amber, in: Capsule())
-                }
-            }
-        }
-    }
 }
 
 private struct StudioRouteCable: View {

@@ -4,13 +4,19 @@ AudioRouter is a native SwiftUI macOS menu-bar app for visual audio control. It 
 
 ## Download
 
-Download the latest stable build here:
+Download the latest stable build from GitHub Releases:
 
 [Download AudioRouter ZIP](https://github.com/alanlu439/audiorouter/releases/latest/download/AudioRouter-macOS.zip)
 
-Those links point to the newest GitHub release assets when a new release is published.
+After downloading:
 
-The public ZIP must contain a Developer ID signed and Apple-notarized app before upload. If macOS says the download is unsafe or cannot be opened, that release asset was built as a local/ad-hoc test archive and should be replaced with a notarized ZIP.
+1. Open `AudioRouter-macOS.zip`.
+2. Move `AudioRouter.app` to `/Applications`.
+3. Open AudioRouter from Applications.
+
+The public ZIP should contain a Developer ID signed and Apple-notarized app before upload. If macOS says AudioRouter cannot be opened because Apple cannot verify it is free of malware, that file is not a proper public release build. Use the newest GitHub Release once a notarized `AudioRouter-macOS.zip` asset is attached, or build locally from source for development.
+
+Local development bundles in `dist/AudioRouter.app` are ad-hoc signed for testing and can trigger Gatekeeper. They are not the same as a public notarized release download.
 
 ## License
 
@@ -43,7 +49,6 @@ The AudioRouter name, logo, app icon, and branding assets are not licensed for c
 - Menu bar mini mixer for quick system and app volume/mute controls.
 - Route health diagnostics showing app detection, playback activity, output availability, backend readiness, and exact failure reasons.
 - VoiceOver-friendly labels, values, hints, keyboard commands, and Reduce Motion-aware meters across the main audio controls.
-- Useful setup scenes for Desk Speakers, AirPods Call, Music to Bluetooth, and Focus Mode.
 - Built-in GitHub release update checking with a persistent latest-download link.
 - Persistent route preferences, EQ settings, shortcuts, setup cards, and visual output groups.
 - Live Mode for real device control, and Demo Mode for UI testing with mock apps/devices/meters.
