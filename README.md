@@ -18,6 +18,52 @@ The public ZIP should contain a Developer ID signed and Apple-notarized app befo
 
 Local development bundles in `dist/AudioRouter.app` are ad-hoc signed for testing and can trigger Gatekeeper. They are not the same as a public notarized release download.
 
+## How To Run AudioRouter
+
+### Run the GitHub download
+
+1. Download `AudioRouter-macOS.zip` from the latest GitHub Release.
+2. Open the ZIP.
+3. Move `AudioRouter.app` to `/Applications`.
+4. Open `AudioRouter.app`.
+5. Approve the macOS System Audio Recording prompt when AudioRouter asks for routing or meter access.
+
+If macOS shows a malware verification warning, the downloaded app was not Developer ID signed and notarized. Do not publish that ZIP as a public release. For your own development build, right-click `AudioRouter.app`, choose `Open`, then confirm once.
+
+### Run from source
+
+Requirements:
+
+- macOS 14.2 or newer
+- Xcode command line tools
+- Swift 5.10 or newer
+
+Build and open the app bundle:
+
+```bash
+./script/build_and_run.sh
+```
+
+Build the app bundle without opening it:
+
+```bash
+./script/build_and_run.sh --bundle
+```
+
+The local app bundle is created at:
+
+```text
+dist/AudioRouter.app
+```
+
+Run validation checks:
+
+```bash
+swift build --disable-sandbox
+swift run --disable-sandbox AudioRouterChecks
+plutil -lint dist/AudioRouter.app/Contents/Info.plist
+```
+
 ## License
 
 AudioRouter source code is available under the custom [AudioRouter Noncommercial License 1.0](LICENSE) with required attribution to Alan Lu.
