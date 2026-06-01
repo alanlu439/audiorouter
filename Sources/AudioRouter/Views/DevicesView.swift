@@ -134,7 +134,7 @@ private struct OutputGroupsView: View {
     var body: some View {
         DockCard {
             SectionHeader(title: "Output Groups", systemImage: "speaker.3.fill", trailing: store.outputGroups.isEmpty ? nil : "\(store.outputGroups.count)")
-            Text("Groups are saved route targets. Simultaneous playback to multiple outputs requires an audio backend.")
+            Text("Groups can be selected as route targets. AudioRouter fans a live process-tap route out to each connected device in the group; separate devices may have small latency differences.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Button {
@@ -143,7 +143,7 @@ private struct OutputGroupsView: View {
                 Label("Create Output Group", systemImage: "plus.circle.fill")
             }
             .buttonStyle(.borderedProminent)
-            .accessibilityHint("Creates a visual group route target")
+            .accessibilityHint("Creates a group play route target using all currently visible outputs")
             if store.outputGroups.isEmpty {
                 Text("No groups saved.")
                     .font(.caption)
@@ -169,7 +169,7 @@ private struct OutputGroupCard: View {
             HStack {
                 TextField("Group name", text: nameBinding)
                     .textFieldStyle(.roundedBorder)
-                StatusLabel(text: "Requires Audio Backend", status: .requiresBackend)
+                StatusLabel(text: store.outputDevices(for: group).isEmpty ? "No Devices" : "Group Play", status: store.outputDevices(for: group).isEmpty ? .deviceMissing : .working)
             }
             ForEach(store.outputDevices) { device in
                 VStack(alignment: .leading, spacing: 6) {

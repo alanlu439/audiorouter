@@ -27,6 +27,32 @@ public final class ProcessTapManager {
         return false
     }
 
+    public func probeSystemAudioPermission() -> ProcessTapProbeResult {
+        guard isSupportedOnThisOS else {
+            return ProcessTapProbeResult(
+                status: .unavailable("Process taps require macOS 14.2 or newer."),
+                message: "Process taps require macOS 14.2 or newer."
+            )
+        }
+
+        if #available(macOS 14.2, *) {
+            let description = CATapDescription(stereoGlobalTapButExcludeProcesses: [AudioObjectID]())
+            description.name = "AudioRouter System Audio Permission Probe"
+            description.isPrivate = true
+            description.muteBehavior = .unmuted
+            return createProbeTap(
+                description,
+                successMessage: "System Audio Recording permission is available. Choose an output to start or save a route.",
+                deniedMessage: "macOS denied system-audio capture. Grant AudioRouter System Audio Recording permission in System Settings, then try the route again."
+            )
+        }
+
+        return ProcessTapProbeResult(
+            status: .unavailable("Process taps are unavailable on this OS."),
+            message: "Process taps are unavailable on this OS."
+        )
+    }
+
     public func probeProcessTap(for processObjectID: UInt32) -> ProcessTapProbeResult {
         guard isSupportedOnThisOS else {
             return ProcessTapProbeResult(
@@ -41,32 +67,45 @@ public final class ProcessTapManager {
             description.isPrivate = true
             description.muteBehavior = .unmuted
 
-            var tapID = AudioObjectID(kAudioObjectUnknown)
-            let status = AudioHardwareCreateProcessTap(description, &tapID)
-            if status == noErr {
-                AudioHardwareDestroyProcessTap(tapID)
-                return ProcessTapProbeResult(
-                    status: .tapCreated,
-                    message: "Process tap permission is available. Assign an app to an output to start the live routing engine."
-                )
-            }
-
-            if status == kAudioHardwareIllegalOperationError {
-                return ProcessTapProbeResult(
-                    status: .permissionDenied("System Audio Recording permission was denied or has not been granted."),
-                    message: "macOS denied process-tap capture. Grant AudioRouter system audio recording permission in System Settings, then try again."
-                )
-            }
-
-            return ProcessTapProbeResult(
-                status: .unavailable("Process tap probe failed with OSStatus \(status)."),
-                message: "Process tap probe failed with OSStatus \(status)."
+            return createProbeTap(
+                description,
+                successMessage: "Process tap permission is available. Assign an app to an output to start the live routing engine.",
+                deniedMessage: "macOS denied process-tap capture. Grant AudioRouter System Audio Recording permission in System Settings, then try again."
             )
         }
 
         return ProcessTapProbeResult(
             status: .unavailable("Process taps are unavailable on this OS."),
             message: "Process taps are unavailable on this OS."
+        )
+    }
+
+    @available(macOS 14.2, *)
+    private func createProbeTap(
+        _ description: CATapDescription,
+        successMessage: String,
+        deniedMessage: String
+    ) -> ProcessTapProbeResult {
+        var tapID = AudioObjectID(kAudioObjectUnknown)
+        let status = AudioHardwareCreateProcessTap(description, &tapID)
+        if status == noErr {
+            AudioHardwareDestroyProcessTap(tapID)
+            return ProcessTapProbeResult(
+                status: .tapCreated,
+                message: successMessage
+            )
+        }
+
+        if status == kAudioHardwareIllegalOperationError {
+            return ProcessTapProbeResult(
+                status: .permissionDenied("System Audio Recording permission was denied or has not been granted."),
+                message: deniedMessage
+            )
+        }
+
+        return ProcessTapProbeResult(
+            status: .unavailable("Process tap probe failed with OSStatus \(status)."),
+            message: "Process tap probe failed with OSStatus \(status)."
         )
     }
 }

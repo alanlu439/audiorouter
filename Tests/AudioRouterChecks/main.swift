@@ -11,8 +11,10 @@ func runChecks() throws {
     checkRouteBackwardCompatibility()
     try checkRoutingManagerRoutesAndFallback()
     try checkSupportedBackendFailuresStaySaved()
+    try checkOutputGroupRoutesFanOut()
     try checkDeviceAdditionPreservesCurrentOutput()
     try checkCustomRouteAppPersistence()
+    try checkFocusedSourceIconsStayWithConfiguredApps()
     checkUpdateVersionComparison()
     checkAutomaticUpdateCheckPersistence()
     try checkRouteHealthDiagnostics()
@@ -143,6 +145,28 @@ func checkSupportedBackendFailuresStaySaved() throws {
     precondition(route.routeMode == .customOutput, "Failed supported route should keep the custom route")
     precondition(route.status == .savedOnly, "Recoverable supported-backend failures should be saved-only, not backend-required")
     precondition(manager.routeMessage(for: "spotify")?.contains("saved") == true, "Failed supported route should explain that the preference was saved")
+}
+
+func checkOutputGroupRoutesFanOut() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    let backend = FakeGroupRoutingBackend()
+    let manager = AudioRoutingManager(
+        backend: backend,
+        fileURL: directory.appendingPathComponent("routes.json")
+    )
+
+    let outputs = [
+        AudioDevice(audioObjectID: 1, uid: "speaker-a", name: "Speaker A", kind: .output, channelCount: 2, transport: .bluetooth, isDefault: false, isAlive: true),
+        AudioDevice(audioObjectID: 2, uid: "speaker-b", name: "Speaker B", kind: .output, channelCount: 2, transport: .bluetoothLE, isDefault: false, isAlive: true)
+    ]
+    manager.assignOutputGroup(sourceID: "spotify", groupID: "group:studio", outputDevices: outputs)
+
+    let route = manager.route(for: "spotify")
+    precondition(route.outputDeviceID == "group:studio", "Group route should save the group target id")
+    precondition(route.status == .active, "Supported group route should become active")
+    precondition(backend.routedOutputUIDs == ["speaker-a", "speaker-b"], "Backend should receive every output in the group")
+    precondition(manager.routeMessage(for: "spotify")?.contains("2 outputs") == true, "Group route should report fan-out count")
 }
 
 @MainActor
@@ -358,6 +382,37 @@ func checkCustomRouteAppPersistence() throws {
     precondition(!reloaded.routeAppDisplayNames.contains("WaveLab"), "Removed route app should leave the configured list")
 }
 
+@MainActor
+func checkFocusedSourceIconsStayWithConfiguredApps() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    let settings = AppSettingsStore(defaults: UserDefaults(suiteName: "AudioRouterChecks-\(UUID().uuidString)")!)
+    let store = AudioRouterStore(
+        deviceManager: FakeDeviceManager(devices: []),
+        settings: settings,
+        audioRoutingManager: AudioRoutingManager(
+            backend: FakeChromeHelperOnlyBackend(),
+            fileURL: directory.appendingPathComponent("routes.json")
+        ),
+        outputGroupsURL: directory.appendingPathComponent("groups.json"),
+        appSourcesURL: directory.appendingPathComponent("sources.json"),
+        hiddenDefaultSourcesURL: directory.appendingPathComponent("hidden-defaults.json"),
+        sourceOrderURL: directory.appendingPathComponent("source-order.json")
+    )
+
+    store.refresh(silent: true)
+
+    guard let spotify = store.audioSources.first(where: { $0.bundleIdentifier == "com.spotify.client" }),
+          let chrome = store.audioSources.first(where: { $0.bundleIdentifier == "com.google.Chrome" }) else {
+        preconditionFailure("Default focused sources should be present")
+    }
+
+    precondition(spotify.processID == 0, "Spotify should not borrow Chrome's helper process")
+    precondition(spotify.icon == "/Applications/Spotify.app", "Spotify should keep its configured real app icon")
+    precondition(chrome.processID == 99, "Chrome should match its helper process")
+    precondition(chrome.icon == "/Applications/Google Chrome.app", "Chrome should keep its configured app icon")
+}
+
 private final class FakeRoutingBackend: AudioRoutingBackend {
     let supportsPerAppRouting = false
     let backendName = "Fake"
@@ -432,6 +487,63 @@ private final class FakeFailingSupportedRoutingBackend: AudioRoutingBackend {
         throw AudioRoutingBackendError.unsupported("Start playback, refresh, then retry.")
     }
 
+    func setSourceVolume(sourceID: String, volume: Double) throws {}
+    func muteSource(sourceID: String, muted: Bool) throws {}
+}
+
+private final class FakeGroupRoutingBackend: AudioRoutingBackend {
+    let supportsPerAppRouting = true
+    let backendName = "Group Fake"
+    private(set) var routedOutputUIDs: [String] = []
+
+    func listAudioSources() throws -> [AudioSource] {
+        [
+            AudioSource(
+                id: "spotify",
+                appName: "Spotify",
+                bundleIdentifier: "com.spotify.client",
+                processID: 42,
+                audioObjectID: 99,
+                icon: nil,
+                isProducingAudio: true
+            )
+        ]
+    }
+
+    func listOutputDevices() throws -> [AudioDevice] { [] }
+
+    func routeSourceToDevice(sourceID: String, deviceID: String?) throws {
+        routedOutputUIDs = deviceID.map { [$0] } ?? []
+    }
+
+    func routeSourceToDevices(sourceID: String, outputDevices: [AudioDevice]) throws {
+        routedOutputUIDs = outputDevices.map(\.uid)
+    }
+
+    func setSourceVolume(sourceID: String, volume: Double) throws {}
+    func muteSource(sourceID: String, muted: Bool) throws {}
+}
+
+private final class FakeChromeHelperOnlyBackend: AudioRoutingBackend {
+    let supportsPerAppRouting = true
+    let backendName = "Chrome Helper Fake"
+
+    func listAudioSources() throws -> [AudioSource] {
+        [
+            AudioSource(
+                id: "com.google.Chrome.helper",
+                appName: "Google Chrome Helper",
+                bundleIdentifier: "com.google.Chrome.helper",
+                processID: 99,
+                audioObjectID: 101,
+                icon: "/Applications/Google Chrome.app",
+                isProducingAudio: true
+            )
+        ]
+    }
+
+    func listOutputDevices() throws -> [AudioDevice] { [] }
+    func routeSourceToDevice(sourceID: String, deviceID: String?) throws {}
     func setSourceVolume(sourceID: String, volume: Double) throws {}
     func muteSource(sourceID: String, muted: Bool) throws {}
 }

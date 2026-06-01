@@ -399,8 +399,7 @@ public struct MenuBarPopoverView: View {
 
     private func applySelectedRoute() {
         guard let source = selectedSource else { return }
-        store.assignSourceOutput(source: source, uid: selectedOutputID.isEmpty ? nil : selectedOutputID)
-        syncOutputFromSelectedSource()
+        store.prepareAndAssignSourceOutput(source: source, uid: selectedOutputID.isEmpty ? nil : selectedOutputID)
     }
 
     private func syncSelectionIfNeeded() {
@@ -532,7 +531,7 @@ private struct MenuRouteRow: View {
                 return route.routeMode == .customOutput ? (route.outputDeviceID ?? "") : ""
             },
             set: { value in
-                store.assignSourceOutput(source: source, uid: value.isEmpty ? nil : value)
+                store.prepareAndAssignSourceOutput(source: source, uid: value.isEmpty ? nil : value)
             }
         )
     }

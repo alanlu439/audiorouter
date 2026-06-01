@@ -70,6 +70,10 @@ public final class ProcessAudioMonitor {
         return processTapManager.probeProcessTap(for: processObjectID)
     }
 
+    public func probeSystemAudioPermission() -> ProcessTapProbeResult {
+        processTapManager.probeSystemAudioPermission()
+    }
+
     private func withSystemAudioSource(_ sources: [AudioSource]) -> [AudioSource] {
         guard !sources.contains(where: { $0.id == "system-sounds" }) else {
             return sources

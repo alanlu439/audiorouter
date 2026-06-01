@@ -85,7 +85,7 @@ struct AppSourceIcon: View {
 
     var body: some View {
         Group {
-            if let path = source.icon {
+            if let path = iconPath {
                 Image(nsImage: NSWorkspace.shared.icon(forFile: path))
                     .resizable()
                     .scaledToFit()
@@ -98,6 +98,17 @@ struct AppSourceIcon: View {
         .frame(width: 30, height: 30)
         .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
         .accessibilityHidden(true)
+    }
+
+    private var iconPath: String? {
+        if let icon = source.icon, !icon.isEmpty {
+            return icon
+        }
+        if let bundleIdentifier = source.bundleIdentifier,
+           let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier) {
+            return url.path
+        }
+        return nil
     }
 }
 
@@ -322,7 +333,9 @@ struct InlineVolumeSlider: View {
                         .fill(isEnabled ? accent.opacity(isEditing ? 0.22 : 0.12) : Color.secondary.opacity(0.08))
                 )
         }
-        .animation(.easeOut(duration: 0.12), value: displayedValue)
+        .transaction { transaction in
+            transaction.animation = isEditing ? nil : .easeOut(duration: 0.08)
+        }
     }
 
     private var displayedValue: Double {

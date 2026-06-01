@@ -387,24 +387,57 @@ private struct StudioPatchBayPanel: View {
 
     var body: some View {
         StudioPanel(
-            title: "Input Apps",
+            title: "Routes",
             systemImage: "app.connected.to.app.below.fill",
             trailing: "\(store.routeAppDisplayNames.count) configured"
         ) {
-            VStack(spacing: 9) {
+            VStack(spacing: 6) {
+                if let note = store.unsupportedNote {
+                    SupportNote(note: note) {
+                        store.dismissUnsupportedNote()
+                    }
+                }
+
                 StudioPatchBayActions(store: store) {
                     isAddingApp = true
                 }
 
-                StudioSectionMarker(
-                    title: "Input Apps",
-                    detail: "Drag rows or use arrows to customize order",
-                    tint: StudioPalette.blue
-                )
                 StudioPatchBayHeader()
 
                 ForEach(store.audioSources) { source in
                     StudioChannelStrip(source: source, store: store)
+                }
+
+                StudioSectionMarker(
+                    title: "Outputs",
+                    detail: "\(store.outputDevices.count) devices, \(store.outputGroups.count) group\(store.outputGroups.count == 1 ? "" : "s")",
+                    tint: StudioPalette.teal
+                )
+
+                StudioOutputActions(store: store)
+
+                StudioSectionMarker(
+                    title: "Group Play",
+                    detail: "Featured multi-speaker routes",
+                    tint: StudioPalette.amber
+                )
+
+                if store.outputGroups.isEmpty {
+                    StudioGroupPlayEmptyCard(store: store)
+                } else {
+                    ForEach(store.outputGroups) { group in
+                        StudioOutputGroupStrip(group: group, store: store)
+                    }
+                }
+
+                StudioSectionMarker(
+                    title: "Individual Outputs",
+                    detail: "Single-device destinations",
+                    tint: StudioPalette.teal
+                )
+
+                ForEach(store.outputDevices) { device in
+                    StudioOutputStrip(device: device, store: store)
                 }
             }
         }
@@ -425,13 +458,6 @@ private struct StudioPatchBayActions: View {
                 .foregroundStyle(.secondary)
 
             Spacer()
-
-            Button {
-                store.refresh()
-            } label: {
-                Label("Refresh", systemImage: "arrow.clockwise")
-            }
-            .accessibilityHint("Reloads running apps and audio devices")
 
             if store.hasHiddenDefaultRouteApps {
                 Button {
@@ -973,7 +999,7 @@ private struct StudioSmoothRouteBuilder: View {
             return "\(selectedSource.appName) is already live on \(outputDisplayName)"
         }
         if routeTargetIsGroup {
-            return "Saves this group route. Real multi-output playback requires a future audio backend."
+            return "Routes this source to every connected output in the group. Separate devices may have small latency differences."
         }
         if !store.supportsTruePerAppRouting {
             return "Saves this output choice. This Mac cannot start live process-tap routing with the current backend."
@@ -992,7 +1018,7 @@ private struct StudioSmoothRouteBuilder: View {
             return "Choose an input app to configure a route."
         }
         if routeTargetIsGroup {
-            return "Output group saved. Multi-output playback needs a production routing backend."
+            return "Output group selected. AudioRouter will fan this source out to each connected device in the group."
         }
         if routeAlreadySet, selectedOutputID.isEmpty {
             return "\(selectedSource.appName) follows the current system output."
@@ -1042,15 +1068,24 @@ private struct StudioSmoothRouteBuilder: View {
         store.outputGroups.contains { $0.routeTargetID == selectedOutputID }
     }
 
+    private var selectedOutputGroupHasDevices: Bool {
+        guard let group = store.outputGroups.first(where: { $0.routeTargetID == selectedOutputID }) else {
+            return false
+        }
+        return !store.outputDevices(for: group).isEmpty
+    }
+
     private var canAttemptLiveRoute: Bool {
         guard let selectedSource,
               !store.settings.demoMode,
               store.supportsTruePerAppRouting,
               !selectedOutputID.isEmpty,
               selectedOutputReady,
-              !routeTargetIsGroup,
               selectedSource.audioObjectID != nil else {
             return false
+        }
+        if routeTargetIsGroup {
+            return selectedOutputGroupHasDevices
         }
         return true
     }
@@ -1060,7 +1095,7 @@ private struct StudioSmoothRouteBuilder: View {
         if selectedOutputID.isEmpty { return "System" }
         if selectedRoute?.status == .active && routeAlreadySet { return "Live" }
         if canAttemptLiveRoute { return "Ready" }
-        if routeTargetIsGroup || !store.supportsTruePerAppRouting { return "Backend" }
+        if !store.supportsTruePerAppRouting { return "Backend" }
         return "Saved"
     }
 
@@ -1200,7 +1235,7 @@ private struct StudioSmoothRouteBuilder: View {
         guard let selectedSource else { return }
         let appliedSourceID = selectedSource.id
         let appliedSummary = "\(selectedSource.appName) -> \(outputDisplayName)"
-        store.assignSourceOutput(source: selectedSource, uid: selectedOutputID.isEmpty ? nil : selectedOutputID)
+        store.prepareAndAssignSourceOutput(source: selectedSource, uid: selectedOutputID.isEmpty ? nil : selectedOutputID)
         lastAppliedSignature = routeSignature
         recentlyAppliedRoute = appliedSummary
         if advanceAfterApply, store.audioSources.count > 1 {
@@ -1649,22 +1684,18 @@ private struct AddRouteAppRow: View {
 private struct StudioPatchBayHeader: View {
     var body: some View {
         ViewThatFits(in: .horizontal) {
-            HStack(spacing: 12) {
-                Text("ORDER")
-                    .frame(width: 48, alignment: .leading)
+            HStack(spacing: 8) {
                 Text("INPUT APP")
-                    .frame(minWidth: 134, maxWidth: 200, alignment: .leading)
+                    .frame(minWidth: 150, maxWidth: 210, alignment: .leading)
                 Text("METER")
-                    .frame(width: 88, alignment: .leading)
+                    .frame(width: 76, alignment: .leading)
                 Text("OUTPUT")
                     .frame(minWidth: 168, maxWidth: .infinity, alignment: .leading)
                 Text("GAIN")
-                    .frame(width: 148, alignment: .leading)
+                    .frame(width: 230, alignment: .leading)
             }
 
             HStack(spacing: 8) {
-                Text("ORDER")
-                    .frame(width: 48, alignment: .leading)
                 Text("INPUT APP")
                 Spacer()
                 Text("OUTPUT")
@@ -1673,7 +1704,7 @@ private struct StudioPatchBayHeader: View {
         .font(.system(size: 9, weight: .bold, design: .monospaced))
         .foregroundStyle(.secondary)
         .padding(.horizontal, 11)
-        .padding(.vertical, 5)
+        .padding(.vertical, 3)
     }
 }
 
@@ -1692,8 +1723,8 @@ private struct StudioChannelStrip: View {
 
     var body: some View {
         fullChannelRow
-            .padding(.horizontal, 11)
-            .padding(.vertical, 10)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 6)
             .background(channelBackground, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
             .overlay(alignment: .leading) {
                 Rectangle()
@@ -1758,56 +1789,29 @@ private struct StudioChannelStrip: View {
     }
 
     private var fullChannelRow: some View {
-        HStack(spacing: 12) {
-            orderControls
-                .frame(width: 48, alignment: .leading)
-
+        HStack(spacing: 8) {
             channelIdentity
-                .frame(minWidth: 134, maxWidth: 200, alignment: .leading)
+                .frame(minWidth: 150, maxWidth: 210, alignment: .leading)
 
             StudioSegmentMeter(
                 level: store.sourceMeters[source.id] ?? 0,
-                segmentCount: 12,
+                segmentCount: 10,
                 tint: source.isProducingAudio ? StudioPalette.green : StudioPalette.teal
             )
-            .frame(width: 88, alignment: .leading)
+            .frame(width: 76, alignment: .leading)
 
             routeAssignment
-                .frame(minWidth: 168, maxWidth: .infinity, alignment: .leading)
+                .frame(minWidth: 150, maxWidth: .infinity, alignment: .leading)
 
             gainControls
-                .frame(width: 148, alignment: .leading)
+                .frame(width: 230, alignment: .leading)
         }
-    }
-
-    private var orderControls: some View {
-        HStack(spacing: 2) {
-            Button {
-                store.moveRouteApp(source, offset: -1)
-            } label: {
-                Image(systemName: "chevron.up")
-            }
-            .buttonStyle(.borderless)
-            .disabled(!store.canMoveRouteApp(source, offset: -1))
-            .help("Move \(source.appName) up")
-            .accessibilityLabel("Move \(source.appName) up")
-
-            Button {
-                store.moveRouteApp(source, offset: 1)
-            } label: {
-                Image(systemName: "chevron.down")
-            }
-            .buttonStyle(.borderless)
-            .disabled(!store.canMoveRouteApp(source, offset: 1))
-            .help("Move \(source.appName) down")
-            .accessibilityLabel("Move \(source.appName) down")
-        }
-        .font(.system(size: 10, weight: .bold))
     }
 
     private var channelIdentity: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
             AppSourceIcon(source: source)
+                .frame(width: 28, height: 28)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(source.appName)
@@ -1815,18 +1819,18 @@ private struct StudioChannelStrip: View {
                         .lineLimit(1)
                     StudioLED(color: source.isProducingAudio ? StudioPalette.green : StudioPalette.amber.opacity(0.75))
                 }
-                Text(source.debugLabel)
-                    .font(.caption2.monospaced())
-                    .foregroundStyle(.tertiary)
+                Text(source.isRunning ? "Running" : "Ready")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(source.isRunning ? StudioPalette.green.opacity(0.85) : .secondary)
                     .lineLimit(1)
             }
         }
     }
 
     private var routeAssignment: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 7) {
             StudioRouteCable(status: visualStatus, followsSystem: source.followsSystemOutput)
-                .frame(width: 68)
+                .frame(width: 56)
 
             Picker("Output", selection: outputSelection) {
                 Text("Follow System").tag("")
@@ -1843,12 +1847,29 @@ private struct StudioChannelStrip: View {
             .labelsHidden()
             .pickerStyle(.menu)
             .controlSize(.small)
+            .disabled(store.isPreparingRoute(for: source))
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityLabel("\(source.appName) output")
             .accessibilityValue(store.routeOutputName(for: source))
-            .accessibilityHint("Chooses the output device for this source")
+            .accessibilityHint("Chooses the output device, then AudioRouter refreshes and prepares the route automatically")
 
-            StudioLEDLabel(text: store.routeStatus(for: source), status: visualStatus)
+            if store.isPreparingRoute(for: source) {
+                HStack(spacing: 5) {
+                    ProgressView()
+                        .controlSize(.small)
+                        .scaleEffect(0.68)
+                    Text("Detecting")
+                        .font(.system(size: 9, weight: .heavy, design: .monospaced))
+                        .foregroundStyle(StudioPalette.teal)
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(StudioPalette.teal.opacity(0.12), in: Capsule())
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("Detecting audio source")
+            } else {
+                StudioLEDLabel(text: store.routeStatus(for: source), status: visualStatus)
+            }
         }
     }
 
@@ -1876,6 +1897,7 @@ private struct StudioChannelStrip: View {
                 accessibilityHint: store.supportsPerAppVolume ? "Adjusts app route volume" : "Per-app gain requires an audio backend",
                 onChange: { store.setSourceVolume(source: source, volume: $0) }
             )
+            .frame(minWidth: 188, maxWidth: .infinity)
             .help(store.supportsPerAppVolume ? "Set source volume" : "Per-app gain requires an audio backend.")
         }
     }
@@ -1911,9 +1933,511 @@ private struct StudioChannelStrip: View {
         Binding(
             get: { source.followsSystemOutput ? "" : (source.assignedOutputDeviceID ?? "") },
             set: { value in
-                store.assignSourceOutput(source: source, uid: value.isEmpty ? nil : value)
+                store.prepareAndAssignSourceOutput(source: source, uid: value.isEmpty ? nil : value)
             }
         )
+    }
+}
+
+private struct StudioOutputActions: View {
+    @ObservedObject var store: AudioRouterStore
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Label(
+                "\(store.outputDevices.count) output device\(store.outputDevices.count == 1 ? "" : "s")",
+                systemImage: "speaker.wave.2.fill"
+            )
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.secondary)
+
+            Spacer()
+
+            Text("Drag an input app onto a device or group to route it")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+
+            Button {
+                store.createOutputGroup()
+            } label: {
+                Label("New Group Play", systemImage: "speaker.3.fill")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(StudioPalette.teal)
+            .accessibilityHint("Creates a group containing all currently visible outputs")
+        }
+        .controlSize(.small)
+        .padding(.horizontal, 11)
+        .padding(.vertical, 8)
+        .background(StudioPalette.inset.opacity(0.70), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .stroke(StudioPalette.stroke, lineWidth: 1)
+        }
+    }
+}
+
+private struct StudioGroupPlayEmptyCard: View {
+    @ObservedObject var store: AudioRouterStore
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "speaker.3.fill")
+                .font(.system(size: 24, weight: .heavy))
+                .foregroundStyle(.black)
+                .frame(width: 46, height: 46)
+                .background(StudioPalette.amber, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Create a Group Play route")
+                    .font(.headline.weight(.bold))
+                    .lineLimit(1)
+                Text("Bundle your connected speakers, then drop an app here to play through all of them.")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+
+            Spacer()
+
+            Button {
+                store.createOutputGroup()
+            } label: {
+                Label("New Group Play", systemImage: "plus.circle.fill")
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+            .tint(StudioPalette.amber)
+        }
+        .padding(14)
+        .background(StudioPalette.amber.opacity(0.10), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay(alignment: .leading) {
+            Rectangle()
+                .fill(StudioPalette.amber)
+                .frame(width: 5)
+                .clipShape(RoundedRectangle(cornerRadius: 2.5, style: .continuous))
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(StudioPalette.amber.opacity(0.42), lineWidth: 1.5)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Create a Group Play route. Bundle connected speakers and route an app to all of them.")
+    }
+}
+
+private struct StudioOutputStrip: View {
+    let device: AudioDevice
+    @ObservedObject var store: AudioRouterStore
+
+    var body: some View {
+        HStack(spacing: 8) {
+            outputIdentity
+                .frame(minWidth: 188, maxWidth: 260, alignment: .leading)
+
+            StudioSegmentMeter(
+                level: store.deviceMeters[device.id] ?? 0,
+                segmentCount: 10,
+                tint: StudioPalette.teal
+            )
+            .frame(width: 76, alignment: .leading)
+
+            VolumeSlider(
+                title: "Vol",
+                value: device.volume,
+                isEnabled: device.canSetVolume,
+                systemImage: device.kind.systemImage,
+                accent: StudioPalette.teal,
+                onChange: { store.setDeviceVolume(device, volume: $0) }
+            )
+            .controlSize(.small)
+            .frame(width: 230, alignment: .leading)
+
+            outputActions
+                .frame(width: 160, alignment: .leading)
+
+            routedSources
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.horizontal, 9)
+        .padding(.vertical, 7)
+        .background(StudioPalette.strip.opacity(0.72), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .overlay(alignment: .leading) {
+            Rectangle()
+                .fill(device.isDefault ? StudioPalette.green : StudioPalette.teal)
+                .frame(width: 3)
+                .clipShape(RoundedRectangle(cornerRadius: 2, style: .continuous))
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .stroke(StudioPalette.stroke, lineWidth: 1)
+        }
+        .dropDestination(for: String.self) { sourceIDs, _ in
+            guard let sourceID = sourceIDs.first,
+                  let source = store.audioSources.first(where: { $0.id == sourceID }) else {
+                return false
+            }
+            store.prepareAndAssignSourceOutput(source: source, uid: device.uid)
+            store.selectedSourceID = source.id
+            return true
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("\(device.name), \(device.typeDescription), \(device.isDefault ? "system output" : "available output")")
+    }
+
+    private var outputIdentity: some View {
+        HStack(spacing: 8) {
+            DeviceIcon(device: device)
+                .frame(width: 28, height: 28)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(device.name)
+                        .font(.subheadline.weight(.semibold))
+                        .lineLimit(1)
+                    StudioLED(color: device.isAlive ? StudioPalette.green : StudioPalette.red)
+                }
+                Text(device.typeDescription)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+        }
+    }
+
+    private var outputActions: some View {
+        HStack(spacing: 6) {
+            Button {
+                store.setDeviceMuted(device, isMuted: !(device.isMuted ?? false))
+            } label: {
+                Image(systemName: (device.isMuted ?? false) ? "speaker.slash.fill" : "speaker.wave.1.fill")
+            }
+            .buttonStyle(.borderless)
+            .foregroundStyle((device.isMuted ?? false) ? StudioPalette.red : StudioPalette.teal)
+            .disabled(!device.canSetMute)
+            .help(device.canSetMute ? "Mute this output" : "Mute is not supported by this output")
+            .accessibilityLabel((device.isMuted ?? false) ? "Unmute \(device.name)" : "Mute \(device.name)")
+
+            Button(device.isDefault ? "System" : "Set System") {
+                store.setDefaultDevice(device)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .disabled(device.isDefault)
+            .accessibilityHint(device.isDefault ? "\(device.name) is already the system output" : "Makes \(device.name) the system output")
+        }
+    }
+
+    @ViewBuilder
+    private var routedSources: some View {
+        let routed = store.routedSources(to: device)
+        if routed.isEmpty {
+            Text("No apps assigned")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.secondary)
+        } else {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    ForEach(routed) { source in
+                        Label(source.appName, systemImage: "app.fill")
+                            .font(.caption2.weight(.semibold))
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 4)
+                            .background(StudioPalette.teal.opacity(0.13), in: Capsule())
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct StudioOutputGroupStrip: View {
+    let group: OutputDeviceGroup
+    @ObservedObject var store: AudioRouterStore
+
+    private var connectedOutputs: [AudioDevice] {
+        store.outputDevices(for: group)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: "speaker.3.fill")
+                    .font(.system(size: 24, weight: .heavy))
+                    .foregroundStyle(.black)
+                    .frame(width: 46, height: 46)
+                    .background(StudioPalette.amber, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 8) {
+                        Text("GROUP PLAY")
+                            .font(.system(size: 9, weight: .heavy, design: .monospaced))
+                            .foregroundStyle(StudioPalette.amber)
+                            .tracking(1.1)
+                        StudioLEDLabel(
+                            text: connectedOutputs.isEmpty ? "No Devices" : "Multi Out",
+                            status: connectedOutputs.isEmpty ? .deviceMissing : .working
+                        )
+                    }
+
+                    TextField("Group name", text: nameBinding)
+                        .textFieldStyle(.plain)
+                        .font(.title3.weight(.bold))
+                        .accessibilityLabel("Output group name")
+
+                    Text("\(connectedOutputs.count) connected speaker\(connectedOutputs.count == 1 ? "" : "s") ready for fan-out playback")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+
+                Spacer()
+
+                VStack(alignment: .trailing, spacing: 8) {
+                    Text("\(group.deviceUIDs.count) selected")
+                        .font(.caption2.weight(.heavy))
+                        .foregroundStyle(StudioPalette.amber)
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 5)
+                        .background(StudioPalette.amber.opacity(0.13), in: Capsule())
+
+                    Button(role: .destructive) {
+                        store.deleteOutputGroup(group)
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
+                    .buttonStyle(.borderless)
+                    .controlSize(.small)
+                    .help("Delete group")
+                    .accessibilityLabel("Delete \(group.name)")
+                }
+            }
+
+            groupRouteFlow
+
+            HStack(spacing: 10) {
+                HStack(spacing: -4) {
+                    ForEach(connectedOutputs.prefix(5)) { device in
+                        DeviceIcon(device: device)
+                            .frame(width: 26, height: 26)
+                            .background(StudioPalette.inset, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                    .stroke(StudioPalette.amber.opacity(0.42), lineWidth: 1)
+                            }
+                    }
+                }
+
+                Text("Select speakers in this group")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+            }
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 7) {
+                    ForEach(store.outputDevices) { device in
+                        groupDeviceChip(device)
+                    }
+                }
+            }
+        }
+        .padding(14)
+        .background(StudioPalette.amber.opacity(0.095), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay(alignment: .leading) {
+            Rectangle()
+                .fill(StudioPalette.amber)
+                .frame(width: 5)
+                .clipShape(RoundedRectangle(cornerRadius: 2.5, style: .continuous))
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(StudioPalette.amber.opacity(0.46), lineWidth: 1.6)
+        }
+        .shadow(color: StudioPalette.amber.opacity(0.10), radius: 10, y: 2)
+        .overlay(alignment: .topTrailing) {
+            Text("FEATURED")
+                .font(.system(size: 8, weight: .heavy, design: .monospaced))
+                .foregroundStyle(.black)
+                .padding(.horizontal, 7)
+                .padding(.vertical, 4)
+                .background(StudioPalette.amber, in: Capsule())
+                .padding(10)
+        }
+        .dropDestination(for: String.self) { sourceIDs, _ in
+            guard let sourceID = sourceIDs.first,
+                  let source = store.audioSources.first(where: { $0.id == sourceID }) else {
+                return false
+            }
+            store.prepareAndAssignSourceOutput(source: source, uid: group.routeTargetID)
+            store.selectedSourceID = source.id
+            return true
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("\(group.name), output group, \(connectedOutputs.count) connected devices")
+    }
+
+    private var nameBinding: Binding<String> {
+        Binding(
+            get: { group.name },
+            set: { store.renameOutputGroup(group, to: $0) }
+        )
+    }
+
+    private var routedGroupSources: [AudioSource] {
+        store.audioSources.filter { source in
+            store.route(for: source).outputDeviceID == group.routeTargetID
+        }
+    }
+
+    private var groupRouteFlow: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 12) {
+                groupSourceDeck
+                    .frame(minWidth: 180, maxWidth: .infinity, alignment: .leading)
+                groupFanoutCable
+                    .frame(width: 94)
+                groupSpeakerDeck
+                    .frame(minWidth: 210, maxWidth: .infinity, alignment: .leading)
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                groupSourceDeck
+                groupFanoutCable
+                    .frame(maxWidth: .infinity)
+                groupSpeakerDeck
+            }
+        }
+        .padding(10)
+        .background(StudioPalette.inset.opacity(0.46), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(StudioPalette.amber.opacity(0.24), lineWidth: 1)
+        }
+    }
+
+    private var groupSourceDeck: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Text("SOURCE APPS")
+                .font(.system(size: 8, weight: .heavy, design: .monospaced))
+                .foregroundStyle(.secondary)
+            if routedGroupSources.isEmpty {
+                Label("Drop app here", systemImage: "hand.draw")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(StudioPalette.amber)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 7)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(StudioPalette.amber.opacity(0.13), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+            } else {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 96), spacing: 6)], alignment: .leading, spacing: 6) {
+                    ForEach(routedGroupSources) { source in
+                        Label(source.appName, systemImage: "app.fill")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(.black)
+                            .padding(.horizontal, 9)
+                            .padding(.vertical, 6)
+                            .background(StudioPalette.amber, in: Capsule())
+                    }
+                }
+            }
+        }
+    }
+
+    private var groupFanoutCable: some View {
+        HStack(spacing: 7) {
+            Capsule()
+                .fill(StudioPalette.amber.opacity(0.92))
+                .frame(height: 4)
+            Image(systemName: "arrow.triangle.branch")
+                .font(.system(size: 17, weight: .heavy))
+                .foregroundStyle(StudioPalette.amber)
+            Capsule()
+                .fill(StudioPalette.amber.opacity(0.92))
+                .frame(height: 4)
+        }
+        .accessibilityHidden(true)
+    }
+
+    private var groupSpeakerDeck: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Text("SPEAKER GROUP")
+                .font(.system(size: 8, weight: .heavy, design: .monospaced))
+                .foregroundStyle(.secondary)
+            if connectedOutputs.isEmpty {
+                Text("No connected speakers selected")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(StudioPalette.red)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 7)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(StudioPalette.red.opacity(0.10), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+            } else {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 132), spacing: 6)], alignment: .leading, spacing: 6) {
+                    ForEach(connectedOutputs) { device in
+                        Label(device.name, systemImage: device.kind.systemImage)
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(StudioPalette.amber)
+                            .padding(.horizontal, 9)
+                            .padding(.vertical, 6)
+                            .background(StudioPalette.amber.opacity(0.13), in: Capsule())
+                            .overlay {
+                                Capsule()
+                                    .stroke(StudioPalette.amber.opacity(0.28), lineWidth: 1)
+                            }
+                    }
+                }
+            }
+        }
+    }
+
+    private func groupDeviceChip(_ device: AudioDevice) -> some View {
+        let isIncluded = group.deviceUIDs.contains(device.uid)
+        return Button {
+            store.setOutputGroup(group, includes: device, included: !isIncluded)
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: isIncluded ? "checkmark.circle.fill" : "circle")
+                Text(device.name)
+                    .lineLimit(1)
+            }
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(isIncluded ? .black : StudioPalette.amber)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 6)
+            .background(isIncluded ? StudioPalette.amber : StudioPalette.amber.opacity(0.13), in: Capsule())
+            .overlay {
+                Capsule()
+                    .stroke(StudioPalette.amber.opacity(isIncluded ? 0 : 0.32), lineWidth: 1)
+            }
+        }
+        .buttonStyle(.plain)
+        .help(isIncluded ? "Remove \(device.name) from \(group.name)" : "Add \(device.name) to \(group.name)")
+        .accessibilityLabel("\(isIncluded ? "Remove" : "Add") \(device.name) \(isIncluded ? "from" : "to") \(group.name)")
+    }
+
+    @ViewBuilder
+    private var routedSources: some View {
+        if routedGroupSources.isEmpty {
+            Label("Drop app here", systemImage: "hand.draw")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(StudioPalette.amber)
+                .padding(.horizontal, 9)
+                .padding(.vertical, 6)
+                .background(StudioPalette.amber.opacity(0.13), in: Capsule())
+        } else {
+            HStack(spacing: 6) {
+                ForEach(routedGroupSources) { source in
+                    Label(source.appName, systemImage: "app.fill")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.black)
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 6)
+                        .background(StudioPalette.amber, in: Capsule())
+                }
+            }
+        }
     }
 }
 
@@ -2022,7 +2546,7 @@ private struct StudioSegmentMeter: View {
             }
             .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: clampedLevel)
         }
-        .frame(height: 24)
+        .frame(height: 20)
         .accessibilityLabel("Audio level")
         .accessibilityValue(level.clampedUnit.roundedPercentDescription)
     }

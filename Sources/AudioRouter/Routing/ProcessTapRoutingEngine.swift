@@ -79,12 +79,12 @@ final class ProcessTapRoutingEngine {
 
     private struct RouteSession {
         let sourceID: String
-        let outputDeviceUID: String
+        let outputDeviceUIDs: [String]
         let tapID: AudioObjectID
         let aggregateDeviceID: AudioObjectID
         let ioProcID: AudioDeviceIOProcID
         let control: RouteControl
-        let outputRenderer: RouteOutputRenderer
+        let outputRenderers: [RouteOutputRenderer]
     }
 
     private final class PCMBufferPipe {
@@ -313,16 +313,24 @@ final class ProcessTapRoutingEngine {
     }
 
     func startRoute(source: AudioSource, outputDevice: AudioDevice) throws {
+        try startRoute(source: source, outputDevices: [outputDevice])
+    }
+
+    func startRoute(source: AudioSource, outputDevices: [AudioDevice]) throws {
         guard isSupportedOnThisOS else {
             throw AudioRoutingBackendError.unsupported("Live per-app routes require macOS 14.2 or newer.")
         }
-        guard outputDevice.kind == .output, outputDevice.isAlive else {
+        guard !outputDevices.isEmpty else {
+            throw AudioRoutingBackendError.unsupported("Add at least one connected output to this group.")
+        }
+        guard outputDevices.allSatisfy({ $0.kind == .output && $0.isAlive }) else {
             throw AudioRoutingBackendError.unsupported("The selected output device is not available.")
         }
         guard let processObjectID = source.audioObjectID else {
-            throw AudioRoutingBackendError.unsupported("Start playback in \(source.appName), then click Retry Route.")
+            throw AudioRoutingBackendError.unsupported("AudioRouter cannot see \(source.appName)'s Core Audio process yet. The route was saved and will retry automatically when the process appears.")
         }
-        if let session = sessions[source.id], session.outputDeviceUID == outputDevice.uid {
+        let outputDeviceUIDs = outputDevices.map(\.uid)
+        if let session = sessions[source.id], session.outputDeviceUIDs == outputDeviceUIDs {
             return
         }
 
@@ -346,13 +354,15 @@ final class ProcessTapRoutingEngine {
                 guard canReadFloat32(tapFormat) else {
                     throw AudioRoutingBackendError.unsupported("This app's process tap uses an audio format AudioRouter cannot route yet.")
                 }
-                let playbackFormat = Self.playbackFormat(from: tapFormat, outputDevice: outputDevice)
-                let pipe = PCMBufferPipe(format: playbackFormat, seconds: 1.5)
-                let outputRenderer = try RouteOutputRenderer(
-                    format: playbackFormat,
-                    outputDeviceUID: outputDevice.uid,
-                    pipe: pipe
-                )
+                let playbackFormat = Self.playbackFormat(from: tapFormat, outputDevices: outputDevices)
+                let pipes = outputDevices.map { _ in PCMBufferPipe(format: playbackFormat, seconds: 1.5) }
+                let outputRenderers = try zip(outputDevices, pipes).map { outputDevice, pipe in
+                    try RouteOutputRenderer(
+                        format: playbackFormat,
+                        outputDeviceUID: outputDevice.uid,
+                        pipe: pipe
+                    )
+                }
                 let aggregateDeviceID = try createAggregateDevice(
                     sourceName: source.appName,
                     tapUID: tapUID
@@ -374,7 +384,7 @@ final class ProcessTapRoutingEngine {
                             inputData: inputData,
                             outputData: outputData,
                             control: control,
-                            pipe: pipe,
+                            pipes: pipes,
                             outputChannelCount: Int(playbackFormat.mChannelsPerFrame),
                             startProbe: startProbe
                         )
@@ -390,12 +400,12 @@ final class ProcessTapRoutingEngine {
                         _ = startProbe.wait(seconds: 0.75) || control.hasReceivedBuffers()
                         sessions[source.id] = RouteSession(
                             sourceID: source.id,
-                            outputDeviceUID: outputDevice.uid,
+                            outputDeviceUIDs: outputDeviceUIDs,
                             tapID: tapID,
                             aggregateDeviceID: aggregateDeviceID,
                             ioProcID: ioProcID,
                             control: control,
-                            outputRenderer: outputRenderer
+                            outputRenderers: outputRenderers
                         )
                     } catch {
                         AudioDeviceDestroyIOProcID(aggregateDeviceID, ioProcID)
@@ -403,7 +413,7 @@ final class ProcessTapRoutingEngine {
                     }
                 } catch {
                     AudioHardwareDestroyAggregateDevice(aggregateDeviceID)
-                    outputRenderer.stop()
+                    outputRenderers.forEach { $0.stop() }
                     throw error
                 }
             } catch {
@@ -421,7 +431,7 @@ final class ProcessTapRoutingEngine {
         AudioDeviceStop(session.aggregateDeviceID, session.ioProcID)
         AudioDeviceDestroyIOProcID(session.aggregateDeviceID, session.ioProcID)
         AudioHardwareDestroyAggregateDevice(session.aggregateDeviceID)
-        session.outputRenderer.stop()
+        session.outputRenderers.forEach { $0.stop() }
         if #available(macOS 14.2, *) {
             AudioHardwareDestroyProcessTap(session.tapID)
         }
@@ -534,12 +544,19 @@ final class ProcessTapRoutingEngine {
         from tapFormat: AudioStreamBasicDescription,
         outputDevice: AudioDevice
     ) -> AudioStreamBasicDescription {
+        playbackFormat(from: tapFormat, outputDevices: [outputDevice])
+    }
+
+    private static func playbackFormat(
+        from tapFormat: AudioStreamBasicDescription,
+        outputDevices: [AudioDevice]
+    ) -> AudioStreamBasicDescription {
         let tapChannels = max(1, Int(tapFormat.mChannelsPerFrame))
-        let outputChannels = max(1, outputDevice.channelCount)
+        let outputChannels = max(1, outputDevices.map(\.channelCount).min() ?? 2)
         let channels = UInt32(max(1, min(tapChannels, outputChannels, 8)))
         let bytesPerFrame = channels * UInt32(MemoryLayout<Float32>.size)
         return AudioStreamBasicDescription(
-            mSampleRate: preferredSampleRate(tapFormat: tapFormat, outputDevice: outputDevice),
+            mSampleRate: preferredSampleRate(tapFormat: tapFormat, outputDevices: outputDevices),
             mFormatID: kAudioFormatLinearPCM,
             mFormatFlags: kAudioFormatFlagIsFloat | kAudioFormatFlagIsPacked | kAudioFormatFlagsNativeEndian,
             mBytesPerPacket: bytesPerFrame,
@@ -555,10 +572,17 @@ final class ProcessTapRoutingEngine {
         tapFormat: AudioStreamBasicDescription,
         outputDevice: AudioDevice
     ) -> Double {
+        preferredSampleRate(tapFormat: tapFormat, outputDevices: [outputDevice])
+    }
+
+    private static func preferredSampleRate(
+        tapFormat: AudioStreamBasicDescription,
+        outputDevices: [AudioDevice]
+    ) -> Double {
         if tapFormat.mSampleRate > 0 {
             return tapFormat.mSampleRate
         }
-        if let outputRate = outputDevice.sampleRate, outputRate > 0 {
+        if let outputRate = outputDevices.compactMap(\.sampleRate).first(where: { $0 > 0 }) {
             return outputRate
         }
         return 48_000
@@ -568,22 +592,28 @@ final class ProcessTapRoutingEngine {
         inputData: UnsafePointer<AudioBufferList>,
         outputData: UnsafeMutablePointer<AudioBufferList>,
         control: RouteControl,
-        pipe: PCMBufferPipe,
+        pipes: [PCMBufferPipe],
         outputChannelCount: Int,
         startProbe: RouteStartProbe
     ) {
         let outputBuffers = UnsafeMutableAudioBufferListPointer(outputData)
         zero(outputBuffers)
         let gain = control.gain()
-        let result = pipe.writeInterleavedFloat32(
-            from: inputData,
-            outputChannelCount: outputChannelCount,
-            gain: gain
-        )
-        if result.wroteFrames {
+        var maxLevel = 0.0
+        var wroteFrames = false
+        for pipe in pipes {
+            let result = pipe.writeInterleavedFloat32(
+                from: inputData,
+                outputChannelCount: outputChannelCount,
+                gain: gain
+            )
+            maxLevel = max(maxLevel, result.level)
+            wroteFrames = wroteFrames || result.wroteFrames
+        }
+        if wroteFrames {
             startProbe.signal()
         }
-        control.updateLevel(result.level)
+        control.updateLevel(maxLevel)
     }
 
     private static func zero(_ outputBuffers: UnsafeMutableAudioBufferListPointer) {

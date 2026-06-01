@@ -60,6 +60,17 @@ public final class PublicAPIAudioRoutingBackend: AudioRoutingBackend {
         )
     }
 
+    public func routeSourceToDevices(sourceID: String, outputDevices: [AudioDevice]) throws {
+        guard !outputDevices.isEmpty else {
+            throw AudioRoutingBackendError.unsupported("Add at least one connected output to this group.")
+        }
+        let source = try source(for: sourceID)
+        try processTapRoutingEngine.startRoute(
+            source: routeSource(from: source, canonicalSourceID: sourceID),
+            outputDevices: outputDevices
+        )
+    }
+
     public func setSourceVolume(sourceID: String, volume: Double) throws {
         processTapRoutingEngine.setVolume(sourceID: sourceID, volume: volume)
     }
@@ -85,7 +96,7 @@ public final class PublicAPIAudioRoutingBackend: AudioRoutingBackend {
             latestSourcesByID[sourceID] = source
             return source
         }
-        throw AudioRoutingBackendError.unsupported("Start playback in the selected app, then click Retry Route.")
+        throw AudioRoutingBackendError.unsupported("AudioRouter cannot see that app's Core Audio process yet. The route was saved and will retry automatically when the process appears.")
     }
 
     private func rebuildSourceCache(from sources: [AudioSource]) {

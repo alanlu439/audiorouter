@@ -33,6 +33,7 @@ The AudioRouter name, logo, app icon, and branding assets are not licensed for c
 - Running audio-capable app discovery through Core Audio process objects, with a running-app fallback.
 - Experimental live per-app routes on macOS 14.2+ using public Core Audio process taps, transient aggregate devices, and an IO callback.
 - High-quality experimental route rendering using 32-bit floating-point PCM, source-rate-first playback, high-quality drift compensation, and soft peak limiting for boosted app routes.
+- Experimental group play: route one app to an output group so the captured source is rendered to multiple connected speakers through separate `AudioQueue` outputs.
 - Per-route volume, mute, and live meters while an experimental process-tap route is active.
 - Backend readiness panel in the popover, dashboard, and Advanced settings so the app shows whether routes are ready, live, saved, or waiting for playback.
 - Custom route apps: add running apps from the visual picker or browse for an installed `.app`, then assign that app to an output.
@@ -59,7 +60,7 @@ AudioRouter is split into layers:
 
 - `AudioDeviceService`: real Core Audio device management.
 - `RunningAppService` and `ProcessAudioMonitor`: running app detection and process-tap probing.
-- `ProcessTapRoutingEngine`: experimental public-API routing path using `CATapDescription`, a private process tap, a transient aggregate capture device, a PCM ring buffer, and an `AudioQueue` renderer pinned to the selected output device.
+- `ProcessTapRoutingEngine`: experimental public-API routing path using `CATapDescription`, a private process tap, a transient aggregate capture device, PCM ring buffers, and one or more `AudioQueue` renderers pinned to selected output devices.
 - `AudioRoutingManager`: route preference persistence and status calculation.
 - `PublicAPIAudioRoutingBackend`: real public-API support for devices, app discovery, system controls, and experimental process-tap routing.
 - `FutureRoutingPluginBackend`: stub architecture for a future audio backend that could own streams and render them to chosen outputs.
@@ -87,7 +88,7 @@ AudioRouter is split into layers:
 
 AudioRouter now has an experimental public-API route path. It can attempt a selected app route such as Spotify to a selected Bluetooth speaker when macOS exposes a process object, grants System Audio Recording permission, and the selected device can be used in the transient aggregate device.
 
-A production-grade version still needs a dedicated audio backend for reliability across all apps/devices, low latency, effects, and multi-output groups:
+A production-grade version still needs a dedicated audio backend for reliability across all apps/devices, lower latency, effects, and sample-locked multi-output groups:
 
 - Audio Server Driver Plug-in or virtual audio device.
 - Process audio capture.
@@ -96,7 +97,7 @@ A production-grade version still needs a dedicated audio backend for reliability
 - Permission-aware capture helper.
 - Low-latency buffer scheduling and cleanup.
 
-When the experimental route starts successfully, the UI marks it “Live.” If macOS denies capture, the app is not producing a tap-able stream, or the aggregate route cannot start, AudioRouter saves the desired route and marks it “Requires Audio Backend.” Output groups are also visual route targets today; actual simultaneous multi-output playback requires the same backend layer.
+When the experimental route starts successfully, the UI marks it “Live.” If macOS denies capture, the app is not producing a tap-able stream, or the aggregate route cannot start, AudioRouter saves the desired route and marks it “Requires Audio Backend.” Output groups can fan out one live route to multiple devices, but independent Bluetooth/AirPlay/USB devices may have latency differences or drift without a production routing backend.
 
 The backend readiness panel is the fastest way to see what to do next:
 
@@ -111,7 +112,7 @@ The 10-band EQ UI, presets, curve preview, and Custom preset are saved settings.
 
 ## Permissions
 
-The generated app bundle includes `NSAudioCaptureUsageDescription`. AudioRouter does not use private TCC APIs. The Advanced screen has a process-tap probe button, and assigning an app to an output can also start a public Core Audio tap attempt so macOS can handle permission naturally.
+The generated app bundle includes `NSAudioCaptureUsageDescription`. AudioRouter does not use private TCC APIs. The Advanced screen has a process-tap probe button, and choosing a custom output now starts a public Core Audio global tap probe immediately so macOS can ask for System Audio Recording permission before the selected app has started playback. If the app process is not visible yet, AudioRouter saves the route and retries automatically when Core Audio exposes the process.
 
 macOS system prompts cannot be auto-approved by AudioRouter or any normal app. AudioRouter instead shows visual instructions, opens Privacy & Security when requested, and keeps routes saved while you approve the prompt yourself.
 
@@ -210,5 +211,5 @@ This Command Line Tools install does not include `XCTest` or Swift's `Testing` m
 - Sparkle-based automatic in-place updates after the notarized Developer ID release workflow is in place.
 - Routing plugin or virtual audio device for production-grade per-app output routing.
 - Real EQ processing in the backend audio graph.
-- Real simultaneous output groups.
+- Sample-locked output group sync across independent devices.
 - Production launch-at-login behavior.

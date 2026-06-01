@@ -15,6 +15,7 @@ public final class AudioRouterStore: ObservableObject {
     @Published public var inputMeter: Double = 0
     @Published public var soloSourceID: String?
     @Published public var selectedSourceID: String?
+    @Published public private(set) var preparingRouteSourceIDs: Set<String> = []
     @Published public private(set) var meteringNote: String = "Live meters appear when a process-tap route is active."
     @Published public private(set) var processTapProbeMessage: String?
     @Published public var isOnboardingPresented = false
@@ -41,6 +42,7 @@ public final class AudioRouterStore: ObservableObject {
     private var pendingSourceVolumes: [String: Double] = [:]
     private var lastDeviceVolumeCommitDates: [String: Date] = [:]
     private var pendingRefreshTask: Task<Void, Never>?
+    private var pendingRoutePreparationTasks: [String: Task<Void, Never>] = [:]
     private var meterPhase: Double = 0
     private var lastRefreshUsedDemoMode: Bool?
     private var stableSystemOutputUID: String?
@@ -343,6 +345,8 @@ public final class AudioRouterStore: ObservableObject {
         pendingSourceVolumeTasks.removeAll()
         pendingRefreshTask?.cancel()
         pendingRefreshTask = nil
+        pendingRoutePreparationTasks.values.forEach { $0.cancel() }
+        pendingRoutePreparationTasks.removeAll()
         pendingDeviceDisconnectTasks.values.forEach { $0.cancel() }
         pendingDeviceDisconnectTasks.removeAll()
         deviceObservation?.cancel()
@@ -796,8 +800,20 @@ public final class AudioRouterStore: ObservableObject {
     public func assignSourceOutput(source: AudioSource, uid: String?) {
         selectedSourceID = source.id
         autoRetriedRouteSignatures.remove(routeSignature(sourceID: source.id, outputDeviceID: uid))
+        if uid == nil {
+            pendingRoutePreparationTasks[source.id]?.cancel()
+            pendingRoutePreparationTasks.removeValue(forKey: source.id)
+        }
         if let uid {
-            audioRoutingManager.assignOutputDevice(sourceID: source.id, deviceID: uid)
+            if let group = outputGroups.first(where: { $0.routeTargetID == uid }) {
+                audioRoutingManager.assignOutputGroup(
+                    sourceID: source.id,
+                    groupID: uid,
+                    outputDevices: outputDevices(for: group)
+                )
+            } else {
+                audioRoutingManager.assignOutputDevice(sourceID: source.id, deviceID: uid)
+            }
         } else {
             audioRoutingManager.resetSourceToSystemOutput(sourceID: source.id)
         }
@@ -813,8 +829,52 @@ public final class AudioRouterStore: ObservableObject {
         }
     }
 
+    public func prepareAndAssignSourceOutput(source: AudioSource, uid: String?) {
+        selectedSourceID = source.id
+        pendingRoutePreparationTasks[source.id]?.cancel()
+        pendingRoutePreparationTasks.removeValue(forKey: source.id)
+        guard let uid else {
+            assignSourceOutput(source: source, uid: nil)
+            return
+        }
+
+        preparingRouteSourceIDs.insert(source.id)
+        let probeResult = processAudioMonitor.probeSystemAudioPermission()
+        processTapProbeMessage = probeResult.message
+        unsupportedNote = routePreparationMessage(
+            for: source.appName,
+            probeResult: probeResult
+        )
+
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer {
+                self.preparingRouteSourceIDs.remove(source.id)
+            }
+
+            self.refresh(silent: true)
+            let refreshedSource = self.audioSources.first { $0.id == source.id } ?? source
+            self.assignSourceOutput(source: refreshedSource, uid: uid)
+
+            let route = self.route(for: refreshedSource)
+            if route.status == .active {
+                self.unsupportedNote = nil
+            } else if route.status == .savedOnly, refreshedSource.audioObjectID == nil {
+                self.unsupportedNote = "Route saved. AudioRouter already asked macOS for System Audio Recording permission and will retry automatically when \(refreshedSource.appName) exposes audio."
+                self.schedulePreparedRouteRetries(sourceID: refreshedSource.id, outputID: uid)
+            } else if let warning = self.audioRoutingManager.lastWarning {
+                self.unsupportedNote = "\(warning) AudioRouter already asked macOS for System Audio Recording permission."
+                self.schedulePreparedRouteRetries(sourceID: refreshedSource.id, outputID: uid)
+            }
+        }
+    }
+
     public func resetSourceToSystemOutput(_ source: AudioSource) {
         assignSourceOutput(source: source, uid: nil)
+    }
+
+    public func isPreparingRoute(for source: AudioSource) -> Bool {
+        preparingRouteSourceIDs.contains(source.id)
     }
 
     public func retrySourceRoute(_ source: AudioSource) {
@@ -822,7 +882,12 @@ public final class AudioRouterStore: ObservableObject {
         if let outputID = route(for: source).outputDeviceID {
             autoRetriedRouteSignatures.remove(routeSignature(sourceID: source.id, outputDeviceID: outputID))
         }
-        audioRoutingManager.retryRoute(sourceID: source.id)
+        if let outputID = route(for: source).outputDeviceID,
+           let group = outputGroups.first(where: { $0.routeTargetID == outputID }) {
+            audioRoutingManager.retryOutputGroup(sourceID: source.id, outputDevices: outputDevices(for: group))
+        } else {
+            audioRoutingManager.retryRoute(sourceID: source.id)
+        }
         let route = audioRoutingManager.route(for: source.id)
         updateAudioSource(source.id) { current in
             current.assignedOutputDeviceID = route.outputDeviceID
@@ -853,24 +918,27 @@ public final class AudioRouterStore: ObservableObject {
     }
 
     public func probeProcessTapPermission() {
-        let result = processAudioMonitor.probeFirstAvailableProcessTap(from: audioSources)
+        var result = processAudioMonitor.probeSystemAudioPermission()
+        if case .unavailable = result.status {
+            result = processAudioMonitor.probeFirstAvailableProcessTap(from: audioSources)
+        }
         processTapProbeMessage = result.message
         switch result.status {
         case .tapCreated:
-            showUnsupportedNote("Process tap permission is available. Assign an app to an output to start the live routing engine.")
+            showUnsupportedNote("System Audio Recording permission is available. Choose an output to start or save a route.")
         case let .permissionDenied(message), let .unavailable(message):
             showUnsupportedNote(message)
         }
     }
 
     public func createOutputGroup() {
-        let deviceUIDs = Array(outputDevices.prefix(2).map(\.uid))
+        let deviceUIDs = outputDevices.map(\.uid)
         let volumes = Dictionary(uniqueKeysWithValues: deviceUIDs.map { uid in
             (uid, outputDevices.first(where: { $0.uid == uid })?.volume ?? 1)
         })
         outputGroups.insert(
             OutputDeviceGroup(
-                name: "Output Group \(outputGroups.count + 1)",
+                name: "Group Play \(outputGroups.count + 1)",
                 deviceUIDs: deviceUIDs,
                 perDeviceVolumes: volumes
             ),
@@ -891,6 +959,12 @@ public final class AudioRouterStore: ObservableObject {
         }
     }
 
+    public func outputDevices(for group: OutputDeviceGroup) -> [AudioDevice] {
+        group.deviceUIDs.compactMap { uid in
+            outputDevices.first { $0.uid == uid && $0.isAlive }
+        }
+    }
+
     public func setOutputGroup(_ group: OutputDeviceGroup, includes device: AudioDevice, included: Bool) {
         updateOutputGroup(group.id) { current in
             if included {
@@ -903,6 +977,7 @@ public final class AudioRouterStore: ObservableObject {
                 current.perDeviceVolumes.removeValue(forKey: device.uid)
             }
         }
+        retryRoutesUsingGroup(group)
     }
 
     public func setOutputGroupVolume(_ group: OutputDeviceGroup, deviceUID: String, volume: Double) {
@@ -912,6 +987,15 @@ public final class AudioRouterStore: ObservableObject {
         if let device = outputDevices.first(where: { $0.uid == deviceUID }), device.canSetVolume {
             setDeviceVolume(device, volume: volume)
         }
+    }
+
+    public func retryRoutesUsingGroup(_ group: OutputDeviceGroup) {
+        let currentGroup = outputGroups.first { $0.id == group.id } ?? group
+        let groupOutputs = outputDevices(for: currentGroup)
+        for source in audioSources where route(for: source).outputDeviceID == currentGroup.routeTargetID {
+            audioRoutingManager.retryOutputGroup(sourceID: source.id, outputDevices: groupOutputs)
+        }
+        configureMeterTimer()
     }
 
     public func routedSources(to device: AudioDevice) -> [AudioSource] {
@@ -937,10 +1021,6 @@ public final class AudioRouterStore: ObservableObject {
         }
         if route.routeMode == .followSystemOutput {
             return "Working"
-        }
-        if let outputID = route.outputDeviceID,
-           outputGroups.contains(where: { $0.routeTargetID == outputID }) {
-            return "Requires Audio Backend"
         }
         switch route.status {
         case .active:
@@ -989,16 +1069,11 @@ public final class AudioRouterStore: ObservableObject {
                 : nil
         }
 
-        if let outputID = route.outputDeviceID,
-           outputGroups.contains(where: { $0.routeTargetID == outputID }) {
-            return "Output groups are saved targets; real group playback needs the future routing backend."
-        }
-
         switch route.status {
         case .active:
             return nil
         case .savedOnly:
-            return "Saved route. Start playback, then click Retry Route; AudioRouter will also retry when it sees audio."
+            return "Saved route. AudioRouter asked for permission and will retry automatically when it sees this app's audio process."
         case .simulated:
             return "Simulated route. Switch to Live Mode to use Core Audio."
         case .requiresBackend:
@@ -1006,7 +1081,7 @@ public final class AudioRouterStore: ObservableObject {
                 return "This macOS version cannot use Core Audio process taps."
             }
             if source.audioObjectID == nil {
-                return "Start playback in \(source.appName), then click Retry Route."
+                return "AudioRouter asked for permission and will retry when \(source.appName)'s Core Audio process appears."
             }
             return audioRoutingManager.lastWarning ?? "The public process-tap route could not start for this app/device."
         case .deviceMissing:
@@ -1025,8 +1100,9 @@ public final class AudioRouterStore: ObservableObject {
             return message
         }
         if let outputID = route.outputDeviceID,
-           outputGroups.contains(where: { $0.routeTargetID == outputID }) {
-            return "Output group selected. Multi-output playback requires a production audio backend."
+           let group = outputGroups.first(where: { $0.routeTargetID == outputID }),
+           outputDevices(for: group).isEmpty {
+            return "Output group has no connected devices selected."
         }
         if route.outputDeviceID == nil {
             return "No output is selected for this custom route."
@@ -1039,7 +1115,7 @@ public final class AudioRouterStore: ObservableObject {
             return "This macOS/backend cannot start a live process-tap route."
         }
         if source.audioObjectID == nil {
-            return "Start playback in \(source.appName), then retry so AudioRouter can find its Core Audio process."
+            return "AudioRouter cannot see \(source.appName)'s Core Audio process yet; it will retry automatically after the process appears."
         }
         if !source.isProducingAudio && route.status != .active {
             return "\(source.appName) is not producing audio right now."
@@ -1072,7 +1148,7 @@ public final class AudioRouterStore: ObservableObject {
             RouteHealthItem(
                 id: "audio-object",
                 title: "Audio detected",
-                detail: source.audioObjectID == nil ? "Start playback, then retry" : "Core Audio process object available",
+                detail: source.audioObjectID == nil ? "Waiting for Core Audio process" : "Core Audio process object available",
                 state: source.audioObjectID == nil ? .savedOnly : .working
             ),
             RouteHealthItem(
@@ -1295,6 +1371,58 @@ public final class AudioRouterStore: ObservableObject {
                 self?.pendingSourceVolumes.removeValue(forKey: sourceID)
                 self?.pendingSourceVolumeTasks.removeValue(forKey: sourceID)
             }
+        }
+    }
+
+    private func routePreparationMessage(
+        for appName: String,
+        probeResult: ProcessTapProbeResult
+    ) -> String {
+        switch probeResult.status {
+        case .tapCreated:
+            return "System Audio Recording permission is ready. AudioRouter is refreshing devices, finding \(appName), and starting the route."
+        case .permissionDenied(_):
+            return "\(probeResult.message) AudioRouter saved the output choice and will retry after permission is granted."
+        case .unavailable(_):
+            return "Preparing \(appName). \(probeResult.message)"
+        }
+    }
+
+    private func schedulePreparedRouteRetries(sourceID: String, outputID: String) {
+        pendingRoutePreparationTasks[sourceID]?.cancel()
+        pendingRoutePreparationTasks[sourceID] = Task { @MainActor [weak self] in
+            guard let self else { return }
+            let retryDelays: [UInt64] = [
+                700_000_000,
+                1_600_000_000,
+                3_200_000_000,
+                6_000_000_000,
+                10_000_000_000
+            ]
+
+            for delay in retryDelays {
+                try? await Task.sleep(nanoseconds: delay)
+                guard !Task.isCancelled else { return }
+
+                let currentRoute = audioRoutingManager.route(for: sourceID)
+                guard currentRoute.routeMode == .customOutput,
+                      currentRoute.outputDeviceID == outputID else {
+                    break
+                }
+                guard currentRoute.status != .active else {
+                    break
+                }
+
+                refresh(silent: true)
+                if let refreshedSource = audioSources.first(where: { $0.id == sourceID }) {
+                    retrySourceRoute(refreshedSource)
+                    if audioRoutingManager.route(for: sourceID).status == .active {
+                        break
+                    }
+                }
+            }
+
+            pendingRoutePreparationTasks.removeValue(forKey: sourceID)
         }
     }
 
@@ -1641,7 +1769,7 @@ public final class AudioRouterStore: ObservableObject {
                 bundleIdentifier: spec.bundleIdentifier,
                 processID: detectedSource?.processID ?? 0,
                 audioObjectID: detectedSource?.audioObjectID,
-                icon: detectedSource?.icon ?? spec.iconPath,
+                icon: spec.iconPath ?? detectedSource?.icon,
                 isRunning: detectedSource?.isRunning ?? false,
                 isProducingAudio: detectedSource?.isProducingAudio ?? false,
                 lastActiveTime: detectedSource?.lastActiveTime ?? .distantPast,
@@ -1675,6 +1803,9 @@ public final class AudioRouterStore: ObservableObject {
                     || source.id.localizedCaseInsensitiveContains(spec.matchName) {
             score += 500
         }
+        guard score > 0 else {
+            return 0
+        }
         if source.audioObjectID != nil {
             score += 120
         }
@@ -1695,17 +1826,23 @@ public final class AudioRouterStore: ObservableObject {
             guard route.routeMode == .customOutput,
                   route.status != .active,
                   let outputID = route.outputDeviceID,
-                  outputDevices.contains(where: { $0.uid == outputID }),
                   source.audioObjectID != nil,
                   source.isProducingAudio || (source.currentLevel ?? 0) > 0.015 else {
                 continue
             }
-            guard !outputGroups.contains(where: { $0.routeTargetID == outputID }) else { continue }
+            let group = outputGroups.first { $0.routeTargetID == outputID }
+            let outputIsReady = group.map { !outputDevices(for: $0).isEmpty }
+                ?? outputDevices.contains { $0.uid == outputID }
+            guard outputIsReady else { continue }
 
             let signature = routeSignature(sourceID: source.id, outputDeviceID: outputID)
             guard autoRetriedRouteSignatures.insert(signature).inserted else { continue }
 
-            audioRoutingManager.retryRoute(sourceID: source.id)
+            if let group {
+                audioRoutingManager.retryOutputGroup(sourceID: source.id, outputDevices: outputDevices(for: group))
+            } else {
+                audioRoutingManager.retryRoute(sourceID: source.id)
+            }
             let updatedRoute = audioRoutingManager.route(for: source.id)
             updateAudioSource(source.id) { current in
                 current.assignedOutputDeviceID = updatedRoute.outputDeviceID

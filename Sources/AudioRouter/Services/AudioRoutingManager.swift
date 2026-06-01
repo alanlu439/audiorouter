@@ -103,6 +103,40 @@ public final class AudioRoutingManager {
         }
     }
 
+    public func assignOutputGroup(sourceID: String, groupID: String, outputDevices: [AudioDevice]) {
+        var route = route(for: sourceID)
+        route.outputDeviceID = groupID
+        route.routeMode = .customOutput
+        route.status = outputDevices.isEmpty ? .deviceMissing : (backend.supportsPerAppRouting ? .savedOnly : .requiresBackend)
+        routesBySourceID[sourceID] = route
+        saveRoutes()
+
+        guard !outputDevices.isEmpty else {
+            let message = "Add at least one connected output to this group. AudioRouter saved the group route."
+            routeMessagesBySourceID[sourceID] = message
+            lastWarning = message
+            return
+        }
+
+        do {
+            try backend.routeSourceToDevices(sourceID: sourceID, outputDevices: outputDevices)
+            route.status = backend.supportsPerAppRouting ? .active : .requiresBackend
+            routesBySourceID[sourceID] = route
+            saveRoutes()
+            routeMessagesBySourceID[sourceID] = backend.supportsPerAppRouting
+                ? "Group route is live on \(outputDevices.count) output\(outputDevices.count == 1 ? "" : "s")."
+                : "This backend cannot render app audio to an output group."
+            lastWarning = nil
+        } catch {
+            route.status = backend.supportsPerAppRouting ? .savedOnly : .requiresBackend
+            routesBySourceID[sourceID] = route
+            saveRoutes()
+            let message = "\(error.localizedDescription) AudioRouter saved the group route."
+            routeMessagesBySourceID[sourceID] = message
+            lastWarning = message
+        }
+    }
+
     public func retryRoute(sourceID: String) {
         let route = route(for: sourceID)
         guard route.routeMode == .customOutput, let outputDeviceID = route.outputDeviceID else {
@@ -110,6 +144,15 @@ public final class AudioRoutingManager {
             return
         }
         assignOutputDevice(sourceID: sourceID, deviceID: outputDeviceID)
+    }
+
+    public func retryOutputGroup(sourceID: String, outputDevices: [AudioDevice]) {
+        let route = route(for: sourceID)
+        guard route.routeMode == .customOutput, let groupID = route.outputDeviceID else {
+            routeMessagesBySourceID[sourceID] = "Choose an output group before retrying this route."
+            return
+        }
+        assignOutputGroup(sourceID: sourceID, groupID: groupID, outputDevices: outputDevices)
     }
 
     public func resetSourceToSystemOutput(sourceID: String) {

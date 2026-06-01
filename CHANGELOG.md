@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.3 - 2026-06-01
+
+### Routing And Group Play
+
+- Added proactive System Audio Recording permission probing when a custom output is chosen, so macOS can prompt before the selected app starts playback.
+- Added live experimental Group Play routing, allowing one process-tap route to fan out to multiple connected output devices.
+- Redesigned the dashboard around a simpler Routes view with a prominent Group Play patch flow and secondary individual output rows.
+- Added persistent real app icons, smoother gain controls, compact route rows, and clearer output sections under the main route list.
+- Added automatic retry handling for saved routes and group routes when Core Audio exposes the source process.
+
 ## 1.0.2 - 2026-05-27
 
 ### Usability And Stability
