@@ -2174,6 +2174,12 @@ private struct StudioOutputGroupStrip: View {
                             .font(.system(size: 9, weight: .heavy, design: .monospaced))
                             .foregroundStyle(StudioPalette.amber)
                             .tracking(1.1)
+                        Text("FEATURED")
+                            .font(.system(size: 8, weight: .heavy, design: .monospaced))
+                            .foregroundStyle(.black)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 4)
+                            .background(StudioPalette.amber, in: Capsule())
                         StudioLEDLabel(
                             text: connectedOutputs.isEmpty ? "No Devices" : "Multi Out",
                             status: connectedOutputs.isEmpty ? .deviceMissing : .working
@@ -2256,15 +2262,6 @@ private struct StudioOutputGroupStrip: View {
                 .stroke(StudioPalette.amber.opacity(0.46), lineWidth: 1.6)
         }
         .shadow(color: StudioPalette.amber.opacity(0.10), radius: 10, y: 2)
-        .overlay(alignment: .topTrailing) {
-            Text("FEATURED")
-                .font(.system(size: 8, weight: .heavy, design: .monospaced))
-                .foregroundStyle(.black)
-                .padding(.horizontal, 7)
-                .padding(.vertical, 4)
-                .background(StudioPalette.amber, in: Capsule())
-                .padding(10)
-        }
         .dropDestination(for: String.self) { sourceIDs, _ in
             guard let sourceID = sourceIDs.first,
                   let source = store.audioSources.first(where: { $0.id == sourceID }) else {
