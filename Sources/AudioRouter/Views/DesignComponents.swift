@@ -153,8 +153,10 @@ struct VolumeSlider: View {
     let isEnabled: Bool
     let systemImage: String
     let range: ClosedRange<Double>
+    let step: Double
     let accent: Color
     let showsStepButtons: Bool
+    let nudgeStep: Double
     let onChange: (Double) -> Void
 
     @State private var draftValue: Double?
@@ -166,8 +168,10 @@ struct VolumeSlider: View {
         isEnabled: Bool,
         systemImage: String,
         range: ClosedRange<Double> = 0...1,
+        step: Double = 0.01,
         accent: Color = .teal,
         showsStepButtons: Bool = false,
+        nudgeStep: Double = 0.05,
         onChange: @escaping (Double) -> Void
     ) {
         self.title = title
@@ -175,8 +179,10 @@ struct VolumeSlider: View {
         self.isEnabled = isEnabled
         self.systemImage = systemImage
         self.range = range
+        self.step = step
         self.accent = accent
         self.showsStepButtons = showsStepButtons
+        self.nudgeStep = nudgeStep
         self.onChange = onChange
     }
 
@@ -192,44 +198,32 @@ struct VolumeSlider: View {
             if showsStepButtons {
                 nudgeButton(systemImage: "minus", delta: -stepSize)
             }
-            Slider(
-                value: Binding(
-                    get: { displayedValue },
-                    set: { updateValue($0) }
-                ),
-                in: range,
-                onEditingChanged: { editing in
-                    isEditing = editing
-                    if !editing {
-                        onChange(displayedValue)
-                        draftValue = nil
-                    }
-                }
+            SmoothVolumeFader(
+                value: displayedValue,
+                isEnabled: isEnabled,
+                range: range,
+                step: step,
+                accent: accent,
+                accessibilityLabel: "\(title) volume",
+                accessibilityValue: accessibilityValue,
+                accessibilityHint: isEnabled ? "Adjusts \(title.lowercased()) volume" : "\(title) volume is not exposed by this device",
+                onEditingChanged: updateEditingState,
+                onChange: updateValue
             )
-            .disabled(!isEnabled)
-            .tint(accent)
-            .accessibilityLabel("\(title) volume")
-            .accessibilityValue(accessibilityValue)
-            .accessibilityHint(isEnabled ? "Adjusts \(title.lowercased()) volume" : "\(title) volume is not exposed by this device")
             if showsStepButtons {
                 nudgeButton(systemImage: "plus", delta: stepSize)
             }
             percentPill
         }
         .help(isEnabled ? "\(title) volume" : "\(title) volume is not exposed by this device.")
-        .animation(.easeOut(duration: 0.12), value: displayedValue)
     }
 
     private var displayedValue: Double {
-        range.clamped(draftValue ?? value ?? range.lowerBound)
+        steppedValue(draftValue ?? value ?? range.lowerBound)
     }
 
     private var accessibilityValue: String {
         value == nil ? "Not available" : displayedValue.roundedPercentDescription
-    }
-
-    private var stepSize: Double {
-        range.upperBound > 1 ? 0.05 : 0.02
     }
 
     private var percentPill: some View {
@@ -246,9 +240,17 @@ struct VolumeSlider: View {
     }
 
     private func updateValue(_ newValue: Double) {
-        let clamped = range.clamped(newValue)
-        draftValue = clamped
-        onChange(clamped)
+        let adjusted = steppedValue(newValue)
+        draftValue = adjusted
+        onChange(adjusted)
+    }
+
+    private func updateEditingState(_ editing: Bool) {
+        isEditing = editing
+        if !editing {
+            onChange(displayedValue)
+            draftValue = nil
+        }
     }
 
     private func nudgeButton(systemImage: String, delta: Double) -> some View {
@@ -265,6 +267,14 @@ struct VolumeSlider: View {
         .disabled(!isEnabled || value == nil)
         .accessibilityLabel(delta < 0 ? "Decrease \(title) volume" : "Increase \(title) volume")
     }
+
+    private var stepSize: Double {
+        nudgeStep
+    }
+
+    private func steppedValue(_ value: Double) -> Double {
+        range.snapped(value, to: step)
+    }
 }
 
 struct InlineVolumeSlider: View {
@@ -272,7 +282,10 @@ struct InlineVolumeSlider: View {
     let isEnabled: Bool
     let systemImage: String
     let range: ClosedRange<Double>
+    let step: Double
     let accent: Color
+    let showsStepButtons: Bool
+    let nudgeStep: Double
     let accessibilityLabel: String
     let accessibilityHint: String
     let onChange: (Double) -> Void
@@ -285,7 +298,10 @@ struct InlineVolumeSlider: View {
         isEnabled: Bool,
         systemImage: String = "speaker.wave.2.fill",
         range: ClosedRange<Double> = 0...1,
+        step: Double = 0.01,
         accent: Color = .teal,
+        showsStepButtons: Bool = false,
+        nudgeStep: Double = 0.05,
         accessibilityLabel: String,
         accessibilityHint: String,
         onChange: @escaping (Double) -> Void
@@ -294,7 +310,10 @@ struct InlineVolumeSlider: View {
         self.isEnabled = isEnabled
         self.systemImage = systemImage
         self.range = range
+        self.step = step
         self.accent = accent
+        self.showsStepButtons = showsStepButtons
+        self.nudgeStep = nudgeStep
         self.accessibilityLabel = accessibilityLabel
         self.accessibilityHint = accessibilityHint
         self.onChange = onChange
@@ -307,55 +326,204 @@ struct InlineVolumeSlider: View {
                 .foregroundStyle(isEnabled ? accent : .secondary)
                 .frame(width: 16)
 
-            Slider(
-                value: Binding(
-                    get: { displayedValue },
-                    set: { updateValue($0) }
-                ),
-                in: range,
-                onEditingChanged: { editing in
-                    isEditing = editing
-                    if !editing {
-                        onChange(displayedValue)
-                        draftValue = nil
-                    }
-                }
-            )
-            .tint(accent)
-            .disabled(!isEnabled)
-            .accessibilityLabel(accessibilityLabel)
-            .accessibilityValue(value == nil ? "Not available" : displayedValue.roundedPercentDescription)
-            .accessibilityHint(accessibilityHint)
+            if showsStepButtons {
+                nudgeButton(systemImage: "minus", delta: -nudgeStep)
+            }
 
-            Text(value == nil ? "N/A" : displayedValue.roundedPercentDescription)
-                .font(.caption2.monospacedDigit().weight(.bold))
-                .foregroundStyle(isEnabled ? accent : .secondary)
-                .frame(width: 44, alignment: .trailing)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 3)
-                .background(
-                    Capsule(style: .continuous)
-                        .fill(isEnabled ? accent.opacity(isEditing ? 0.22 : 0.12) : Color.secondary.opacity(0.08))
-                )
+            SmoothVolumeFader(
+                value: displayedValue,
+                isEnabled: isEnabled,
+                range: range,
+                step: step,
+                accent: accent,
+                accessibilityLabel: accessibilityLabel,
+                accessibilityValue: value == nil ? "Not available" : displayedValue.roundedPercentDescription,
+                accessibilityHint: accessibilityHint,
+                onEditingChanged: updateEditingState,
+                onChange: updateValue
+            )
+            .frame(minWidth: showsStepButtons ? 96 : 80)
+
+            if showsStepButtons {
+                nudgeButton(systemImage: "plus", delta: nudgeStep)
+            }
+
+            percentPill
         }
+        .help(accessibilityHint)
         .transaction { transaction in
             transaction.animation = isEditing ? nil : .easeOut(duration: 0.08)
         }
     }
 
     private var displayedValue: Double {
-        range.clamped(draftValue ?? value ?? range.lowerBound)
+        range.snapped(draftValue ?? value ?? range.lowerBound, to: step)
     }
 
     private func updateValue(_ newValue: Double) {
-        let clamped = range.clamped(newValue)
-        draftValue = clamped
-        onChange(clamped)
+        let adjusted = range.snapped(newValue, to: step)
+        draftValue = adjusted
+        onChange(adjusted)
+    }
+
+    private func updateEditingState(_ editing: Bool) {
+        isEditing = editing
+        if !editing {
+            onChange(displayedValue)
+            draftValue = nil
+        }
+    }
+
+    private var percentPill: some View {
+        Text(value == nil ? "N/A" : displayedValue.roundedPercentDescription)
+            .font(.caption2.monospacedDigit().weight(.bold))
+            .foregroundStyle(isEnabled ? accent : .secondary)
+            .frame(width: 48, alignment: .trailing)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 3)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(isEnabled ? accent.opacity(isEditing ? 0.24 : 0.13) : Color.secondary.opacity(0.08))
+            )
+    }
+
+    private func nudgeButton(systemImage: String, delta: Double) -> some View {
+        Button {
+            updateValue(displayedValue + delta)
+            draftValue = nil
+        } label: {
+            Image(systemName: systemImage)
+                .font(.system(size: 10, weight: .bold))
+                .frame(width: 16, height: 16)
+        }
+        .buttonStyle(.borderless)
+        .foregroundStyle(isEnabled ? .secondary : .tertiary)
+        .disabled(!isEnabled || value == nil)
+        .accessibilityLabel(delta < 0 ? "Decrease volume" : "Increase volume")
+    }
+}
+
+private struct SmoothVolumeFader: View {
+    let value: Double
+    let isEnabled: Bool
+    let range: ClosedRange<Double>
+    let step: Double
+    let accent: Color
+    let accessibilityLabel: String
+    let accessibilityValue: String
+    let accessibilityHint: String
+    let onEditingChanged: (Bool) -> Void
+    let onChange: (Double) -> Void
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isDragging = false
+
+    private let knobSize: CGFloat = 17
+    private let trackHeight: CGFloat = 8
+
+    var body: some View {
+        GeometryReader { proxy in
+            let width = max(proxy.size.width, knobSize)
+            let trackWidth = max(1, width - knobSize)
+            let normalized = normalizedValue(value)
+            let fillWidth = trackWidth * normalized
+
+            ZStack(alignment: .leading) {
+                Capsule(style: .continuous)
+                    .fill(Color.white.opacity(isEnabled ? 0.09 : 0.055))
+                    .frame(width: trackWidth, height: trackHeight)
+                    .offset(x: knobSize / 2)
+
+                Capsule(style: .continuous)
+                    .fill(accent.opacity(isEnabled ? 0.92 : 0.35))
+                    .frame(width: fillWidth, height: trackHeight)
+                    .offset(x: knobSize / 2)
+
+                Circle()
+                    .fill(isEnabled ? Color(nsColor: .controlAccentColor).opacity(0.95) : Color.secondary.opacity(0.55))
+                    .overlay {
+                        Circle()
+                            .fill(Color.white.opacity(isEnabled ? 0.82 : 0.38))
+                            .padding(2)
+                    }
+                    .shadow(color: accent.opacity(isEnabled && isDragging ? 0.42 : 0.22), radius: isDragging ? 7 : 3, x: 0, y: 1)
+                    .frame(width: knobSize, height: knobSize)
+                    .offset(x: fillWidth)
+            }
+            .frame(height: 24, alignment: .center)
+            .contentShape(Rectangle())
+            .gesture(dragGesture(trackWidth: trackWidth))
+            .allowsHitTesting(isEnabled)
+            .animation(faderAnimation, value: value)
+            .animation(faderAnimation, value: isDragging)
+        }
+        .frame(height: 24)
+        .opacity(isEnabled ? 1 : 0.58)
+        .accessibilityElement()
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityValue(accessibilityValue)
+        .accessibilityHint(accessibilityHint)
+        .accessibilityAdjustableAction { direction in
+            guard isEnabled else { return }
+            switch direction {
+            case .increment:
+                onChange(range.snapped(value + step, to: step))
+            case .decrement:
+                onChange(range.snapped(value - step, to: step))
+            @unknown default:
+                break
+            }
+        }
+    }
+
+    private var faderAnimation: Animation? {
+        guard !reduceMotion, !isDragging else { return nil }
+        return .interpolatingSpring(stiffness: 320, damping: 30)
+    }
+
+    private func dragGesture(trackWidth: CGFloat) -> some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { value in
+                guard isEnabled else { return }
+                if !isDragging {
+                    isDragging = true
+                    onEditingChanged(true)
+                }
+                onChange(valueForDragLocation(value.location.x, trackWidth: trackWidth))
+            }
+            .onEnded { value in
+                guard isEnabled else { return }
+                onChange(valueForDragLocation(value.location.x, trackWidth: trackWidth))
+                isDragging = false
+                onEditingChanged(false)
+            }
+    }
+
+    private func valueForDragLocation(_ x: CGFloat, trackWidth: CGFloat) -> Double {
+        guard trackWidth > 0 else { return range.lowerBound }
+        let adjustedX = min(max(x - knobSize / 2, 0), trackWidth)
+        let normalized = Double(adjustedX / trackWidth)
+        let rawValue = range.lowerBound + (range.upperBound - range.lowerBound) * normalized
+        return range.snapped(rawValue, to: step)
+    }
+
+    private func normalizedValue(_ value: Double) -> CGFloat {
+        let clampedValue = range.clamped(value)
+        let span = range.upperBound - range.lowerBound
+        guard span > 0 else { return 0 }
+        return CGFloat((clampedValue - range.lowerBound) / span)
     }
 }
 
 private extension ClosedRange where Bound == Double {
     func clamped(_ value: Double) -> Double {
         Swift.min(Swift.max(value, lowerBound), upperBound)
+    }
+
+    func snapped(_ value: Double, to step: Double) -> Double {
+        let clampedValue = clamped(value)
+        guard step > 0 else { return clampedValue }
+        let snappedValue = lowerBound + ((clampedValue - lowerBound) / step).rounded() * step
+        return clamped((snappedValue * 1_000).rounded() / 1_000)
     }
 }

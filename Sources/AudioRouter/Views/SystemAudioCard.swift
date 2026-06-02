@@ -54,7 +54,6 @@ struct SystemAudioCard: View {
                     isEnabled: output.canSetVolume,
                     systemImage: "speaker.wave.2.fill",
                     accent: .teal,
-                    showsStepButtons: true,
                     onChange: store.setSystemOutputVolume
                 )
 
@@ -72,7 +71,6 @@ struct SystemAudioCard: View {
                     isEnabled: input.canSetVolume,
                     systemImage: "mic.fill",
                     accent: .cyan,
-                    showsStepButtons: true,
                     onChange: store.setInputVolume
                 )
             }

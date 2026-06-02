@@ -27,6 +27,10 @@ extension Double {
         "\(Int((self * 100).rounded()))%"
     }
 
+    var snappedToPercentStep: Double {
+        (self * 100).rounded() / 100
+    }
+
     var balanceDescription: String {
         if abs(self) < 0.01 {
             return "Centered"

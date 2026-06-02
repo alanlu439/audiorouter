@@ -17,8 +17,8 @@ public enum ShortcutAction: String, Codable, CaseIterable, Identifiable {
     public var title: String {
         switch self {
         case .muteSystem: return "Mute / unmute"
-        case .increaseVolume: return "Increase volume"
-        case .decreaseVolume: return "Decrease volume"
+        case .increaseVolume: return "Increase selected track volume"
+        case .decreaseVolume: return "Decrease selected track volume"
         case .nextOutputDevice: return "Next output"
         case .previousOutputDevice: return "Previous output"
         case .muteSelectedApp: return "Mute selected app"
@@ -43,7 +43,7 @@ public enum ShortcutAction: String, Codable, CaseIterable, Identifiable {
     }
 }
 
-public struct ShortcutBinding: Codable {
+public struct ShortcutBinding: Codable, Equatable {
     public var action: ShortcutAction
     public var key: String
     public var modifiers: EventModifiers

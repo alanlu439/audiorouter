@@ -50,6 +50,10 @@ struct AppAudioRowView: View {
     let source: AudioSource
     @ObservedObject var store: AudioRouterStore
 
+    private var isSelected: Bool {
+        store.selectedSourceID == source.id
+    }
+
     var body: some View {
         let route = store.route(for: source)
         VStack(alignment: .leading, spacing: 10) {
@@ -135,6 +139,16 @@ struct AppAudioRowView: View {
                     .foregroundStyle(store.routeStatusIsWarning(for: source) ? .orange : .secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
+        }
+        .padding(8)
+        .background(isSelected ? Color.teal.opacity(0.10) : Color.clear, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(isSelected ? Color.teal.opacity(0.65) : Color.clear, lineWidth: 1.2)
+        }
+        .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .onTapGesture {
+            store.selectedSourceID = source.id
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("\(source.appName), \(source.activityLabel), output \(store.routeOutputName(for: source)), \(store.routeStatus(for: source))")

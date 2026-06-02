@@ -1810,7 +1810,7 @@ private struct StudioChannelStrip: View {
                 .frame(minWidth: 150, maxWidth: .infinity, alignment: .leading)
 
             gainControls
-                .frame(width: 230, alignment: .leading)
+                .frame(width: 246, alignment: .leading)
         }
     }
 
@@ -1903,7 +1903,7 @@ private struct StudioChannelStrip: View {
                 accessibilityHint: store.supportsPerAppVolume ? "Adjusts app route volume" : "Per-app gain requires an audio backend",
                 onChange: { store.setSourceVolume(source: source, volume: $0) }
             )
-            .frame(minWidth: 188, maxWidth: .infinity)
+            .frame(minWidth: 198, maxWidth: .infinity)
             .help(store.supportsPerAppVolume ? "Set source volume" : "Per-app gain requires an audio backend.")
         }
     }

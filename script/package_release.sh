@@ -6,6 +6,9 @@ APP_NAME="AudioRouter"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DIST_DIR="$ROOT_DIR/dist"
 APP_BUNDLE="$DIST_DIR/$APP_NAME.app"
+STAGING_DIR="$DIST_DIR/$APP_NAME-macOS"
+MANUAL_SOURCE="$ROOT_DIR/DOWNLOAD_AND_USE.md"
+MANUAL_NAME="DOWNLOAD_AND_USE.md"
 PUBLIC_ZIP_PATH="$DIST_DIR/$APP_NAME-macOS.zip"
 LOCAL_ZIP_PATH="$DIST_DIR/$APP_NAME-macOS-local-untrusted.zip"
 LEGACY_DMG_PATH="$DIST_DIR/$APP_NAME-macOS.dmg"
@@ -64,7 +67,11 @@ rm -f "$PUBLIC_ZIP_PATH" "$LOCAL_ZIP_PATH" "$LEGACY_DMG_PATH" "$LEGACY_LOCAL_DMG
 create_zip() {
   local output_path="$1"
   rm -f "$output_path"
-  (cd "$DIST_DIR" && /usr/bin/ditto -c -k --sequesterRsrc --keepParent "$APP_NAME.app" "$output_path")
+  rm -rf "$STAGING_DIR"
+  mkdir -p "$STAGING_DIR"
+  /usr/bin/ditto "$APP_BUNDLE" "$STAGING_DIR/$APP_NAME.app"
+  cp "$MANUAL_SOURCE" "$STAGING_DIR/$MANUAL_NAME"
+  (cd "$DIST_DIR" && /usr/bin/ditto -c -k --sequesterRsrc --keepParent "$APP_NAME-macOS" "$output_path")
   /usr/bin/unzip -tq "$output_path" >/dev/null
 }
 

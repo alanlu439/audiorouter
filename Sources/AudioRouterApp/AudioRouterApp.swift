@@ -96,14 +96,14 @@ struct AudioRouterCommands: Commands {
             .keyboardShortcut(store.shortcutManager.shortcut(for: .muteSystem).keyEquivalent,
                               modifiers: store.shortcutManager.shortcut(for: .muteSystem).modifiers)
 
-            Button("Increase Volume") {
-                store.changeSystemVolume(by: 0.05)
+            Button("Increase \(store.selectedSourceVolumeCommandTitle) Volume") {
+                store.changeSelectedSourceVolume(by: 0.01)
             }
             .keyboardShortcut(store.shortcutManager.shortcut(for: .increaseVolume).keyEquivalent,
                               modifiers: store.shortcutManager.shortcut(for: .increaseVolume).modifiers)
 
-            Button("Decrease Volume") {
-                store.changeSystemVolume(by: -0.05)
+            Button("Decrease \(store.selectedSourceVolumeCommandTitle) Volume") {
+                store.changeSelectedSourceVolume(by: -0.01)
             }
             .keyboardShortcut(store.shortcutManager.shortcut(for: .decreaseVolume).keyEquivalent,
                               modifiers: store.shortcutManager.shortcut(for: .decreaseVolume).modifiers)

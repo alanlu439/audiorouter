@@ -6,13 +6,14 @@ func runChecks() throws {
     checkEQPresets()
     try checkPresetPersistence()
     checkShortcutPersistence()
+    try checkSelectedSourceVolumeCommandStep()
     checkDeviceModelIDs()
     checkFocusedOutputFiltering()
     checkRouteBackwardCompatibility()
     try checkRoutingManagerRoutesAndFallback()
     try checkSupportedBackendFailuresStaySaved()
     try checkOutputGroupRoutesFanOut()
-    try checkDeviceAdditionPreservesCurrentOutput()
+    try checkDeviceChangesDoNotSwitchSystemOutput()
     try checkCustomRouteAppPersistence()
     try checkFocusedSourceIconsStayWithConfiguredApps()
     checkUpdateVersionComparison()
@@ -57,9 +58,51 @@ func checkPresetPersistence() throws {
 func checkShortcutPersistence() {
     let suite = UserDefaults(suiteName: "AudioRouterChecks-\(UUID().uuidString)")!
     let manager = ShortcutManager(defaults: suite)
+    precondition(manager.shortcut(for: .increaseVolume).displayValue == "⌘=", "Selected track volume up should default to Command =")
+    precondition(manager.shortcut(for: .decreaseVolume).displayValue == "⌘-", "Selected track volume down should default to Command -")
     manager.update(action: .muteSystem, key: "x", modifiers: [.command])
     let reloaded = ShortcutManager(defaults: suite)
     precondition(reloaded.shortcut(for: .muteSystem).key == "x", "Shortcut key did not persist")
+
+    let oldDefaults = UserDefaults(suiteName: "AudioRouterChecks-\(UUID().uuidString)")!
+    let oldVolumeDefaults = [
+        ShortcutBinding(action: .increaseVolume, key: "=", modifiers: [.command, .option]),
+        ShortcutBinding(action: .decreaseVolume, key: "-", modifiers: [.command, .option])
+    ]
+    oldDefaults.set(try! JSONEncoder().encode(oldVolumeDefaults), forKey: "AudioRouter.Shortcuts")
+    let migrated = ShortcutManager(defaults: oldDefaults)
+    precondition(migrated.shortcut(for: .increaseVolume).displayValue == "⌘=", "Old volume up shortcut should migrate to Command =")
+    precondition(migrated.shortcut(for: .decreaseVolume).displayValue == "⌘-", "Old volume down shortcut should migrate to Command -")
+}
+
+@MainActor
+func checkSelectedSourceVolumeCommandStep() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    let settings = AppSettingsStore(defaults: UserDefaults(suiteName: "AudioRouterChecks-\(UUID().uuidString)")!)
+    settings.demoMode = true
+    let store = AudioRouterStore(
+        settings: settings,
+        audioRoutingManager: AudioRoutingManager(
+            backend: FakeRoutingBackend(),
+            fileURL: directory.appendingPathComponent("routes.json")
+        ),
+        outputGroupsURL: directory.appendingPathComponent("groups.json"),
+        appSourcesURL: directory.appendingPathComponent("sources.json"),
+        hiddenDefaultSourcesURL: directory.appendingPathComponent("hidden-defaults.json"),
+        sourceOrderURL: directory.appendingPathComponent("source-order.json")
+    )
+
+    store.refresh(silent: true)
+    guard let source = store.audioSources.first else {
+        preconditionFailure("Expected a demo source for selected volume command")
+    }
+    store.selectedSourceID = source.id
+    store.setSourceVolume(source: source, volume: 0.50)
+    store.changeSelectedSourceVolume(by: 0.01)
+    precondition(abs((store.audioSources.first { $0.id == source.id }?.volume ?? 0) - 0.51) < 0.0001, "Command = should increase selected track volume by one percent")
+    store.changeSelectedSourceVolume(by: -0.01)
+    precondition(abs((store.audioSources.first { $0.id == source.id }?.volume ?? 0) - 0.50) < 0.0001, "Command - should decrease selected track volume by one percent")
 }
 
 func checkDeviceModelIDs() {
@@ -170,7 +213,7 @@ func checkOutputGroupRoutesFanOut() throws {
 }
 
 @MainActor
-func checkDeviceAdditionPreservesCurrentOutput() throws {
+func checkDeviceChangesDoNotSwitchSystemOutput() throws {
     let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
 
@@ -234,8 +277,8 @@ func checkDeviceAdditionPreservesCurrentOutput() throws {
     ]
     store.refresh(silent: true)
 
-    precondition(deviceManager.defaultOutputSetRequests.contains("speaker"), "Newly added default output should not steal system audio")
-    precondition(store.currentOutput?.uid == "speaker", "AudioRouter should keep the previous output active after device addition")
+    precondition(deviceManager.defaultOutputSetRequests.isEmpty, "AudioRouter should not switch system output during Bluetooth add/remove events")
+    precondition(store.currentOutput?.uid == "airpods", "AudioRouter should reflect macOS's current output instead of forcing another switch")
     precondition(routingManager.route(for: "spotify").outputDeviceID == "speaker", "Existing custom route should remain assigned")
     precondition(routingManager.route(for: "spotify").routeMode == .customOutput, "Existing custom route should not reset on device addition")
 }

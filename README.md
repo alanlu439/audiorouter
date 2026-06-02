@@ -11,8 +11,10 @@ Download the latest stable build from GitHub Releases:
 After downloading:
 
 1. Open `AudioRouter-macOS.zip`.
-2. Move `AudioRouter.app` to `/Applications`.
-3. Open AudioRouter from Applications.
+2. Open the extracted `AudioRouter-macOS` folder.
+3. Read `DOWNLOAD_AND_USE.md` for install, first-run, routing, and shortcut instructions.
+4. Move `AudioRouter.app` to `/Applications`.
+5. Open AudioRouter from Applications.
 
 The public ZIP should contain a Developer ID signed and Apple-notarized app before upload. If macOS says AudioRouter cannot be opened because Apple cannot verify it is free of malware, that file is not a proper public release build. Use the newest GitHub Release once a notarized `AudioRouter-macOS.zip` asset is attached, or build locally from source for development.
 
@@ -24,9 +26,11 @@ Local development bundles in `dist/AudioRouter.app` are ad-hoc signed for testin
 
 1. Download `AudioRouter-macOS.zip` from the latest GitHub Release.
 2. Open the ZIP.
-3. Move `AudioRouter.app` to `/Applications`.
-4. Open `AudioRouter.app`.
-5. Approve the macOS System Audio Recording prompt when AudioRouter asks for routing or meter access.
+3. Open the extracted `AudioRouter-macOS` folder.
+4. Read `DOWNLOAD_AND_USE.md`.
+5. Move `AudioRouter.app` to `/Applications`.
+6. Open `AudioRouter.app`.
+7. Approve the macOS System Audio Recording prompt when AudioRouter asks for routing or meter access.
 
 If macOS shows a malware verification warning, the downloaded app was not Developer ID signed and notarized. Do not publish that ZIP as a public release. For your own development build, right-click `AudioRouter.app`, choose `Open`, then confirm once.
 
@@ -87,11 +91,12 @@ The AudioRouter name, logo, app icon, and branding assets are not licensed for c
 - High-quality experimental route rendering using 32-bit floating-point PCM, source-rate-first playback, high-quality drift compensation, and soft peak limiting for boosted app routes.
 - Experimental group play: route one app to an output group so the captured source is rendered to multiple connected speakers through separate `AudioQueue` outputs.
 - Per-route volume, mute, and live meters while an experimental process-tap route is active.
+- Smoother fader-style volume controls with clean 1% steps, visible percent readouts, and selected-track keyboard gain control with `Command =` and `Command -`.
 - Backend readiness panel in the popover, dashboard, and Advanced settings so the app shows whether routes are ready, live, saved, or waiting for playback.
 - Custom route apps: add running apps from the visual picker or browse for an installed `.app`, then assign that app to an output.
 - Customizable source-app dashboard: hide default source apps, restore defaults, drag to reorder the app list, or add your own route apps visually.
 - First-run visual onboarding with a route setup walkthrough, permission probe, and Privacy Settings shortcut.
-- Smoother device-change handling that waits through Bluetooth/AirPods re-enumeration bursts before marking a route missing, and preserves the current system output when a newly added device tries to become default.
+- Smoother device-change handling that waits through Bluetooth/AirPods re-enumeration bursts before marking a route missing, without forcing another system-output switch during connect or disconnect events.
 - Menu bar mini mixer for quick system and app volume/mute controls.
 - Route health diagnostics showing app detection, playback activity, output availability, backend readiness, and exact failure reasons.
 - VoiceOver-friendly labels, values, hints, keyboard commands, and Reduce Motion-aware meters across the main audio controls.
@@ -192,6 +197,8 @@ LOCAL_TEST_ZIP=1 ./script/package_release.sh
 
 That creates `dist/AudioRouter-macOS-local-untrusted.zip`. Do not upload that file to GitHub Releases. The updater and README download link use only `AudioRouter-macOS.zip`, which should be the notarized public asset.
 
+Each release ZIP extracts to an `AudioRouter-macOS` folder containing `AudioRouter.app` and `DOWNLOAD_AND_USE.md` so users have install and first-run instructions directly inside the download.
+
 ## Build From Source
 
 Use this path if you want to build AudioRouter locally instead of using the release download.
@@ -220,7 +227,7 @@ The script builds the SwiftPM product, stages `dist/AudioRouter.app`, writes the
 6. Use the Route Builder, pick an output from an app row, or drag the app card onto an output device card.
 7. When macOS asks for System Audio Recording permission, allow AudioRouter.
 8. If a route starts successfully, the route badge changes to `Live` and the meter begins moving.
-9. Use the per-app volume and mute controls on the source card to adjust that route.
+9. Select a route/app row, then press `Command =` or `Command -` to adjust that track's gain by exactly 1% per press. The source card fader and mute button also work when the route backend supports per-app control.
 10. Use `Follow System Output` to remove a custom route and send the app back to the normal system output.
 
 If the backend panel says `Saved Only`, leave the source app playing and click `Retry Route`. If it says `Requires Backend`, the chosen app/device pair could not be made live through public Core Audio process taps, but the route preference is saved for a future routing backend.

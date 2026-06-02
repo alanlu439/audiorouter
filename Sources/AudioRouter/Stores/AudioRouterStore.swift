@@ -45,8 +45,8 @@ public final class AudioRouterStore: ObservableObject {
     private var pendingRoutePreparationTasks: [String: Task<Void, Never>] = [:]
     private var meterPhase: Double = 0
     private var lastRefreshUsedDemoMode: Bool?
-    private var stableSystemOutputUID: String?
     private var autoRetriedRouteSignatures: Set<String> = []
+    private var deviceTopologySettlingUntil: Date?
     private var cancellables: Set<AnyCancellable> = []
     private let outputGroupsURL: URL
     private let appSourcesURL: URL
@@ -59,8 +59,9 @@ public final class AudioRouterStore: ObservableObject {
     private let refreshInterval: TimeInterval = 18
     private let meterInterval: TimeInterval = 0.10
     private let meterPublishThreshold = 0.005
-    private let deviceVolumeCommitInterval: TimeInterval = 0.045
+    private let deviceVolumeCommitInterval: TimeInterval = 0.10
     private let deviceDisconnectGraceInterval: TimeInterval = 12
+    private let deviceChangeRouteRetrySuppressionInterval: TimeInterval = 8
 
     public init(
         deviceManager: AudioDeviceManaging = AudioDeviceService(),
@@ -357,7 +358,7 @@ public final class AudioRouterStore: ObservableObject {
         do {
             let usingDemoMode = settings.demoMode
             let previousOutputUIDs = Self.aliveOutputUIDs(from: devices)
-            let previousDefaultOutputUID = stableSystemOutputUID ?? Self.defaultOutputUID(from: devices)
+            let hadDeviceSnapshot = lastRefreshUsedDemoMode != nil || !devices.isEmpty
             var refreshedDevices: [AudioDevice]
             if usingDemoMode {
                 deviceObservation?.cancel()
@@ -369,17 +370,11 @@ public final class AudioRouterStore: ObservableObject {
                 }
             } else {
                 refreshedDevices = try deviceManager.refreshDevices()
-                refreshedDevices = try preserveCurrentOutputWhenDeviceIsAdded(
-                    refreshedDevices,
-                    previousOutputUIDs: previousOutputUIDs,
-                    previousDefaultOutputUID: previousDefaultOutputUID
-                )
             }
-            updateStableSystemOutputUID(
-                from: refreshedDevices,
-                previousOutputUIDs: previousOutputUIDs,
-                previousDefaultOutputUID: previousDefaultOutputUID
-            )
+            let currentOutputUIDs = Self.aliveOutputUIDs(from: refreshedDevices)
+            if hadDeviceSnapshot, currentOutputUIDs != previousOutputUIDs {
+                noteDeviceTopologyIsSettling()
+            }
             if refreshedDevices != devices {
                 devices = refreshedDevices
             }
@@ -394,7 +389,6 @@ public final class AudioRouterStore: ObservableObject {
             if meteringNote != nextMeteringNote {
                 meteringNote = nextMeteringNote
             }
-            let currentOutputUIDs = Self.aliveOutputUIDs(from: devices)
             for disconnectedUID in previousOutputUIDs.subtracting(currentOutputUIDs) {
                 scheduleDeviceMissingCheck(for: disconnectedUID)
             }
@@ -409,6 +403,7 @@ public final class AudioRouterStore: ObservableObject {
             if refreshedSources != audioSources {
                 audioSources = refreshedSources
             }
+            ensureSelectedSourceStillExists()
             retryReadySavedRoutes(using: refreshedSources)
             if !silent || availableAppCandidates.isEmpty {
                 updateAvailableAppCandidates()
@@ -504,7 +499,7 @@ public final class AudioRouterStore: ObservableObject {
     }
 
     public func setDeviceVolume(_ device: AudioDevice, volume: Double) {
-        let clamped = volume.clampedUnit
+        let clamped = volume.clampedUnit.snappedToPercentStep
         devices = devices.map { $0.id == device.id ? copyDevice($0, volume: clamped) : $0 }
         if settings.demoMode {
             return
@@ -603,6 +598,24 @@ public final class AudioRouterStore: ObservableObject {
     public func changeSystemVolume(by delta: Double) {
         guard let output = currentOutput else { return }
         setDeviceVolume(output, volume: (output.volume ?? 0.5) + delta)
+    }
+
+    public func changeSelectedSourceVolume(by delta: Double) {
+        ensureSelectedSourceStillExists()
+        guard let source = selectedSource else {
+            showUnsupportedNote("Select an app route before changing track volume.")
+            return
+        }
+        guard supportsPerAppVolume else {
+            showUnsupportedNote("Per-app gain requires a live audio route or supported routing backend.")
+            return
+        }
+        setSourceVolume(source: source, volume: source.volume + delta)
+    }
+
+    public var selectedSourceVolumeCommandTitle: String {
+        guard let selectedSource else { return "Selected Track" }
+        return selectedSource.appName
     }
 
     public func switchToNextOutputDevice() {
@@ -770,7 +783,7 @@ public final class AudioRouterStore: ObservableObject {
 
     public func setSourceVolume(source: AudioSource, volume: Double) {
         selectedSourceID = source.id
-        let clamped = max(0, min(1.5, volume))
+        let clamped = max(0, min(1.5, volume)).snappedToPercentStep
         audioRoutingManager.setSourceVolume(sourceID: source.id, volume: clamped, persist: false)
         updateAudioSource(source.id) { current in
             current.volume = clamped
@@ -981,11 +994,12 @@ public final class AudioRouterStore: ObservableObject {
     }
 
     public func setOutputGroupVolume(_ group: OutputDeviceGroup, deviceUID: String, volume: Double) {
+        let adjustedVolume = volume.clampedUnit.snappedToPercentStep
         updateOutputGroup(group.id) { current in
-            current.perDeviceVolumes[deviceUID] = volume.clampedUnit
+            current.perDeviceVolumes[deviceUID] = adjustedVolume
         }
         if let device = outputDevices.first(where: { $0.uid == deviceUID }), device.canSetVolume {
-            setDeviceVolume(device, volume: volume)
+            setDeviceVolume(device, volume: adjustedVolume)
         }
     }
 
@@ -1360,11 +1374,24 @@ public final class AudioRouterStore: ObservableObject {
         }
     }
 
+    private var selectedSource: AudioSource? {
+        guard let selectedSourceID else { return nil }
+        return audioSources.first { $0.id == selectedSourceID }
+    }
+
+    private func ensureSelectedSourceStillExists() {
+        if let selectedSourceID,
+           audioSources.contains(where: { $0.id == selectedSourceID }) {
+            return
+        }
+        selectedSourceID = audioSources.first?.id
+    }
+
     private func scheduleSourceVolumeCommit(sourceID: String, volume: Double) {
         pendingSourceVolumes[sourceID] = volume
         pendingSourceVolumeTasks[sourceID]?.cancel()
         pendingSourceVolumeTasks[sourceID] = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 120_000_000)
+            try? await Task.sleep(nanoseconds: 180_000_000)
             guard !Task.isCancelled else { return }
             await MainActor.run { [weak self] in
                 self?.audioRoutingManager.setSourceVolume(sourceID: sourceID, volume: volume, persist: true)
@@ -1435,6 +1462,7 @@ public final class AudioRouterStore: ObservableObject {
         guard !settings.demoMode, deviceObservation == nil else { return }
         deviceObservation = deviceManager.observeDeviceChanges { [weak self] in
             Task { @MainActor [weak self] in
+                self?.noteDeviceTopologyIsSettling()
                 self?.refresh(silent: true)
                 self?.refreshAfterDelay(interval: 1.8)
             }
@@ -1459,59 +1487,26 @@ public final class AudioRouterStore: ObservableObject {
         }
     }
 
-    private func preserveCurrentOutputWhenDeviceIsAdded(
-        _ refreshedDevices: [AudioDevice],
-        previousOutputUIDs: Set<String>,
-        previousDefaultOutputUID: String?
-    ) throws -> [AudioDevice] {
-        guard let previousDefaultOutputUID else {
-            return refreshedDevices
-        }
-
-        let currentOutputUIDs = Self.aliveOutputUIDs(from: refreshedDevices)
-        let addedOutputUIDs = currentOutputUIDs.subtracting(previousOutputUIDs)
-        let outputSetChanged = currentOutputUIDs != previousOutputUIDs
-        let currentDefaultWasAdded = Self.defaultOutputUID(from: refreshedDevices).map { addedOutputUIDs.contains($0) } ?? false
-        let preservedOutputReappeared = addedOutputUIDs.contains(previousDefaultOutputUID)
-            || !previousOutputUIDs.contains(previousDefaultOutputUID)
-
-        guard outputSetChanged,
-              currentOutputUIDs.contains(previousDefaultOutputUID),
-              let currentDefaultOutputUID = Self.defaultOutputUID(from: refreshedDevices),
-              currentDefaultOutputUID != previousDefaultOutputUID,
-              currentDefaultWasAdded || preservedOutputReappeared else {
-            return refreshedDevices
-        }
-
-        try deviceManager.setDefaultDevice(uid: previousDefaultOutputUID, kind: .output)
-        return try deviceManager.refreshDevices()
-    }
-
-    private func updateStableSystemOutputUID(
-        from refreshedDevices: [AudioDevice],
-        previousOutputUIDs: Set<String>,
-        previousDefaultOutputUID: String?
-    ) {
-        guard let currentDefaultOutputUID = Self.defaultOutputUID(from: refreshedDevices) else { return }
-        let currentOutputUIDs = Self.aliveOutputUIDs(from: refreshedDevices)
-        let addedOutputUIDs = currentOutputUIDs.subtracting(previousOutputUIDs)
-
-        if let previousDefaultOutputUID,
-           currentDefaultOutputUID != previousDefaultOutputUID,
-           (!currentOutputUIDs.contains(previousDefaultOutputUID) || addedOutputUIDs.contains(currentDefaultOutputUID)) {
-            stableSystemOutputUID = previousDefaultOutputUID
+    private func noteDeviceTopologyIsSettling() {
+        guard !settings.demoMode else { return }
+        let nextSettledAt = Date().addingTimeInterval(deviceChangeRouteRetrySuppressionInterval)
+        if let current = deviceTopologySettlingUntil, current > nextSettledAt {
             return
         }
+        deviceTopologySettlingUntil = nextSettledAt
+    }
 
-        stableSystemOutputUID = currentDefaultOutputUID
+    private var isDeviceTopologySettling: Bool {
+        guard let settledAt = deviceTopologySettlingUntil else { return false }
+        if settledAt > Date() {
+            return true
+        }
+        deviceTopologySettlingUntil = nil
+        return false
     }
 
     private static func aliveOutputUIDs(from devices: [AudioDevice]) -> Set<String> {
         Set(devices.filter { $0.kind == .output && $0.isAlive }.map(\.uid))
-    }
-
-    private static func defaultOutputUID(from devices: [AudioDevice]) -> String? {
-        devices.first { $0.kind == .output && $0.isDefault && $0.isAlive }?.uid
     }
 
     private func saveOutputGroups() {
@@ -1819,7 +1814,11 @@ public final class AudioRouterStore: ObservableObject {
     }
 
     private func retryReadySavedRoutes(using sources: [AudioSource]) {
-        guard !settings.demoMode, audioRoutingManager.supportsTruePerAppRouting else { return }
+        guard !settings.demoMode,
+              audioRoutingManager.supportsTruePerAppRouting,
+              !isDeviceTopologySettling else {
+            return
+        }
 
         for source in sources {
             let route = audioRoutingManager.route(for: source.id)

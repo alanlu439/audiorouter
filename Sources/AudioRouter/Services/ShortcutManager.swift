@@ -10,7 +10,13 @@ public final class ShortcutManager: ObservableObject {
         if let data = defaults.data(forKey: key),
            let decoded = try? JSONDecoder().decode([ShortcutBinding].self, from: data),
            !decoded.isEmpty {
-            shortcuts = decoded
+            let migrated = Self.migratedShortcutDefaults(decoded)
+            shortcuts = migrated
+            if migrated != decoded {
+                if let data = try? JSONEncoder().encode(migrated) {
+                    defaults.set(data, forKey: key)
+                }
+            }
         } else {
             shortcuts = Self.defaultShortcuts
         }
@@ -46,8 +52,8 @@ public final class ShortcutManager: ObservableObject {
 
     public static let defaultShortcuts: [ShortcutBinding] = [
         ShortcutBinding(action: .muteSystem, key: "m", modifiers: [.command, .option]),
-        ShortcutBinding(action: .increaseVolume, key: "=", modifiers: [.command, .option]),
-        ShortcutBinding(action: .decreaseVolume, key: "-", modifiers: [.command, .option]),
+        ShortcutBinding(action: .increaseVolume, key: "=", modifiers: [.command]),
+        ShortcutBinding(action: .decreaseVolume, key: "-", modifiers: [.command]),
         ShortcutBinding(action: .nextOutputDevice, key: "]", modifiers: [.command, .option]),
         ShortcutBinding(action: .previousOutputDevice, key: "[", modifiers: [.command, .option]),
         ShortcutBinding(action: .muteSelectedApp, key: "s", modifiers: [.command, .option]),
@@ -56,4 +62,17 @@ public final class ShortcutManager: ObservableObject {
         ShortcutBinding(action: .applyPreset3, key: "3", modifiers: [.command, .option]),
         ShortcutBinding(action: .openPopover, key: "a", modifiers: [.command, .option])
     ]
+
+    private static func migratedShortcutDefaults(_ bindings: [ShortcutBinding]) -> [ShortcutBinding] {
+        bindings.map { binding in
+            switch binding.action {
+            case .increaseVolume where binding.key == "=" && binding.modifiers == [.command, .option]:
+                return ShortcutBinding(action: .increaseVolume, key: "=", modifiers: [.command])
+            case .decreaseVolume where binding.key == "-" && binding.modifiers == [.command, .option]:
+                return ShortcutBinding(action: .decreaseVolume, key: "-", modifiers: [.command])
+            default:
+                return binding
+            }
+        }
+    }
 }

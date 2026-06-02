@@ -67,6 +67,9 @@ public struct MenuBarPopoverView: View {
             syncOutputIfNeeded()
         }
         .onChange(of: selectedSourceID) { _, _ in
+            if !selectedSourceID.isEmpty {
+                store.selectedSourceID = selectedSourceID
+            }
             syncOutputFromSelectedSource()
         }
     }
@@ -406,6 +409,9 @@ public struct MenuBarPopoverView: View {
         if selectedSourceID.isEmpty || !store.audioSources.contains(where: { $0.id == selectedSourceID }) {
             selectedSourceID = store.selectedSourceID ?? store.audioSources.first?.id ?? ""
         }
+        if !selectedSourceID.isEmpty {
+            store.selectedSourceID = selectedSourceID
+        }
         syncOutputIfNeeded()
     }
 
@@ -434,6 +440,10 @@ public struct MenuBarPopoverView: View {
 private struct MenuRouteRow: View {
     let source: AudioSource
     @ObservedObject var store: AudioRouterStore
+
+    private var isSelected: Bool {
+        store.selectedSourceID == source.id
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
@@ -493,10 +503,20 @@ private struct MenuRouteRow: View {
             }
         }
         .padding(10)
-        .background(Color.white.opacity(0.052), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .background(
+            (isSelected ? Color.teal.opacity(0.12) : Color.white.opacity(0.052)),
+            in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+        )
         .overlay {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(store.statusStyle(for: source).foreground.opacity(0.16), lineWidth: 1)
+                .stroke(
+                    isSelected ? Color.teal.opacity(0.65) : store.statusStyle(for: source).foreground.opacity(0.16),
+                    lineWidth: isSelected ? 1.4 : 1
+                )
+        }
+        .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .onTapGesture {
+            store.selectedSourceID = source.id
         }
         .help(store.routeDiagnostic(for: source) ?? "Route is ready.")
         .accessibilityElement(children: .contain)

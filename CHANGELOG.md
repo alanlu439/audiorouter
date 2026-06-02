@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.1.0 - 2026-06-02
+
+### Selected Track Control
+
+- Added selected-track gain control: click an app or route row, then press Command-= or Command-- to adjust that source by exactly 1% per press.
+- Reworked app, device, and group gain controls into smoother fader-style controls with cleaner percent readouts.
+- Removed the extra native slider track artifact under gain controls for a quieter pro-audio layout.
+- Snapped saved volume values to clean 1% steps to avoid noisy decimal drift.
+
+### Performance And Device Stability
+
+- Debounced app-route volume saves and throttled Core Audio device-volume writes to reduce UI lag while dragging.
+- Stopped bundle/package builds from quitting a running AudioRouter instance unless the script is explicitly launching or verifying the app.
+- Prevented AudioRouter from forcing the old system output back when Bluetooth devices such as AirPods connect or disconnect.
+- Added a short device-topology settling window so automatic route retries do not interrupt audio during Bluetooth, AirPlay, or USB device changes.
+
+### Download And Onboarding
+
+- Added `DOWNLOAD_AND_USE.md` to the release ZIP with install, first-run, routing, shortcut, and troubleshooting instructions.
+- Updated release packaging so ZIP downloads extract into an `AudioRouter-macOS` folder containing both `AudioRouter.app` and the manual.
+- Added regression checks for selected-source volume keyboard commands and non-disruptive device-change handling.
+
 ## 1.0.3 - 2026-06-01
 
 ### Routing And Group Play
