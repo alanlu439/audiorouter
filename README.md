@@ -14,11 +14,11 @@ After downloading:
 2. Open the extracted `AudioRouter-macOS` folder.
 3. Read `DOWNLOAD_AND_USE.md` for install, first-run, routing, and shortcut instructions.
 4. Move `AudioRouter.app` to `/Applications`.
-5. Open AudioRouter from Applications.
+5. Control-click or right-click `AudioRouter.app`, choose `Open`, then confirm.
 
-The public ZIP should contain a Developer ID signed and Apple-notarized app before upload. If macOS says AudioRouter cannot be opened because Apple cannot verify it is free of malware, that file is not a proper public release build. Use the newest GitHub Release once a notarized `AudioRouter-macOS.zip` asset is attached, or build locally from source for development.
+The current public ZIP is not Apple-notarized yet. On first launch, macOS can show a verification warning. Use the Control-click/right-click `Open` flow above, or open `System Settings` -> `Privacy & Security` -> `Open Anyway` if macOS still blocks it. Keep Gatekeeper enabled.
 
-Local development bundles in `dist/AudioRouter.app` are ad-hoc signed for testing and can trigger Gatekeeper. They are not the same as a public notarized release download.
+Local development bundles in `dist/AudioRouter.app` are also ad-hoc signed for testing and can trigger the same first-launch warning.
 
 ## How To Run AudioRouter
 
@@ -29,10 +29,11 @@ Local development bundles in `dist/AudioRouter.app` are ad-hoc signed for testin
 3. Open the extracted `AudioRouter-macOS` folder.
 4. Read `DOWNLOAD_AND_USE.md`.
 5. Move `AudioRouter.app` to `/Applications`.
-6. Open `AudioRouter.app`.
-7. Approve the macOS System Audio Recording prompt when AudioRouter asks for routing or meter access.
+6. Control-click or right-click `AudioRouter.app`.
+7. Choose `Open`, then confirm.
+8. Approve the macOS System Audio Recording prompt when AudioRouter asks for routing or meter access.
 
-If macOS shows a malware verification warning, the downloaded app was not Developer ID signed and notarized. Do not publish that ZIP as a public release. For your own development build, right-click `AudioRouter.app`, choose `Open`, then confirm once.
+If macOS still blocks the app, open `System Settings` -> `Privacy & Security`, click `Open Anyway` beside the AudioRouter warning, then Control-click `AudioRouter.app` and choose `Open` again.
 
 ### Run from source
 
@@ -178,7 +179,7 @@ AudioRouter can check GitHub Releases from the app, auto-fetch the newest ZIP wh
 
 This is a lightweight public-release updater, not a silent in-place installer. The Install button opens the downloaded ZIP so you can move the app to Applications. Future work can replace it with Sparkle once a Developer ID signing and update-feed workflow is ready.
 
-Public release builds produce a ZIP only and refuse to create `AudioRouter-macOS.zip` unless Developer ID signing and Apple notarization are configured:
+Public release builds produce a ZIP only. The recommended path is Developer ID signing and Apple notarization:
 
 ```bash
 export DEVELOPER_ID_APPLICATION="Developer ID Application: Your Name (TEAMID)"
@@ -189,13 +190,21 @@ export NOTARIZE=1
 
 `NOTARYTOOL_PROFILE` should be created with `xcrun notarytool store-credentials`. The script signs the app with `DEVELOPER_ID_APPLICATION`, submits a ZIP to Apple's notary service, staples the notarization ticket to the app, validates the staple, runs Gatekeeper assessment with `spctl`, then recreates the final ZIP with the stapled app inside.
 
+To intentionally publish the current unnotarized ZIP, use:
+
+```bash
+ALLOW_UNNOTARIZED_PUBLIC_ZIP=1 ./script/package_release.sh
+```
+
+That creates `dist/AudioRouter-macOS.zip` and includes `DOWNLOAD_AND_USE.md` with the first-launch Control-click/Open instructions. Users can run it, but macOS can show an Apple verification warning because the app is not notarized yet.
+
 For a local-only test image that is expected to be blocked after download, use:
 
 ```bash
 LOCAL_TEST_ZIP=1 ./script/package_release.sh
 ```
 
-That creates `dist/AudioRouter-macOS-local-untrusted.zip`. Do not upload that file to GitHub Releases. The updater and README download link use only `AudioRouter-macOS.zip`, which should be the notarized public asset.
+That creates `dist/AudioRouter-macOS-local-untrusted.zip`. Do not upload that file to GitHub Releases. The updater and README download link use only `AudioRouter-macOS.zip`.
 
 Each release ZIP extracts to an `AudioRouter-macOS` folder containing `AudioRouter.app` and `DOWNLOAD_AND_USE.md` so users have install and first-run instructions directly inside the download.
 

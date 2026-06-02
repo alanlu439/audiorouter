@@ -7,10 +7,20 @@ This file is included with the AudioRouter download ZIP.
 1. Open `AudioRouter-macOS.zip`.
 2. Open the extracted folder.
 3. Move `AudioRouter.app` to `/Applications`.
-4. Open `AudioRouter.app`.
-5. If macOS asks for System Audio Recording permission, approve AudioRouter.
+4. Control-click or right-click `AudioRouter.app`.
+5. Choose `Open`.
+6. Click `Open` again when macOS asks whether you want to open it.
+7. If macOS asks for System Audio Recording permission, approve AudioRouter.
 
-If macOS says it cannot verify AudioRouter is free of malware, the downloaded app was not Developer ID signed and notarized. Use the newest GitHub Release with a notarized `AudioRouter-macOS.zip`, or build locally from source for development.
+AudioRouter's current public ZIP is not Apple-notarized yet. That means double-clicking the app the first time can show an Apple verification warning. Use the Control-click/right-click `Open` flow above for the first launch. Do not disable Gatekeeper.
+
+If macOS still blocks the app:
+
+1. Open `System Settings`.
+2. Go to `Privacy & Security`.
+3. Scroll to the Security message for AudioRouter.
+4. Click `Open Anyway`.
+5. Return to `/Applications`, Control-click `AudioRouter.app`, and choose `Open`.
 
 ## Quick Start
 
@@ -21,6 +31,8 @@ If macOS says it cannot verify AudioRouter is free of malware, the downloaded ap
 5. Press `Command =` to raise the selected track by exactly 1%.
 6. Press `Command -` to lower the selected track by exactly 1%.
 7. Use `Follow System Output` to send that app back to the normal macOS output.
+
+AudioRouter cannot approve macOS privacy prompts automatically. If macOS asks for permission, the user has to approve it manually.
 
 ## What The Badges Mean
 
@@ -35,7 +47,7 @@ If macOS says it cannot verify AudioRouter is free of malware, the downloaded ap
 - AudioRouter can only use devices macOS already sees.
 - Some apps or protected streams may not expose routeable audio through public APIs.
 - Bluetooth and AirPlay devices can have latency or drift, especially in multi-speaker groups.
-- For reliable public downloads, the ZIP must contain a Developer ID signed and Apple-notarized app.
+- The current public ZIP can require the first-launch right-click flow because it is not Apple-notarized yet.
 
 ## More Help
 
