@@ -71,42 +71,24 @@ struct AudioRouterCommands: Commands {
     @ObservedObject var store: AudioRouterStore
 
     var body: some Commands {
+        CommandGroup(replacing: .newItem) {}
+        CommandGroup(replacing: .saveItem) {}
+        CommandGroup(replacing: .printItem) {}
+
         CommandGroup(after: .appInfo) {
-            Button("Refresh Audio Devices") {
+            Button("Check for Updates...") {
+                store.checkForUpdates()
+            }
+            .keyboardShortcut("u", modifiers: [.command, .shift])
+        }
+
+        CommandMenu("Routing") {
+            Button("Refresh Devices") {
                 store.refresh()
             }
             .keyboardShortcut("r", modifiers: [.command])
 
-            Button("Check for Updates") {
-                store.checkForUpdates()
-            }
-            .keyboardShortcut("u", modifiers: [.command, .shift])
-            Button("Fetch Latest ZIP") {
-                store.openUpdateDownload()
-            }
-            Button("Install Downloaded Update") {
-                store.installDownloadedUpdate()
-            }
-        }
-
-        CommandMenu("AudioRouter") {
-            Button("Mute or Unmute") {
-                store.toggleSystemMute()
-            }
-            .keyboardShortcut(store.shortcutManager.shortcut(for: .muteSystem).keyEquivalent,
-                              modifiers: store.shortcutManager.shortcut(for: .muteSystem).modifiers)
-
-            Button("Increase \(store.selectedSourceVolumeCommandTitle) Volume") {
-                store.changeSelectedSourceVolume(by: 0.01)
-            }
-            .keyboardShortcut(store.shortcutManager.shortcut(for: .increaseVolume).keyEquivalent,
-                              modifiers: store.shortcutManager.shortcut(for: .increaseVolume).modifiers)
-
-            Button("Decrease \(store.selectedSourceVolumeCommandTitle) Volume") {
-                store.changeSelectedSourceVolume(by: -0.01)
-            }
-            .keyboardShortcut(store.shortcutManager.shortcut(for: .decreaseVolume).keyEquivalent,
-                              modifiers: store.shortcutManager.shortcut(for: .decreaseVolume).modifiers)
+            Divider()
 
             Button("Next Output Device") {
                 store.switchToNextOutputDevice()
@@ -119,6 +101,14 @@ struct AudioRouterCommands: Commands {
             }
             .keyboardShortcut(store.shortcutManager.shortcut(for: .previousOutputDevice).keyEquivalent,
                               modifiers: store.shortcutManager.shortcut(for: .previousOutputDevice).modifiers)
+        }
+
+        CommandMenu("Volume") {
+            Button("Mute System Output") {
+                store.toggleSystemMute()
+            }
+            .keyboardShortcut(store.shortcutManager.shortcut(for: .muteSystem).keyEquivalent,
+                              modifiers: store.shortcutManager.shortcut(for: .muteSystem).modifiers)
 
             Button("Mute Selected App") {
                 store.toggleSelectedSourceMute()
@@ -126,6 +116,22 @@ struct AudioRouterCommands: Commands {
             .keyboardShortcut(store.shortcutManager.shortcut(for: .muteSelectedApp).keyEquivalent,
                               modifiers: store.shortcutManager.shortcut(for: .muteSelectedApp).modifiers)
 
+            Divider()
+
+            Button("Increase \(store.selectedSourceVolumeCommandTitle) Volume") {
+                store.changeSelectedSourceVolume(by: 0.01)
+            }
+            .keyboardShortcut(store.shortcutManager.shortcut(for: .increaseVolume).keyEquivalent,
+                              modifiers: store.shortcutManager.shortcut(for: .increaseVolume).modifiers)
+
+            Button("Decrease \(store.selectedSourceVolumeCommandTitle) Volume") {
+                store.changeSelectedSourceVolume(by: -0.01)
+            }
+            .keyboardShortcut(store.shortcutManager.shortcut(for: .decreaseVolume).keyEquivalent,
+                              modifiers: store.shortcutManager.shortcut(for: .decreaseVolume).modifiers)
+        }
+
+        CommandMenu("Setups") {
             Button("Apply Setup 1") {
                 store.applyPreset(at: 0)
             }
@@ -143,12 +149,6 @@ struct AudioRouterCommands: Commands {
             }
             .keyboardShortcut(store.shortcutManager.shortcut(for: .applyPreset3).keyEquivalent,
                               modifiers: store.shortcutManager.shortcut(for: .applyPreset3).modifiers)
-
-            Button("Open Popover Shortcut Note") {
-                store.showUnsupportedNote("SwiftUI MenuBarExtra does not expose a public API to open its popover from a global shortcut. A future AppKit status-item bridge can provide that behavior.")
-            }
-            .keyboardShortcut(store.shortcutManager.shortcut(for: .openPopover).keyEquivalent,
-                              modifiers: store.shortcutManager.shortcut(for: .openPopover).modifiers)
         }
     }
 }
