@@ -2000,16 +2000,18 @@ private struct StudioOutputStrip: View {
             )
             .frame(width: 76, alignment: .leading)
 
-            VolumeSlider(
-                title: "Vol",
+            InlineVolumeSlider(
                 value: device.volume,
                 isEnabled: device.canSetVolume,
-                systemImage: device.kind.systemImage,
-                accent: StudioPalette.teal,
+                systemImage: "slider.horizontal.3",
+                accent: StudioPalette.amber,
+                accessibilityLabel: "\(device.name) output volume",
+                accessibilityHint: device.canSetVolume ? "Adjusts \(device.name) output volume" : "Volume is not supported by this output",
                 onChange: { store.setDeviceVolume(device, volume: $0) }
             )
             .controlSize(.small)
-            .frame(width: 230, alignment: .leading)
+            .frame(width: 246, alignment: .leading)
+            .help(device.canSetVolume ? "Set \(device.name) output volume" : "Volume is not supported by this output.")
 
             outputActions
                 .frame(width: 160, alignment: .leading)
@@ -2786,15 +2788,17 @@ private struct StudioOutputModule: View {
 
             StudioSegmentMeter(level: store.deviceMeters[device.id] ?? 0, segmentCount: 14, tint: StudioPalette.teal)
 
-            VolumeSlider(
-                title: "Vol",
+            InlineVolumeSlider(
                 value: device.volume,
                 isEnabled: device.canSetVolume,
-                systemImage: device.kind.systemImage,
-                accent: StudioPalette.teal,
+                systemImage: "slider.horizontal.3",
+                accent: StudioPalette.amber,
+                accessibilityLabel: "\(device.name) output volume",
+                accessibilityHint: device.canSetVolume ? "Adjusts \(device.name) output volume" : "Volume is not supported by this output",
                 onChange: { store.setDeviceVolume(device, volume: $0) }
             )
             .controlSize(.small)
+            .help(device.canSetVolume ? "Set \(device.name) output volume" : "Volume is not supported by this output.")
 
             HStack(spacing: 8) {
                 Button {

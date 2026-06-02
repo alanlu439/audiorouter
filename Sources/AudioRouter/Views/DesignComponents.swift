@@ -440,11 +440,10 @@ private struct SmoothVolumeFader: View {
                     .offset(x: knobSize / 2)
 
                 Circle()
-                    .fill(isEnabled ? Color(nsColor: .controlAccentColor).opacity(0.95) : Color.secondary.opacity(0.55))
+                    .fill(isEnabled ? Color.white.opacity(0.90) : Color.secondary.opacity(0.55))
                     .overlay {
                         Circle()
-                            .fill(Color.white.opacity(isEnabled ? 0.82 : 0.38))
-                            .padding(2)
+                            .stroke(accent.opacity(isEnabled ? (isDragging ? 0.92 : 0.62) : 0.28), lineWidth: isDragging ? 2 : 1)
                     }
                     .shadow(color: accent.opacity(isEnabled && isDragging ? 0.42 : 0.22), radius: isDragging ? 7 : 3, x: 0, y: 1)
                     .frame(width: knobSize, height: knobSize)
