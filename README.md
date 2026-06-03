@@ -98,7 +98,7 @@ The AudioRouter name, logo, app icon, and branding assets are not licensed for c
 - Backend readiness panel in the popover, dashboard, and Advanced settings so the app shows whether routes are ready, live, saved, or waiting for playback.
 - Custom route apps: add running apps from the visual picker or browse for an installed `.app`, then assign that app to an output.
 - Customizable source-app dashboard: hide default source apps, restore defaults, drag to reorder the app list, or add your own route apps visually.
-- Top-right user profiles with custom names and local profile photos, so saved setups can be separated by person.
+- Top-right user profiles with full display names, so saved setups can be separated by person.
 - First-run visual onboarding with a route setup walkthrough, permission probe, and Privacy Settings shortcut.
 - Smoother device-change handling that waits through Bluetooth/AirPods re-enumeration bursts before marking a route missing, without forcing another system-output switch during connect or disconnect events.
 - Menu bar mini mixer for quick system and app volume/mute controls.
@@ -110,7 +110,7 @@ The AudioRouter name, logo, app icon, and branding assets are not licensed for c
 
 ## Profiles And Setups
 
-Use the profile button in the top-right corner of the main window to switch users, add a profile, rename it, upload a profile photo, or delete the current profile. Profile photos are copied into AudioRouter's local Application Support folder.
+Use the profile button in the top-right corner of the main window to switch users, add a profile, rename it, or delete the current profile. The control displays the active profile's full name so the current setup owner is always visible.
 
 Saved setups in the Setups tab belong to the active profile. Existing setups from older builds are kept under `Default Profile`, and new profiles start with an empty setup list so each user can keep their own preferred routing, EQ, volume, and mute presets.
 

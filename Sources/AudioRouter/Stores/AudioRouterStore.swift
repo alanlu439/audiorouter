@@ -1312,18 +1312,6 @@ public final class AudioRouterStore: ObservableObject {
         userProfileManager.delete(profile)
     }
 
-    public func setPhoto(for profile: UserProfile, sourceURL: URL) {
-        do {
-            try userProfileManager.setPhoto(for: profile, sourceURL: sourceURL)
-        } catch {
-            lastError = "Profile photo could not be saved: \(error.localizedDescription)"
-        }
-    }
-
-    public func removePhoto(for profile: UserProfile) {
-        userProfileManager.removePhoto(for: profile)
-    }
-
     public func saveCurrentSetup() {
         presetManager.savePreset(currentSetupPreset(name: "Setup \(presetManager.presets.count + 1)"))
     }

@@ -1,6 +1,4 @@
-import AppKit
 import AudioRouterCore
-import Combine
 import CoreAudio
 import Foundation
 
@@ -82,10 +80,7 @@ func checkUserProfilePresetScoping() throws {
     let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
 
-    let profileManager = UserProfileManager(
-        fileURL: directory.appendingPathComponent("profiles.json"),
-        photosDirectoryURL: directory.appendingPathComponent("photos", isDirectory: true)
-    )
+    let profileManager = UserProfileManager(fileURL: directory.appendingPathComponent("profiles.json"))
     let presetManager = PresetManager(fileURL: directory.appendingPathComponent("presets.json"))
     presetManager.setActiveProfileID(profileManager.activeProfileID)
 
@@ -122,44 +117,6 @@ func checkUserProfilePresetScoping() throws {
 
     presetManager.setActiveProfileID(UserProfile.defaultProfileID)
     precondition(presetManager.presets.map(\.name) == ["Default Desk"], "Switching profiles should restore that user's presets")
-
-    var publishedChanges = 0
-    let profileChangeCancellable = profileManager.objectWillChange.sink {
-        publishedChanges += 1
-    }
-    let photoSource = directory.appendingPathComponent("large-profile-photo.png")
-    try profilePhotoFixturePNGData(width: 1_200, height: 800).write(to: photoSource)
-    try profileManager.setPhoto(for: secondProfile, sourceURL: photoSource)
-    withExtendedLifetime(profileChangeCancellable) {}
-    precondition(publishedChanges > 0, "Uploading a profile photo should publish a SwiftUI update")
-    precondition(profileManager.activeProfile.photoPath?.hasSuffix(".png") == true, "Uploaded profile photo path should persist on the active profile")
-    precondition(FileManager.default.fileExists(atPath: profileManager.activeProfile.photoPath ?? ""), "Uploaded profile photo should be copied into app storage")
-    if let photoPath = profileManager.activeProfile.photoPath,
-       let savedImage = NSImage(contentsOfFile: photoPath),
-       let representation = savedImage.representations.first as? NSBitmapImageRep {
-        precondition(representation.pixelsWide == 256, "Uploaded profile photo should be resized to a fixed 256px thumbnail")
-        precondition(representation.pixelsHigh == 256, "Uploaded profile photo should be cropped to a fixed square thumbnail")
-    } else {
-        preconditionFailure("Uploaded profile photo should load as a PNG bitmap thumbnail")
-    }
-}
-
-func profilePhotoFixturePNGData(width: Int, height: Int) throws -> Data {
-    let size = NSSize(width: width, height: height)
-    let image = NSImage(size: size)
-    image.lockFocus()
-    NSColor.systemBlue.setFill()
-    NSRect(origin: .zero, size: size).fill()
-    NSColor.systemOrange.setFill()
-    NSBezierPath(ovalIn: NSRect(x: width / 4, y: height / 4, width: width / 2, height: height / 2)).fill()
-    image.unlockFocus()
-
-    guard let tiffData = image.tiffRepresentation,
-          let bitmap = NSBitmapImageRep(data: tiffData),
-          let pngData = bitmap.representation(using: .png, properties: [:]) else {
-        throw CocoaError(.fileWriteUnknown)
-    }
-    return pngData
 }
 
 func checkShortcutPersistence() {

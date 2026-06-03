@@ -4,7 +4,7 @@
 
 ### Profiles
 
-- Added a top-right user profile menu in the main AudioRouter window with profile switching, profile creation, renaming, deletion, and local profile photo upload.
+- Added a top-right user profile menu in the main AudioRouter window with full-name display, profile switching, profile creation, renaming, and deletion.
 - Scoped saved setups to the active profile so different users can keep separate preferred presets on the same Mac.
 
 ### EQ

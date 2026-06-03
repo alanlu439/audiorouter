@@ -121,7 +121,17 @@ public struct MenuBarPopoverView: View {
             Button {
                 openWindow(id: "main")
             } label: {
-                ProfileAvatar(profile: store.activeUserProfile, size: 26)
+                Text(store.activeUserProfile.displayName)
+                    .font(.caption.weight(.semibold))
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 7, style: .continuous)
+                            .stroke(Color.white.opacity(0.14), lineWidth: 1)
+                    }
             }
             .buttonStyle(.plain)
             .help("Open profile settings for \(store.activeUserProfile.displayName)")

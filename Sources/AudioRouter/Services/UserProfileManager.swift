@@ -1,4 +1,3 @@
-import AppKit
 import Foundation
 
 public final class UserProfileManager: ObservableObject {
@@ -11,24 +10,17 @@ public final class UserProfileManager: ObservableObject {
     @Published public private(set) var activeProfileID: UUID
 
     private let fileURL: URL
-    private let photosDirectoryURL: URL
-    private let profilePhotoPixelSize = 256
 
     public convenience init() {
         let profileURL = try! AppSupport.fileURL(named: "user-profiles.json")
-        self.init(
-            fileURL: profileURL,
-            photosDirectoryURL: profileURL.deletingLastPathComponent().appendingPathComponent("Profile Photos", isDirectory: true)
-        )
+        self.init(fileURL: profileURL)
     }
 
     public init(
         fileURL: URL,
-        photosDirectoryURL: URL,
         activeProfileID: UUID = UserProfile.defaultProfileID
     ) {
         self.fileURL = fileURL
-        self.photosDirectoryURL = photosDirectoryURL
         self.activeProfileID = activeProfileID
         load()
     }
@@ -72,39 +64,6 @@ public final class UserProfileManager: ObservableObject {
         save()
     }
 
-    public func setPhoto(for profile: UserProfile, sourceURL: URL) throws {
-        guard profiles.contains(where: { $0.id == profile.id }) else { return }
-        try FileManager.default.createDirectory(
-            at: photosDirectoryURL,
-            withIntermediateDirectories: true
-        )
-
-        let destinationURL = photosDirectoryURL.appendingPathComponent("\(profile.id.uuidString).png")
-        if FileManager.default.fileExists(atPath: destinationURL.path) {
-            try FileManager.default.removeItem(at: destinationURL)
-        }
-        let thumbnailData = try squareThumbnailPNGData(from: sourceURL, pixelSize: profilePhotoPixelSize)
-        try thumbnailData.write(to: destinationURL, options: .atomic)
-
-        updateProfile(profile.id) { profile in
-            profile.photoPath = destinationURL.path
-            profile.updatedAt = Date()
-        }
-        save()
-    }
-
-    public func removePhoto(for profile: UserProfile) {
-        let previousPhotoPath = profiles.first { $0.id == profile.id }?.photoPath
-        updateProfile(profile.id) { profile in
-            profile.photoPath = nil
-            profile.updatedAt = Date()
-        }
-        if let previousPhotoPath, FileManager.default.fileExists(atPath: previousPhotoPath) {
-            try? FileManager.default.removeItem(atPath: previousPhotoPath)
-        }
-        save()
-    }
-
     private func load() {
         if let data = try? Data(contentsOf: fileURL),
            let decoded = try? JSONDecoder().decode(ProfileStore.self, from: data),
@@ -144,40 +103,5 @@ public final class UserProfileManager: ObservableObject {
         var updatedProfiles = profiles
         mutate(&updatedProfiles[index])
         profiles = updatedProfiles
-    }
-
-    private func squareThumbnailPNGData(from sourceURL: URL, pixelSize: Int) throws -> Data {
-        guard let sourceImage = NSImage(contentsOf: sourceURL), sourceImage.size.width > 0, sourceImage.size.height > 0 else {
-            throw CocoaError(.fileReadCorruptFile)
-        }
-
-        let sourceSide = min(sourceImage.size.width, sourceImage.size.height)
-        let sourceRect = NSRect(
-            x: (sourceImage.size.width - sourceSide) / 2,
-            y: (sourceImage.size.height - sourceSide) / 2,
-            width: sourceSide,
-            height: sourceSide
-        )
-        let thumbnailSize = NSSize(width: pixelSize, height: pixelSize)
-        let thumbnail = NSImage(size: thumbnailSize)
-
-        thumbnail.lockFocus()
-        NSColor.clear.setFill()
-        NSRect(origin: .zero, size: thumbnailSize).fill()
-        NSGraphicsContext.current?.imageInterpolation = .high
-        sourceImage.draw(
-            in: NSRect(origin: .zero, size: thumbnailSize),
-            from: sourceRect,
-            operation: .copy,
-            fraction: 1
-        )
-        thumbnail.unlockFocus()
-
-        guard let tiffData = thumbnail.tiffRepresentation,
-              let bitmap = NSBitmapImageRep(data: tiffData),
-              let pngData = bitmap.representation(using: .png, properties: [:]) else {
-            throw CocoaError(.fileWriteUnknown)
-        }
-        return pngData
     }
 }

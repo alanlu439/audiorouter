@@ -1,6 +1,4 @@
-import AppKit
 import SwiftUI
-import UniformTypeIdentifiers
 
 public struct MainWindowView: View {
     @ObservedObject private var store: AudioRouterStore
@@ -147,20 +145,6 @@ private struct UserProfileMenu: View {
                 Label("Rename Profile", systemImage: "pencil")
             }
 
-            Button {
-                choosePhoto()
-            } label: {
-                Label("Upload Photo", systemImage: "photo.badge.plus")
-            }
-
-            if store.activeUserProfile.photoPath != nil {
-                Button {
-                    store.removePhoto(for: store.activeUserProfile)
-                } label: {
-                    Label("Remove Photo", systemImage: "photo.badge.minus")
-                }
-            }
-
             if store.userProfileManager.profiles.count > 1 {
                 Divider()
                 Button(role: .destructive) {
@@ -181,55 +165,31 @@ private struct UserProfileMenu: View {
     private var profileLabel: some View {
         switch style {
         case .full:
-            HStack(spacing: 7) {
-                ProfileAvatar(profile: store.activeUserProfile, size: 28)
-                Text(store.activeUserProfile.displayName)
-                    .font(.caption.weight(.semibold))
-                    .lineLimit(1)
-            }
-            .padding(.leading, 5)
-            .padding(.trailing, 10)
-            .padding(.vertical, 5)
-            .background(.ultraThinMaterial, in: Capsule())
-            .overlay {
-                Capsule()
-                    .stroke(.white.opacity(0.16), lineWidth: 1)
-            }
-            .shadow(color: .black.opacity(0.18), radius: 10, y: 4)
+            Text(store.activeUserProfile.displayName)
+                .font(.caption.weight(.semibold))
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(.ultraThinMaterial, in: Capsule())
+                .overlay {
+                    Capsule()
+                        .stroke(.white.opacity(0.16), lineWidth: 1)
+                }
+                .shadow(color: .black.opacity(0.18), radius: 10, y: 4)
         case .toolbar:
-            HStack(spacing: 6) {
-                ProfileAvatar(profile: store.activeUserProfile, size: 20)
-                    .frame(width: 20, height: 20)
-                Text(store.activeUserProfile.displayName)
-                    .font(.caption.weight(.semibold))
-                    .lineLimit(1)
-                    .frame(maxWidth: 120, alignment: .leading)
-            }
-            .frame(height: 24)
-            .fixedSize(horizontal: true, vertical: true)
-            .padding(.leading, 4)
-            .padding(.trailing, 8)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .stroke(.white.opacity(0.16), lineWidth: 1)
-            }
-            .contentShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
-        }
-    }
-
-    private func choosePhoto() {
-        let panel = NSOpenPanel()
-        panel.title = "Choose Profile Photo"
-        panel.canChooseDirectories = false
-        panel.canChooseFiles = true
-        panel.allowsMultipleSelection = false
-        panel.allowedContentTypes = [.image]
-        panel.begin { response in
-            guard response == .OK, let url = panel.url else { return }
-            Task { @MainActor in
-                store.setPhoto(for: store.activeUserProfile, sourceURL: url)
-            }
+            Text(store.activeUserProfile.displayName)
+                .font(.caption.weight(.semibold))
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+                .padding(.horizontal, 10)
+                .frame(height: 24)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                        .stroke(.white.opacity(0.16), lineWidth: 1)
+                }
+                .contentShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
         }
     }
 }
