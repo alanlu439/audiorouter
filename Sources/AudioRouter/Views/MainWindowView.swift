@@ -52,15 +52,8 @@ public struct MainWindowView: View {
             presentInitialOnboardingIfNeeded()
         }
         .alert("AudioRouter Update Available", isPresented: updatePromptBinding) {
-            if store.updateManager.availableUpdate?.isDownloadable == true {
-                Button("Install ZIP") {
-                    store.installDownloadedUpdate()
-                }
-            } else {
-                Button("View Commit") {
-                    store.openLatestRelease()
-                    store.dismissUpdatePrompt()
-                }
+            Button("Install ZIP") {
+                store.installDownloadedUpdate()
             }
             Button("Later", role: .cancel) {
                 store.dismissUpdatePrompt()
@@ -89,11 +82,7 @@ public struct MainWindowView: View {
 
     private var updatePromptMessage: String {
         if let update = store.updateManager.availableUpdate {
-            if update.isDownloadable {
-                return "AudioRouter \(update.version) has been downloaded. Open the ZIP and move AudioRouter.app to Applications to finish installing."
-            }
-            let commitLabel = update.commitSHA.map(UpdateManager.shortCommit) ?? update.version
-            return "A newer AudioRouter commit \(commitLabel) is available on GitHub. Open the commit to review the update; packaged app ZIPs are still published from GitHub Releases."
+            return "AudioRouter \(update.version) has been downloaded. Open the ZIP and move AudioRouter.app to Applications to finish installing."
         }
         return store.updateManager.message
     }

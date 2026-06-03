@@ -11,50 +11,48 @@ struct EQView: View {
     }
 
     var body: some View {
-        DockCard {
-            VStack(alignment: .leading, spacing: compact ? 12 : 16) {
+        ConsoleFrame {
+            VStack(alignment: .leading, spacing: 12) {
                 header
-                presetGrid
-                curvePreview
-                bandControls
-                actionBar
-                backendNote
+                ConsolePanel(
+                    title: "Equalizer",
+                    systemImage: "slider.vertical.3",
+                    trailing: eqManager.state.selectedPreset.rawValue,
+                    tint: ConsolePalette.teal
+                ) {
+                    VStack(alignment: .leading, spacing: compact ? 12 : 16) {
+                        presetGrid
+                        curvePreview
+                        bandControls
+                        actionBar
+                        backendNote
+                    }
+                }
             }
         }
     }
 
     private var header: some View {
-        HStack(alignment: .center, spacing: 10) {
-            Image(systemName: "waveform.path.ecg")
-                .font(.system(size: 22, weight: .bold))
-                .foregroundStyle(.teal)
-                .frame(width: 42, height: 42)
-                .background(.teal.opacity(0.12), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        ConsolePageHeader(
+            title: "EQ",
+            subtitle: "Shape tone with a 10-band visual equalizer.",
+            systemImage: "waveform.path.ecg",
+            tint: ConsolePalette.teal
+        ) {
+            HStack(spacing: 10) {
+                StatusLabel(text: showBefore ? "Flat Compare" : eqManager.state.selectedPreset.rawValue, status: showBefore ? .simulated : .working)
 
-            VStack(alignment: .leading, spacing: 3) {
-                Text("Equalizer")
-                    .font(.title2.weight(.bold))
-                Text("Shape tone with a longer 10-band visual EQ.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                Toggle("Before", isOn: $showBefore)
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+                    .accessibilityHint("Compares the current EQ curve with a flat response")
             }
-
-            Spacer()
-
-            StatusLabel(text: showBefore ? "Flat Compare" : eqManager.state.selectedPreset.rawValue, status: showBefore ? .simulated : .working)
-
-            Toggle("Before", isOn: $showBefore)
-                .toggleStyle(.switch)
-                .controlSize(.small)
-                .accessibilityHint("Compares the current EQ curve with a flat response")
         }
     }
 
     private var presetGrid: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("PRESETS")
-                .font(.system(size: 9, weight: .heavy, design: .monospaced))
-                .foregroundStyle(.secondary)
+            ConsoleSectionMarker(title: "Presets", detail: "\(EQPreset.allCases.count) curves", tint: ConsolePalette.amber)
 
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 116), spacing: 8)], alignment: .leading, spacing: 8) {
                 ForEach(EQPreset.allCases) { preset in
@@ -73,9 +71,7 @@ struct EQView: View {
     private var curvePreview: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("CURVE PREVIEW")
-                    .font(.system(size: 9, weight: .heavy, design: .monospaced))
-                    .foregroundStyle(.secondary)
+                ConsoleSectionMarker(title: "Curve Preview", detail: "Live shape", tint: ConsolePalette.teal)
                 Spacer()
                 Text(gainRangeSummary)
                     .font(.caption2.monospacedDigit().weight(.semibold))
@@ -90,9 +86,7 @@ struct EQView: View {
     private var bandControls: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("10-BAND CONTROL")
-                    .font(.system(size: 9, weight: .heavy, design: .monospaced))
-                    .foregroundStyle(.secondary)
+                ConsoleSectionMarker(title: "10-Band Control", detail: "Drag to adjust", tint: ConsolePalette.blue)
                 Spacer()
                 Text("-12 dB to +12 dB")
                     .font(.caption2.monospacedDigit().weight(.semibold))
@@ -113,7 +107,7 @@ struct EQView: View {
             }
             .padding(.horizontal, compact ? 8 : 12)
             .padding(.vertical, compact ? 10 : 14)
-            .background(.black.opacity(0.18), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .background(ConsolePalette.inset.opacity(0.80), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .stroke(.white.opacity(0.08), lineWidth: 1)
@@ -190,7 +184,7 @@ private struct EQPresetButton: View {
             .frame(height: 32)
             .frame(maxWidth: .infinity, alignment: .leading)
             .foregroundStyle(isSelected ? .black : .primary)
-            .background(isSelected ? Color.teal : Color.secondary.opacity(0.10), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .background(isSelected ? ConsolePalette.teal : ConsolePalette.inset.opacity(0.85), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .stroke(isSelected ? Color.clear : Color.white.opacity(0.08), lineWidth: 1)
@@ -308,7 +302,7 @@ private struct EQVerticalSlider: View {
             )
         }
         .frame(width: 42, height: height)
-        .background(.secondary.opacity(0.06), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .background(ConsolePalette.inset.opacity(0.72), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .stroke(.white.opacity(0.07), lineWidth: 1)
@@ -346,7 +340,7 @@ private struct EQCurveView: View {
         GeometryReader { geometry in
             ZStack {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(.black.opacity(0.20))
+                    .fill(ConsolePalette.inset.opacity(0.85))
 
                 EQGrid()
                     .stroke(.white.opacity(0.07), lineWidth: 1)

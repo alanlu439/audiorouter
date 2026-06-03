@@ -10,56 +10,102 @@ struct PresetsView: View {
     @State private var showImport = false
 
     var body: some View {
-        DockCard {
-            SectionHeader(
-                title: "Setups",
-                systemImage: "square.stack.3d.up",
-                trailing: "\(store.activeUserProfile.displayName) · \(store.presetManager.presets.count)"
-            )
+        ConsoleFrame {
+            VStack(alignment: .leading, spacing: 12) {
+                ConsolePageHeader(
+                    title: "Setups",
+                    subtitle: "Saved routing scenes for \(store.activeUserProfile.displayName).",
+                    systemImage: "square.stack.3d.up",
+                    tint: ConsolePalette.amber
+                ) {
+                    StatusLabel(text: "\(store.presetManager.presets.count) saved", status: store.presetManager.presets.isEmpty ? .savedOnly : .working)
+                }
 
-            HStack {
-                Button {
-                    store.saveCurrentSetup()
-                } label: {
-                    Label("Save Current Setup", systemImage: "plus.circle.fill")
-                }
-                .buttonStyle(.borderedProminent)
-                Button {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(store.presetManager.exportJSON(), forType: .string)
-                } label: {
-                    Label("Export JSON", systemImage: "square.and.arrow.up")
-                }
-                Button {
-                    showImport.toggle()
-                } label: {
-                    Label("Import JSON", systemImage: "square.and.arrow.down")
-                }
-            }
+                ConsolePanel(
+                    title: "Saved Setups",
+                    systemImage: "square.stack.3d.up",
+                    trailing: "\(store.presetManager.presets.count)",
+                    tint: ConsolePalette.amber
+                ) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        actionBar
 
-            if showImport {
-                TextEditor(text: $importText)
-                    .frame(height: 90)
-                    .background(.black.opacity(0.12), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                Button("Import Setups") {
-                    store.presetManager.importJSON(importText)
-                    showImport = false
-                    importText = ""
-                }
-            }
+                        if showImport {
+                            TextEditor(text: $importText)
+                                .frame(height: 90)
+                                .background(ConsolePalette.inset.opacity(0.86), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                            Button("Import Setups") {
+                                store.presetManager.importJSON(importText)
+                                showImport = false
+                                importText = ""
+                            }
+                            .controlSize(.small)
+                        }
 
-            if store.presetManager.presets.isEmpty {
-                Text("Saved setups will appear here.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } else {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 280), spacing: 12)], spacing: 12) {
-                    ForEach(store.presetManager.presets.prefix(compact ? 3 : store.presetManager.presets.count)) { preset in
-                        presetRow(preset)
+                        ConsoleSectionMarker(
+                            title: "Scenes",
+                            detail: "\(store.presetManager.presets.count) available",
+                            tint: ConsolePalette.amber
+                        )
+
+                        if store.presetManager.presets.isEmpty {
+                            emptyState
+                        } else {
+                            LazyVGrid(columns: [GridItem(.adaptive(minimum: 280), spacing: 12)], spacing: 12) {
+                                ForEach(store.presetManager.presets.prefix(compact ? 3 : store.presetManager.presets.count)) { preset in
+                                    presetRow(preset)
+                                }
+                            }
+                        }
                     }
                 }
             }
         }
+    }
+
+    private var actionBar: some View {
+        HStack(spacing: 8) {
+            Button {
+                store.saveCurrentSetup()
+            } label: {
+                Label("Save Current Setup", systemImage: "plus.circle.fill")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(ConsolePalette.teal)
+            Button {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(store.presetManager.exportJSON(), forType: .string)
+            } label: {
+                Label("Export JSON", systemImage: "square.and.arrow.up")
+            }
+            Button {
+                showImport.toggle()
+            } label: {
+                Label(showImport ? "Hide Import" : "Import JSON", systemImage: "square.and.arrow.down")
+            }
+            Spacer()
+        }
+        .controlSize(.small)
+        .padding(.horizontal, 11)
+        .padding(.vertical, 8)
+        .background(ConsolePalette.inset.opacity(0.72), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .stroke(ConsolePalette.stroke, lineWidth: 1)
+        }
+    }
+
+    private var emptyState: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "tray")
+                .foregroundStyle(ConsolePalette.amber)
+            Text("Saved setups will appear here.")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            Spacer()
+        }
+        .padding(12)
+        .background(ConsolePalette.inset.opacity(0.72), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 
     @ViewBuilder
@@ -124,7 +170,11 @@ struct PresetsView: View {
             .buttonStyle(.bordered)
         }
         .padding(12)
-        .background(.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .background(ConsolePalette.inset.opacity(0.78), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(Color.white.opacity(0.07), lineWidth: 1)
+        }
     }
 
     private func name(for uid: String?) -> String? {

@@ -454,7 +454,7 @@ func checkDeviceChangesDoNotSwitchSystemOutput() throws {
 
 func checkUpdateVersionComparison() {
     precondition(UpdateManager.releaseAssetName == "AudioRouter-macOS.zip", "Updater should fetch the ZIP release asset")
-    precondition(UpdateManager.defaultAutomaticCheckInterval == 900, "Automatic update checks should poll often enough for commit update notices")
+    precondition(UpdateManager.defaultAutomaticCheckInterval == 900, "Automatic update checks should poll often enough for release update notices")
     precondition(UpdateManager.isVersion("0.1.2", newerThan: "0.1.1"), "Patch update should compare newer")
     precondition(UpdateManager.isVersion("0.2.0", newerThan: "0.1.9"), "Minor update should compare newer")
     precondition(UpdateManager.isVersion("v0.1.10", newerThan: "0.1.9"), "Version tags with v prefixes should compare correctly")
@@ -462,10 +462,6 @@ func checkUpdateVersionComparison() {
     precondition(!UpdateManager.isVersion("0.1.1", newerThan: "0.1.1"), "Same version should not compare newer")
     precondition(!UpdateManager.isVersion("0.1.0", newerThan: "0.1.1"), "Older version should not compare newer")
     precondition(UpdateManager.displayVersion(from: " v0.1.2 ") == "0.1.2", "Display version should trim whitespace and v prefix")
-    precondition(UpdateManager.shortCommit("ABCDEF1234567890") == "abcdef1", "Commit labels should use a normalized short SHA")
-    precondition(!UpdateManager.isCommit("abcdef123456", differentFrom: "abcdef1"), "Short and full forms of the same commit should not be treated as different")
-    precondition(UpdateManager.isCommit("abcdef123456", differentFrom: "123456abcdef"), "Different commits should be treated as a commit update")
-    precondition(UpdateManager.normalizedCommit(" unknown ") == nil, "Unknown commit metadata should not force commit update prompts")
 }
 
 @MainActor
@@ -479,13 +475,11 @@ func checkAutomaticUpdateCheckPersistence() {
     let manager = UpdateManager(
         defaults: suite,
         automaticCheckInterval: 60,
-        currentVersionProvider: { "1.0.0" },
-        currentCommitProvider: { "abcdef123456" }
+        currentVersionProvider: { "1.0.0" }
     )
 
     precondition(manager.lastCheckedAt == date, "Automatic update check timestamp should persist across launches")
     precondition(manager.currentVersion == "1.0.0", "Injected current version should be used for update checks")
-    precondition(manager.currentCommit == "abcdef123456", "Injected current commit should be used for commit update checks")
 }
 
 @MainActor

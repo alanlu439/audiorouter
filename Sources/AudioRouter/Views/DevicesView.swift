@@ -4,47 +4,49 @@ struct DevicesView: View {
     @ObservedObject var store: AudioRouterStore
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            DeviceOverviewHeader(store: store)
-            DeviceStatsStrip(store: store)
+        ConsoleFrame {
+            VStack(alignment: .leading, spacing: 12) {
+                DeviceOverviewHeader(store: store)
+                DeviceStatsStrip(store: store)
 
-            ViewThatFits(in: .horizontal) {
-                HStack(alignment: .top, spacing: 12) {
-                    CompactDeviceSection(
-                        title: "Outputs",
-                        devices: store.outputDevices,
-                        fallbackIcon: "speaker.wave.2.fill",
-                        tint: .teal,
-                        store: store
-                    )
-                    CompactDeviceSection(
-                        title: "Inputs",
-                        devices: store.inputDevices,
-                        fallbackIcon: "mic.fill",
-                        tint: .cyan,
-                        store: store
-                    )
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .top, spacing: 12) {
+                        CompactDeviceSection(
+                            title: "Outputs",
+                            devices: store.outputDevices,
+                            fallbackIcon: "speaker.wave.2.fill",
+                            tint: ConsolePalette.teal,
+                            store: store
+                        )
+                        CompactDeviceSection(
+                            title: "Inputs",
+                            devices: store.inputDevices,
+                            fallbackIcon: "mic.fill",
+                            tint: .cyan,
+                            store: store
+                        )
+                    }
+
+                    VStack(alignment: .leading, spacing: 12) {
+                        CompactDeviceSection(
+                            title: "Outputs",
+                            devices: store.outputDevices,
+                            fallbackIcon: "speaker.wave.2.fill",
+                            tint: ConsolePalette.teal,
+                            store: store
+                        )
+                        CompactDeviceSection(
+                            title: "Inputs",
+                            devices: store.inputDevices,
+                            fallbackIcon: "mic.fill",
+                            tint: .cyan,
+                            store: store
+                        )
+                    }
                 }
 
-                VStack(alignment: .leading, spacing: 12) {
-                    CompactDeviceSection(
-                        title: "Outputs",
-                        devices: store.outputDevices,
-                        fallbackIcon: "speaker.wave.2.fill",
-                        tint: .teal,
-                        store: store
-                    )
-                    CompactDeviceSection(
-                        title: "Inputs",
-                        devices: store.inputDevices,
-                        fallbackIcon: "mic.fill",
-                        tint: .cyan,
-                        store: store
-                    )
-                }
+                CompactOutputGroupsSection(store: store)
             }
-
-            CompactOutputGroupsSection(store: store)
         }
     }
 }
@@ -53,17 +55,12 @@ private struct DeviceOverviewHeader: View {
     @ObservedObject var store: AudioRouterStore
 
     var body: some View {
-        HStack(alignment: .center, spacing: 12) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text("Devices")
-                    .font(.title2.weight(.bold))
-                Text("Macro view of every audio device AudioRouter can see.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-
+        ConsolePageHeader(
+            title: "Devices",
+            subtitle: "Macro view of every audio device AudioRouter can see.",
+            systemImage: "waveform.path.badge.plus",
+            tint: ConsolePalette.teal
+        ) {
             Button {
                 store.refresh()
             } label: {
@@ -73,7 +70,6 @@ private struct DeviceOverviewHeader: View {
             .controlSize(.small)
             .accessibilityHint("Reloads audio inputs, outputs, and output groups")
         }
-        .padding(.horizontal, 2)
     }
 }
 
@@ -87,53 +83,19 @@ private struct DeviceStatsStrip: View {
     var body: some View {
         ViewThatFits(in: .horizontal) {
             HStack(spacing: 8) {
-                DeviceStatTile(title: "Outputs", value: "\(store.outputDevices.count)", systemImage: "speaker.wave.2.fill", tint: .teal)
-                DeviceStatTile(title: "Inputs", value: "\(store.inputDevices.count)", systemImage: "mic.fill", tint: .cyan)
-                DeviceStatTile(title: "Connected", value: "\(connectedCount)", systemImage: "checkmark.circle.fill", tint: .green)
-                DeviceStatTile(title: "Groups", value: "\(store.outputGroups.count)", systemImage: "speaker.3.fill", tint: .orange)
+                ConsoleMetricTile(title: "Outputs", value: "\(store.outputDevices.count)", systemImage: "speaker.wave.2.fill", tint: ConsolePalette.teal)
+                ConsoleMetricTile(title: "Inputs", value: "\(store.inputDevices.count)", systemImage: "mic.fill", tint: .cyan)
+                ConsoleMetricTile(title: "Connected", value: "\(connectedCount)", systemImage: "checkmark.circle.fill", tint: ConsolePalette.green)
+                ConsoleMetricTile(title: "Groups", value: "\(store.outputGroups.count)", systemImage: "speaker.3.fill", tint: ConsolePalette.amber)
             }
 
             VStack(alignment: .leading, spacing: 8) {
-                DeviceStatTile(title: "Outputs", value: "\(store.outputDevices.count)", systemImage: "speaker.wave.2.fill", tint: .teal)
-                DeviceStatTile(title: "Inputs", value: "\(store.inputDevices.count)", systemImage: "mic.fill", tint: .cyan)
-                DeviceStatTile(title: "Connected", value: "\(connectedCount)", systemImage: "checkmark.circle.fill", tint: .green)
-                DeviceStatTile(title: "Groups", value: "\(store.outputGroups.count)", systemImage: "speaker.3.fill", tint: .orange)
+                ConsoleMetricTile(title: "Outputs", value: "\(store.outputDevices.count)", systemImage: "speaker.wave.2.fill", tint: ConsolePalette.teal)
+                ConsoleMetricTile(title: "Inputs", value: "\(store.inputDevices.count)", systemImage: "mic.fill", tint: .cyan)
+                ConsoleMetricTile(title: "Connected", value: "\(connectedCount)", systemImage: "checkmark.circle.fill", tint: ConsolePalette.green)
+                ConsoleMetricTile(title: "Groups", value: "\(store.outputGroups.count)", systemImage: "speaker.3.fill", tint: ConsolePalette.amber)
             }
         }
-    }
-}
-
-private struct DeviceStatTile: View {
-    let title: String
-    let value: String
-    let systemImage: String
-    let tint: Color
-
-    var body: some View {
-        HStack(alignment: .center, spacing: 8) {
-            Image(systemName: systemImage)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(tint)
-                .frame(width: 18, height: 18)
-
-            VStack(alignment: .leading, spacing: 0) {
-                Text(value)
-                    .font(.headline.monospacedDigit().weight(.semibold))
-                Text(title.uppercased())
-                    .font(.system(size: 8, weight: .bold, design: .monospaced))
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .frame(minWidth: 112, maxWidth: .infinity, alignment: .leading)
-        .background(.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(tint.opacity(0.18), lineWidth: 1)
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(title), \(value)")
     }
 }
 
@@ -145,8 +107,12 @@ private struct CompactDeviceSection: View {
     @ObservedObject var store: AudioRouterStore
 
     var body: some View {
-        DockCard {
-            SectionHeader(title: title, systemImage: devices.first?.kind.systemImage ?? fallbackIcon, trailing: "\(devices.count)")
+        ConsolePanel(
+            title: title,
+            systemImage: devices.first?.kind.systemImage ?? fallbackIcon,
+            trailing: "\(devices.count)",
+            tint: tint
+        ) {
 
             if devices.isEmpty {
                 CompactEmptyDeviceRow(title: "No \(title.lowercased()) found", systemImage: fallbackIcon)
@@ -176,7 +142,7 @@ private struct CompactEmptyDeviceRow: View {
             Spacer()
         }
         .padding(10)
-        .background(.secondary.opacity(0.06), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .background(ConsolePalette.inset.opacity(0.75), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
         .accessibilityElement(children: .combine)
         .accessibilityLabel(title)
     }
@@ -257,7 +223,7 @@ private struct CompactDeviceRow: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
-        .background(.secondary.opacity(device.isDefault ? 0.12 : 0.06), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .background((device.isDefault ? tint.opacity(0.13) : ConsolePalette.inset.opacity(0.75)), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .stroke(device.isDefault ? tint.opacity(0.35) : Color.white.opacity(0.06), lineWidth: 1)
@@ -311,14 +277,16 @@ private struct CompactOutputGroupsSection: View {
     @ObservedObject var store: AudioRouterStore
 
     var body: some View {
-        DockCard {
+        ConsolePanel(
+            title: "Groups",
+            systemImage: "speaker.3.fill",
+            trailing: store.outputGroups.isEmpty ? nil : "\(store.outputGroups.count)",
+            tint: ConsolePalette.amber
+        ) {
             HStack(alignment: .center, spacing: 10) {
-                SectionHeader(
-                    title: "Groups",
-                    systemImage: "speaker.3.fill",
-                    trailing: store.outputGroups.isEmpty ? nil : "\(store.outputGroups.count)"
-                )
-
+                Text("Group Play destinations")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
                 Button {
                     store.createOutputGroup()
                 } label: {
@@ -395,7 +363,7 @@ private struct CompactOutputGroupRow: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
-        .background(.secondary.opacity(0.06), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .background(ConsolePalette.inset.opacity(0.75), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .stroke(Color.white.opacity(0.06), lineWidth: 1)

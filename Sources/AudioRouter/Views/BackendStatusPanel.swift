@@ -6,10 +6,15 @@ struct BackendStatusPanel: View {
     var showActions = true
 
     var body: some View {
-        DockCard {
+        ConsolePanel(
+            title: "Backend",
+            systemImage: "cpu",
+            trailing: store.routingBackendName,
+            tint: ConsolePalette.teal
+        ) {
             HStack(alignment: .center, spacing: 12) {
-                Label("Backend", systemImage: "cpu")
-                    .font(.headline)
+                Text("Routing Engine")
+                    .font(.subheadline.weight(.semibold))
                 Spacer()
                 StatusLabel(
                     text: store.backendReadinessTitle,
@@ -41,12 +46,9 @@ struct BackendStatusPanel: View {
                         Label("Probe Tap", systemImage: "waveform.badge.magnifyingglass")
                     }
                     .disabled(store.settings.demoMode)
-                    Spacer()
-                    Text(store.routingBackendName)
-                        .font(.caption2.monospaced())
-                        .foregroundStyle(.tertiary)
-                        .lineLimit(1)
+                    Spacer(minLength: 0)
                 }
+                .controlSize(.small)
             }
 
             if let message = store.processTapProbeMessage, !compact {

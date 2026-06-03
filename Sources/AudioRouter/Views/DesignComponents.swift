@@ -21,6 +21,239 @@ struct DockCard<Content: View>: View {
     }
 }
 
+enum ConsolePalette {
+    static let console = Color(red: 0.055, green: 0.057, blue: 0.062)
+    static let header = Color(red: 0.083, green: 0.087, blue: 0.095)
+    static let panel = Color(red: 0.069, green: 0.072, blue: 0.079)
+    static let strip = Color(red: 0.096, green: 0.100, blue: 0.108)
+    static let inset = Color(red: 0.038, green: 0.040, blue: 0.045)
+    static let stroke = Color.white.opacity(0.075)
+    static let strongStroke = Color.white.opacity(0.125)
+    static let green = Color(red: 0.45, green: 0.88, blue: 0.58)
+    static let amber = Color(red: 0.94, green: 0.66, blue: 0.36)
+    static let teal = Color(red: 0.36, green: 0.80, blue: 0.75)
+    static let blue = Color(red: 0.50, green: 0.63, blue: 0.92)
+    static let red = Color(red: 0.94, green: 0.38, blue: 0.36)
+    static let warmInk = Color(red: 0.11, green: 0.085, blue: 0.050)
+}
+
+struct ConsoleFrame<Content: View>: View {
+    let content: Content
+
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
+    }
+
+    var body: some View {
+        content
+            .padding(14)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .background(ConsolePalette.console, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .overlay(alignment: .top) {
+                Rectangle()
+                    .fill(ConsolePalette.strongStroke)
+                    .frame(height: 1)
+                    .padding(.horizontal, 12)
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .stroke(ConsolePalette.strongStroke, lineWidth: 1)
+            }
+    }
+}
+
+struct ConsolePageHeader<Accessory: View>: View {
+    let title: String
+    let subtitle: String
+    let systemImage: String
+    let tint: Color
+    let accessory: Accessory
+
+    init(
+        title: String,
+        subtitle: String,
+        systemImage: String,
+        tint: Color = ConsolePalette.teal,
+        @ViewBuilder accessory: () -> Accessory = { EmptyView() }
+    ) {
+        self.title = title
+        self.subtitle = subtitle
+        self.systemImage = systemImage
+        self.tint = tint
+        self.accessory = accessory()
+    }
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            Image(systemName: systemImage)
+                .font(.system(size: 20, weight: .heavy))
+                .foregroundStyle(tint)
+                .frame(width: 42, height: 42)
+                .background(tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.title3.weight(.bold))
+                    .lineLimit(1)
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+
+            Spacer(minLength: 12)
+            accessory
+        }
+        .padding(14)
+        .background(ConsolePalette.header, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(ConsolePalette.stroke, lineWidth: 1)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(title), \(subtitle)")
+    }
+}
+
+struct ConsolePanel<Content: View>: View {
+    let title: String
+    let systemImage: String
+    let trailing: String?
+    let tint: Color
+    let content: Content
+
+    init(
+        title: String,
+        systemImage: String,
+        trailing: String? = nil,
+        tint: Color = ConsolePalette.amber,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.title = title
+        self.systemImage = systemImage
+        self.trailing = trailing
+        self.tint = tint
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .center, spacing: 9) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 14, weight: .heavy))
+                    .foregroundStyle(tint)
+                    .frame(width: 18, height: 18, alignment: .center)
+                Text(title.uppercased())
+                    .font(.system(size: 12, weight: .heavy, design: .monospaced))
+                    .tracking(1.2)
+                    .lineLimit(1)
+                Spacer()
+                if let trailing {
+                    Text(trailing)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(ConsolePalette.header)
+
+            Rectangle()
+                .fill(ConsolePalette.stroke)
+                .frame(height: 1)
+
+            content
+                .padding(12)
+        }
+        .background(ConsolePalette.panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .overlay {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(ConsolePalette.strongStroke, lineWidth: 1)
+        }
+    }
+}
+
+struct ConsoleMetricTile: View {
+    let title: String
+    let value: String
+    let systemImage: String
+    let tint: Color
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 9) {
+            ConsoleLED(color: tint)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(value)
+                    .font(.callout.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .monospacedDigit()
+                Text(title.uppercased())
+                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .foregroundStyle(.secondary)
+            }
+
+            Image(systemName: systemImage)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(tint.opacity(0.85))
+                .frame(width: 16, height: 16, alignment: .center)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(ConsolePalette.inset, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .stroke(ConsolePalette.stroke, lineWidth: 1)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(title), \(value)")
+    }
+}
+
+struct ConsoleSectionMarker: View {
+    let title: String
+    let detail: String
+    let tint: Color
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 8) {
+            Capsule()
+                .fill(tint)
+                .frame(width: 4, height: 16)
+                .shadow(color: tint.opacity(0.45), radius: 3)
+            Text(title.uppercased())
+                .font(.system(size: 10, weight: .heavy, design: .monospaced))
+                .foregroundStyle(.primary.opacity(0.9))
+                .lineLimit(1)
+            Rectangle()
+                .fill(ConsolePalette.stroke)
+                .frame(height: 1)
+            Text(detail)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .frame(height: 16, alignment: .center)
+        }
+        .padding(.horizontal, 2)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(title), \(detail)")
+    }
+}
+
+struct ConsoleLED: View {
+    let color: Color
+
+    var body: some View {
+        Circle()
+            .fill(color)
+            .frame(width: 8, height: 8)
+            .shadow(color: color.opacity(0.65), radius: 4)
+            .accessibilityHidden(true)
+    }
+}
+
 struct SectionHeader: View {
     let title: String
     let systemImage: String

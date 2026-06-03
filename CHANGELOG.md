@@ -2,11 +2,15 @@
 
 ## Unreleased
 
+## 1.1.1 - 2026-06-03
+
 ### Profiles
 
 - Added a top-right user profile menu in the main AudioRouter window with full-name display, profile switching, profile creation, renaming, and deletion.
 - Scoped saved setups to the active profile so different users can keep separate preferred presets on the same Mac.
 - Added a quit confirmation warning so users do not accidentally stop active routing controls.
+- Changed the in-app updater so only published GitHub Releases count as app updates; ordinary commits no longer trigger update prompts.
+- Refreshed Devices, EQ, Setups, Shortcuts, and Advanced with the same dark studio-console styling used by the Dashboard.
 
 ### EQ
 

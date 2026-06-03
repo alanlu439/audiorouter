@@ -5,15 +5,17 @@ struct UpdateStatusView: View {
     var compact = false
 
     var body: some View {
-        DockCard {
+        ConsolePanel(
+            title: "Updates",
+            systemImage: updateIcon,
+            trailing: "v\(store.updateManager.currentVersion)",
+            tint: store.updateManager.hasUpdate ? ConsolePalette.teal : ConsolePalette.green
+        ) {
             HStack(spacing: 10) {
-                Label("Updates", systemImage: updateIcon)
+                Text("Release Channel")
                     .font(compact ? .subheadline.weight(.semibold) : .headline)
-                    .foregroundStyle(store.updateManager.hasUpdate ? .teal : .secondary)
                 Spacer()
-                Text("v\(store.updateManager.currentVersion)")
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
+                StatusLabel(text: store.updateManager.hasUpdate ? "Available" : "Current", status: store.updateManager.hasUpdate ? .savedOnly : .working)
             }
 
             Text(store.updateManager.message)
@@ -24,7 +26,7 @@ struct UpdateStatusView: View {
             Toggle("Automatically check for updates", isOn: automaticUpdatesBinding)
                 .font(.caption.weight(.semibold))
                 .toggleStyle(.switch)
-                .accessibilityHint("Checks GitHub releases and commits while AudioRouter is running, and fetches the newest AudioRouter ZIP when a release is available")
+                .accessibilityHint("Checks GitHub releases while AudioRouter is running, and fetches the newest AudioRouter ZIP when a release is available")
 
             if let lastCheckedAt = store.updateManager.lastCheckedAt {
                 Text("Last checked \(lastCheckedAt.formatted(date: .abbreviated, time: .shortened))")
@@ -40,7 +42,7 @@ struct UpdateStatusView: View {
                 }
                 .disabled(store.updateManager.isChecking || store.updateManager.isDownloading)
                 .accessibilityLabel(store.updateManager.isChecking ? "Checking for updates" : "Check for updates")
-                .accessibilityHint("Checks the latest AudioRouter release and commit on GitHub")
+                .accessibilityHint("Checks the latest AudioRouter release on GitHub")
 
                 if store.updateManager.isDownloading {
                     ProgressView()
@@ -58,26 +60,15 @@ struct UpdateStatusView: View {
                     .buttonStyle(.borderedProminent)
                     .tint(.teal)
                     .accessibilityHint("Opens the downloaded AudioRouter ZIP")
-                } else if let update = store.updateManager.availableUpdate {
-                    if update.isDownloadable {
-                        Button {
-                            store.downloadAvailableUpdate()
-                        } label: {
-                            Label("Fetch ZIP", systemImage: "square.and.arrow.down")
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(.teal)
-                        .accessibilityHint("Downloads the newest AudioRouter ZIP")
-                    } else {
-                        Button {
-                            store.openLatestRelease()
-                        } label: {
-                            Label("View Commit", systemImage: "point.3.connected.trianglepath.dotted")
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(.teal)
-                        .accessibilityHint("Opens the newest AudioRouter commit on GitHub")
+                } else if store.updateManager.availableUpdate != nil {
+                    Button {
+                        store.downloadAvailableUpdate()
+                    } label: {
+                        Label("Fetch ZIP", systemImage: "square.and.arrow.down")
                     }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.teal)
+                    .accessibilityHint("Downloads the newest AudioRouter ZIP")
                 } else if !compact {
                     Button {
                         store.openLatestRelease()

@@ -4,7 +4,7 @@ set -euo pipefail
 MODE="${1:-run}"
 APP_NAME="AudioRouter"
 BUNDLE_ID="com.local.AudioRouter"
-APP_VERSION="1.1.0"
+APP_VERSION="1.1.1"
 MIN_SYSTEM_VERSION="14.2"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
