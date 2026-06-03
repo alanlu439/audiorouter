@@ -4,6 +4,7 @@
 
 ### Audio Quality
 
+- Added compact source-quality badges beside route app names, showing live process-tap format such as `48k · 32f · 2ch` when available.
 - Added Core Audio nominal sample-rate range discovery for output devices.
 - Centralized experimental route format selection so live routes keep 32-bit floating-point PCM, prefer the source tap sample rate when every selected output supports it, and otherwise choose the nearest shared hardware-supported rate.
 - Added regression checks for route sample-rate, channel-count, and float-PCM quality decisions.

@@ -85,6 +85,7 @@ final class ProcessTapRoutingEngine {
         let ioProcID: AudioDeviceIOProcID
         let control: RouteControl
         let outputRenderers: [RouteOutputRenderer]
+        let sourceQuality: SourceAudioQuality
     }
 
     private final class PCMBufferPipe {
@@ -354,6 +355,12 @@ final class ProcessTapRoutingEngine {
                 guard canReadFloat32(tapFormat) else {
                     throw AudioRoutingBackendError.unsupported("This app's process tap uses an audio format AudioRouter cannot route yet.")
                 }
+                let sourceQuality = SourceAudioQuality(
+                    sampleRate: tapFormat.mSampleRate,
+                    bitDepth: Int(tapFormat.mBitsPerChannel),
+                    channelCount: Int(tapFormat.mChannelsPerFrame),
+                    isFloatPCM: (tapFormat.mFormatFlags & kAudioFormatFlagIsFloat) != 0
+                )
                 let playbackFormat = RouteAudioQualityPolicy.playbackFormat(from: tapFormat, outputDevices: outputDevices)
                 let pipes = outputDevices.map { _ in
                     PCMBufferPipe(format: playbackFormat, seconds: RouteAudioQualityPolicy.routePipeBufferSeconds)
@@ -407,7 +414,8 @@ final class ProcessTapRoutingEngine {
                             aggregateDeviceID: aggregateDeviceID,
                             ioProcID: ioProcID,
                             control: control,
-                            outputRenderers: outputRenderers
+                            outputRenderers: outputRenderers,
+                            sourceQuality: sourceQuality
                         )
                     } catch {
                         AudioDeviceDestroyIOProcID(aggregateDeviceID, ioProcID)
@@ -457,6 +465,10 @@ final class ProcessTapRoutingEngine {
 
     func currentLevel(sourceID: String) -> Double? {
         sessions[sourceID]?.control.level()
+    }
+
+    func sourceAudioQuality(sourceID: String) -> SourceAudioQuality? {
+        sessions[sourceID]?.sourceQuality
     }
 
     func isRouting(sourceID: String) -> Bool {

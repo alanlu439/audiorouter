@@ -263,6 +263,10 @@ public final class AudioRoutingManager {
         backend.currentLevel(sourceID: sourceID)
     }
 
+    public func sourceAudioQuality(for sourceID: String) -> SourceAudioQuality? {
+        backend.sourceAudioQuality(sourceID: sourceID)
+    }
+
     public func routeMessage(for sourceID: String) -> String? {
         routeMessagesBySourceID[sourceID]
     }

@@ -83,6 +83,10 @@ public final class PublicAPIAudioRoutingBackend: AudioRoutingBackend {
         processTapRoutingEngine.currentLevel(sourceID: sourceID)
     }
 
+    public func sourceAudioQuality(sourceID: String) -> SourceAudioQuality? {
+        processTapRoutingEngine.sourceAudioQuality(sourceID: sourceID)
+    }
+
     private func source(for sourceID: String) throws -> AudioSource {
         if let source = latestSourcesByID[sourceID], source.audioObjectID != nil {
             return source

@@ -456,6 +456,11 @@ private struct MenuRouteRow: View {
                         Text(source.appName)
                             .font(.subheadline.weight(.semibold))
                             .lineLimit(1)
+                        SourceQualityPill(
+                            label: store.sourceAudioQualityLabel(for: source),
+                            isLive: store.sourceAudioQualityIsLive(for: source)
+                        )
+                        .help(store.sourceAudioQualityHelp(for: source))
                         Circle()
                             .fill(source.isProducingAudio ? Color.green : Color.orange.opacity(0.85))
                             .frame(width: 6, height: 6)

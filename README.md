@@ -90,6 +90,7 @@ The AudioRouter name, logo, app icon, and branding assets are not licensed for c
 - Running audio-capable app discovery through Core Audio process objects, with a running-app fallback.
 - Experimental live per-app routes on macOS 14.2+ using public Core Audio process taps, transient aggregate devices, and an IO callback.
 - High-quality experimental route rendering using 32-bit floating-point PCM, source-rate-first playback, Core Audio output sample-rate capability checks, high-quality drift compensation, and soft peak limiting for boosted app routes.
+- Source-quality badges beside route app names, showing the live process-tap format when a route is active or `Pending` until the source format is available.
 - Experimental group play: route one app to an output group so the captured source is rendered to multiple connected speakers through separate `AudioQueue` outputs.
 - Per-route volume, mute, and live meters while an experimental process-tap route is active.
 - Smoother fader-style volume controls with clean 1% steps, visible percent readouts, and selected-track keyboard gain control with `Command =` and `Command -`.

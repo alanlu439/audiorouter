@@ -1093,6 +1093,29 @@ public final class AudioRouterStore: ObservableObject {
         }
     }
 
+    public func sourceAudioQuality(for source: AudioSource) -> SourceAudioQuality? {
+        if settings.demoMode {
+            return demoAudioQuality(for: source)
+        }
+        return audioRoutingManager.sourceAudioQuality(for: source.id)
+    }
+
+    public func sourceAudioQualityLabel(for source: AudioSource) -> String {
+        sourceAudioQuality(for: source)?.compactDisplayLabel ?? "Pending"
+    }
+
+    public func sourceAudioQualityIsLive(for source: AudioSource) -> Bool {
+        !settings.demoMode && audioRoutingManager.sourceAudioQuality(for: source.id) != nil
+    }
+
+    public func sourceAudioQualityHelp(for source: AudioSource) -> String {
+        if let quality = sourceAudioQuality(for: source) {
+            let mode = settings.demoMode ? "Demo source quality" : "Live source tap quality"
+            return "\(mode): \(quality.accessibilityDescription)."
+        }
+        return "Source audio quality appears after a live process-tap route starts."
+    }
+
     public var routeSummaryText: String {
         if settings.demoMode {
             return "Demo routes are simulated for UI testing"
@@ -1961,6 +1984,20 @@ public final class AudioRouterStore: ObservableObject {
                 followsSystemOutput: route.routeMode == .followSystemOutput
             )
         }
+    }
+
+    private func demoAudioQuality(for source: AudioSource) -> SourceAudioQuality {
+        let loweredID = source.id.lowercased()
+        if loweredID.contains("spotify") {
+            return SourceAudioQuality(sampleRate: 44_100, bitDepth: 32, channelCount: 2, isFloatPCM: true)
+        }
+        if loweredID.contains("music") {
+            return SourceAudioQuality(sampleRate: 48_000, bitDepth: 32, channelCount: 2, isFloatPCM: true)
+        }
+        if loweredID.contains("chrome") {
+            return SourceAudioQuality(sampleRate: 48_000, bitDepth: 32, channelCount: 2, isFloatPCM: true)
+        }
+        return SourceAudioQuality(sampleRate: 48_000, bitDepth: 32, channelCount: 2, isFloatPCM: true)
     }
 
     private var configuredSourceSpecs: [FocusedSourceSpec] {

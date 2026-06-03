@@ -1823,6 +1823,11 @@ private struct StudioChannelStrip: View {
                     Text(source.appName)
                         .font(.subheadline.weight(.semibold))
                         .lineLimit(1)
+                    SourceQualityPill(
+                        label: store.sourceAudioQualityLabel(for: source),
+                        isLive: store.sourceAudioQualityIsLive(for: source)
+                    )
+                    .help(store.sourceAudioQualityHelp(for: source))
                     StudioLED(color: source.isProducingAudio ? StudioPalette.green : StudioPalette.amber.opacity(0.75))
                 }
                 Text(source.isRunning ? "Running" : "Ready")

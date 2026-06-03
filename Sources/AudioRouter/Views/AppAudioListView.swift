@@ -60,9 +60,16 @@ struct AppAudioRowView: View {
             HStack(spacing: 10) {
                 AppSourceIcon(source: source)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(source.appName)
-                        .font(.subheadline.weight(.semibold))
-                        .lineLimit(1)
+                    HStack(spacing: 6) {
+                        Text(source.appName)
+                            .font(.subheadline.weight(.semibold))
+                            .lineLimit(1)
+                        SourceQualityPill(
+                            label: store.sourceAudioQualityLabel(for: source),
+                            isLive: store.sourceAudioQualityIsLive(for: source)
+                        )
+                        .help(store.sourceAudioQualityHelp(for: source))
+                    }
                     HStack(spacing: 6) {
                         StatusBadge(text: source.activityLabel, isActive: source.isProducingAudio)
                         StatusLabel(text: store.routeStatus(for: source), status: store.statusStyle(for: source))

@@ -62,6 +62,32 @@ struct StatusBadge: View {
     }
 }
 
+struct SourceQualityPill: View {
+    let label: String
+    let isLive: Bool
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: isLive ? "waveform.circle.fill" : "waveform.circle")
+                .font(.system(size: 8, weight: .bold))
+                .accessibilityHidden(true)
+            Text(label)
+                .font(.system(size: 9, weight: .heavy, design: .monospaced))
+                .lineLimit(1)
+        }
+        .foregroundStyle(isLive ? .cyan : .secondary)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 3)
+        .background((isLive ? Color.cyan : Color.secondary).opacity(0.10), in: Capsule())
+        .overlay {
+            Capsule()
+                .stroke((isLive ? Color.cyan : Color.secondary).opacity(isLive ? 0.28 : 0.16), lineWidth: 1)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(isLive ? "Live source audio quality \(label)" : "Source audio quality \(label)")
+    }
+}
+
 struct DeviceIcon: View {
     let device: AudioDevice
 

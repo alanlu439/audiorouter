@@ -16,6 +16,7 @@ func runChecks() throws {
     try checkSupportedBackendFailuresStaySaved()
     try checkOutputGroupRoutesFanOut()
     checkRouteAudioQualityPolicy()
+    try checkSourceAudioQualityDisplay()
     try checkDeviceChangesDoNotSwitchSystemOutput()
     try checkCustomRouteAppPersistence()
     try checkFocusedSourceIconsStayWithConfiguredApps()
@@ -297,6 +298,26 @@ func checkRouteAudioQualityPolicy() {
     )
     precondition(sharedOutputFormat.mSampleRate == 48_000, "Group routes should choose the nearest shared supported hardware sample rate")
     precondition(sharedOutputFormat.mChannelsPerFrame == 2, "Group routes should use the highest channel count shared by every output")
+}
+
+func checkSourceAudioQualityDisplay() throws {
+    let quality = SourceAudioQuality(sampleRate: 44_100, bitDepth: 32, channelCount: 2, isFloatPCM: true)
+    precondition(quality.compactDisplayLabel == "44.1k · 32f · 2ch", "Source quality should use a compact route-row label")
+    precondition(
+        quality.accessibilityDescription == "44.1 kHz, floating point 32-bit, 2 channels",
+        "Source quality should keep a readable expanded accessibility description"
+    )
+
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    let manager = AudioRoutingManager(
+        backend: FakeQualityRoutingBackend(),
+        fileURL: directory.appendingPathComponent("routes.json")
+    )
+    precondition(
+        manager.sourceAudioQuality(for: "spotify")?.compactDisplayLabel == "44.1k · 32f · 2ch",
+        "AudioRoutingManager should expose backend source quality"
+    )
 }
 
 @MainActor
@@ -659,6 +680,23 @@ private final class FakeGroupRoutingBackend: AudioRoutingBackend {
 
     func setSourceVolume(sourceID: String, volume: Double) throws {}
     func muteSource(sourceID: String, muted: Bool) throws {}
+}
+
+private final class FakeQualityRoutingBackend: AudioRoutingBackend {
+    let supportsPerAppRouting = true
+    let backendName = "Quality Fake"
+
+    func listAudioSources() throws -> [AudioSource] { [] }
+    func listOutputDevices() throws -> [AudioDevice] { [] }
+    func routeSourceToDevice(sourceID: String, deviceID: String?) throws {}
+    func setSourceVolume(sourceID: String, volume: Double) throws {}
+    func muteSource(sourceID: String, muted: Bool) throws {}
+
+    func sourceAudioQuality(sourceID: String) -> SourceAudioQuality? {
+        sourceID == "spotify"
+            ? SourceAudioQuality(sampleRate: 44_100, bitDepth: 32, channelCount: 2, isFloatPCM: true)
+            : nil
+    }
 }
 
 private final class FakeChromeHelperOnlyBackend: AudioRoutingBackend {

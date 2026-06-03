@@ -14,6 +14,7 @@ public protocol AudioRoutingBackend {
     func setSourceVolume(sourceID: String, volume: Double) throws
     func muteSource(sourceID: String, muted: Bool) throws
     func currentLevel(sourceID: String) -> Double?
+    func sourceAudioQuality(sourceID: String) -> SourceAudioQuality?
 }
 
 public extension AudioRoutingBackend {
@@ -21,6 +22,7 @@ public extension AudioRoutingBackend {
     var supportsPerAppMute: Bool { supportsPerAppRouting }
     var supportsLiveProcessMeters: Bool { false }
     func currentLevel(sourceID: String) -> Double? { nil }
+    func sourceAudioQuality(sourceID: String) -> SourceAudioQuality? { nil }
     func routeSourceToDevices(sourceID: String, outputDevices: [AudioDevice]) throws {
         guard let firstOutput = outputDevices.first else {
             throw AudioRoutingBackendError.unsupported("Add at least one connected output to this group.")
