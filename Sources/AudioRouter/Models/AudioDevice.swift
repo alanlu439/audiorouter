@@ -35,6 +35,28 @@ public enum AudioTransport: String, Codable, CaseIterable {
     case unknown = "Unknown"
 }
 
+public struct AudioSampleRateRange: Codable, Hashable {
+    public let minimum: Double
+    public let maximum: Double
+
+    public init(minimum: Double, maximum: Double) {
+        self.minimum = min(minimum, maximum)
+        self.maximum = max(minimum, maximum)
+    }
+
+    public var isExact: Bool {
+        abs(minimum - maximum) < 0.001
+    }
+
+    public func contains(_ sampleRate: Double) -> Bool {
+        sampleRate >= minimum - 0.001 && sampleRate <= maximum + 0.001
+    }
+
+    public func nearestValue(to sampleRate: Double) -> Double {
+        min(max(sampleRate, minimum), maximum)
+    }
+}
+
 public struct AudioDevice: Identifiable, Codable, Hashable {
     public var id: String { "\(kind.rawValue)-\(uid)" }
 
@@ -50,6 +72,7 @@ public struct AudioDevice: Identifiable, Codable, Hashable {
     public let isMuted: Bool?
     public let balance: Double?
     public let sampleRate: Double?
+    public let availableSampleRateRanges: [AudioSampleRateRange]?
     public let canSetVolume: Bool
     public let canSetMute: Bool
     public let canSetBalance: Bool
@@ -67,6 +90,7 @@ public struct AudioDevice: Identifiable, Codable, Hashable {
         isMuted: Bool? = nil,
         balance: Double? = nil,
         sampleRate: Double? = nil,
+        availableSampleRateRanges: [AudioSampleRateRange]? = nil,
         canSetVolume: Bool = false,
         canSetMute: Bool = false,
         canSetBalance: Bool = false
@@ -83,6 +107,7 @@ public struct AudioDevice: Identifiable, Codable, Hashable {
         self.isMuted = isMuted
         self.balance = balance
         self.sampleRate = sampleRate
+        self.availableSampleRateRanges = availableSampleRateRanges
         self.canSetVolume = canSetVolume
         self.canSetMute = canSetMute
         self.canSetBalance = canSetBalance

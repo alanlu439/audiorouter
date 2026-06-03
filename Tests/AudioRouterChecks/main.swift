@@ -1,4 +1,5 @@
 import AudioRouterCore
+import CoreAudio
 import Foundation
 
 @MainActor
@@ -14,6 +15,7 @@ func runChecks() throws {
     try checkRoutingManagerRoutesAndFallback()
     try checkSupportedBackendFailuresStaySaved()
     try checkOutputGroupRoutesFanOut()
+    checkRouteAudioQualityPolicy()
     try checkDeviceChangesDoNotSwitchSystemOutput()
     try checkCustomRouteAppPersistence()
     try checkFocusedSourceIconsStayWithConfiguredApps()
@@ -243,6 +245,58 @@ func checkOutputGroupRoutesFanOut() throws {
     precondition(route.status == .active, "Supported group route should become active")
     precondition(backend.routedOutputUIDs == ["speaker-a", "speaker-b"], "Backend should receive every output in the group")
     precondition(manager.routeMessage(for: "spotify")?.contains("2 outputs") == true, "Group route should report fan-out count")
+}
+
+func checkRouteAudioQualityPolicy() {
+    let tapFormat = AudioStreamBasicDescription(
+        mSampleRate: 96_000,
+        mFormatID: kAudioFormatLinearPCM,
+        mFormatFlags: kAudioFormatFlagIsFloat | kAudioFormatFlagIsPacked | kAudioFormatFlagsNativeEndian,
+        mBytesPerPacket: 6 * UInt32(MemoryLayout<Float32>.size),
+        mFramesPerPacket: 1,
+        mBytesPerFrame: 6 * UInt32(MemoryLayout<Float32>.size),
+        mChannelsPerFrame: 6,
+        mBitsPerChannel: 32,
+        mReserved: 0
+    )
+    let studioInterface = AudioDevice(
+        audioObjectID: 11,
+        uid: "studio",
+        name: "Studio Interface",
+        kind: .output,
+        channelCount: 8,
+        transport: .usb,
+        isDefault: false,
+        isAlive: true,
+        sampleRate: 48_000,
+        availableSampleRateRanges: [AudioSampleRateRange(minimum: 44_100, maximum: 192_000)]
+    )
+    let bluetoothSpeaker = AudioDevice(
+        audioObjectID: 12,
+        uid: "speaker",
+        name: "Bluetooth Speaker",
+        kind: .output,
+        channelCount: 2,
+        transport: .bluetooth,
+        isDefault: false,
+        isAlive: true,
+        sampleRate: 48_000,
+        availableSampleRateRanges: [AudioSampleRateRange(minimum: 48_000, maximum: 48_000)]
+    )
+
+    let sourceRateFormat = RouteAudioQualityPolicy.playbackFormat(from: tapFormat, outputDevices: [studioInterface])
+    precondition(sourceRateFormat.mSampleRate == 96_000, "Route quality should preserve the source tap sample rate when the output supports it")
+    precondition(sourceRateFormat.mFormatID == kAudioFormatLinearPCM, "Route quality should use linear PCM")
+    precondition((sourceRateFormat.mFormatFlags & kAudioFormatFlagIsFloat) != 0, "Route quality should keep 32-bit float samples")
+    precondition(sourceRateFormat.mBitsPerChannel == 32, "Route quality should keep 32-bit samples")
+    precondition(sourceRateFormat.mChannelsPerFrame == 6, "Route quality should keep the highest practical shared channel count")
+
+    let sharedOutputFormat = RouteAudioQualityPolicy.playbackFormat(
+        from: tapFormat,
+        outputDevices: [studioInterface, bluetoothSpeaker]
+    )
+    precondition(sharedOutputFormat.mSampleRate == 48_000, "Group routes should choose the nearest shared supported hardware sample rate")
+    precondition(sharedOutputFormat.mChannelsPerFrame == 2, "Group routes should use the highest channel count shared by every output")
 }
 
 @MainActor
@@ -685,6 +739,7 @@ private final class FakeDeviceManager: AudioDeviceManaging {
                 isMuted: device.isMuted,
                 balance: device.balance,
                 sampleRate: device.sampleRate,
+                availableSampleRateRanges: device.availableSampleRateRanges,
                 canSetVolume: device.canSetVolume,
                 canSetMute: device.canSetMute,
                 canSetBalance: device.canSetBalance

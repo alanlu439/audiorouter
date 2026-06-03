@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Audio Quality
+
+- Added Core Audio nominal sample-rate range discovery for output devices.
+- Centralized experimental route format selection so live routes keep 32-bit floating-point PCM, prefer the source tap sample rate when every selected output supports it, and otherwise choose the nearest shared hardware-supported rate.
+- Added regression checks for route sample-rate, channel-count, and float-PCM quality decisions.
+- Increased the route pipe and output queue guard depth to reduce short scheduling dropouts during live per-app and Group Play routes.
+
 ## 1.1.0 - 2026-06-02
 
 ### Selected Track Control

@@ -12,13 +12,13 @@ final class ProcessTapRoutingEngine {
         private var receivedBufferCount = 0
 
         init(volume: Double, muted: Bool) {
-            self.storedVolume = Float(max(0, min(1.5, volume)))
+            self.storedVolume = Float(max(0, min(RouteAudioQualityPolicy.maximumGain, volume)))
             self.storedMuted = muted
         }
 
         func setVolume(_ volume: Double) {
             lock.lock()
-            storedVolume = Float(max(0, min(1.5, volume)))
+            storedVolume = Float(max(0, min(RouteAudioQualityPolicy.maximumGain, volume)))
             lock.unlock()
         }
 
@@ -254,7 +254,7 @@ final class ProcessTapRoutingEngine {
                 "Select route output device"
             )
 
-            for _ in 0..<4 {
+            for _ in 0..<RouteAudioQualityPolicy.outputQueueBufferCount {
                 var buffer: AudioQueueBufferRef?
                 try Self.check(AudioQueueAllocateBuffer(queueRef, bufferByteSize, &buffer), "Allocate output buffer")
                 guard let buffer else {
@@ -354,8 +354,10 @@ final class ProcessTapRoutingEngine {
                 guard canReadFloat32(tapFormat) else {
                     throw AudioRoutingBackendError.unsupported("This app's process tap uses an audio format AudioRouter cannot route yet.")
                 }
-                let playbackFormat = Self.playbackFormat(from: tapFormat, outputDevices: outputDevices)
-                let pipes = outputDevices.map { _ in PCMBufferPipe(format: playbackFormat, seconds: 1.5) }
+                let playbackFormat = RouteAudioQualityPolicy.playbackFormat(from: tapFormat, outputDevices: outputDevices)
+                let pipes = outputDevices.map { _ in
+                    PCMBufferPipe(format: playbackFormat, seconds: RouteAudioQualityPolicy.routePipeBufferSeconds)
+                }
                 let outputRenderers = try zip(outputDevices, pipes).map { outputDevice, pipe in
                     try RouteOutputRenderer(
                         format: playbackFormat,
@@ -538,54 +540,6 @@ final class ProcessTapRoutingEngine {
         guard status == noErr else {
             throw AudioRouterError.coreAudio(operation, status)
         }
-    }
-
-    private static func playbackFormat(
-        from tapFormat: AudioStreamBasicDescription,
-        outputDevice: AudioDevice
-    ) -> AudioStreamBasicDescription {
-        playbackFormat(from: tapFormat, outputDevices: [outputDevice])
-    }
-
-    private static func playbackFormat(
-        from tapFormat: AudioStreamBasicDescription,
-        outputDevices: [AudioDevice]
-    ) -> AudioStreamBasicDescription {
-        let tapChannels = max(1, Int(tapFormat.mChannelsPerFrame))
-        let outputChannels = max(1, outputDevices.map(\.channelCount).min() ?? 2)
-        let channels = UInt32(max(1, min(tapChannels, outputChannels, 8)))
-        let bytesPerFrame = channels * UInt32(MemoryLayout<Float32>.size)
-        return AudioStreamBasicDescription(
-            mSampleRate: preferredSampleRate(tapFormat: tapFormat, outputDevices: outputDevices),
-            mFormatID: kAudioFormatLinearPCM,
-            mFormatFlags: kAudioFormatFlagIsFloat | kAudioFormatFlagIsPacked | kAudioFormatFlagsNativeEndian,
-            mBytesPerPacket: bytesPerFrame,
-            mFramesPerPacket: 1,
-            mBytesPerFrame: bytesPerFrame,
-            mChannelsPerFrame: channels,
-            mBitsPerChannel: 32,
-            mReserved: 0
-        )
-    }
-
-    private static func preferredSampleRate(
-        tapFormat: AudioStreamBasicDescription,
-        outputDevice: AudioDevice
-    ) -> Double {
-        preferredSampleRate(tapFormat: tapFormat, outputDevices: [outputDevice])
-    }
-
-    private static func preferredSampleRate(
-        tapFormat: AudioStreamBasicDescription,
-        outputDevices: [AudioDevice]
-    ) -> Double {
-        if tapFormat.mSampleRate > 0 {
-            return tapFormat.mSampleRate
-        }
-        if let outputRate = outputDevices.compactMap(\.sampleRate).first(where: { $0 > 0 }) {
-            return outputRate
-        }
-        return 48_000
     }
 
     private static func capture(

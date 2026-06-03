@@ -89,7 +89,7 @@ The AudioRouter name, logo, app icon, and branding assets are not licensed for c
 - Core Audio hardware change observation plus a refresh fallback for Bluetooth, AirPlay, USB, HDMI, virtual, aggregate, and built-in device changes.
 - Running audio-capable app discovery through Core Audio process objects, with a running-app fallback.
 - Experimental live per-app routes on macOS 14.2+ using public Core Audio process taps, transient aggregate devices, and an IO callback.
-- High-quality experimental route rendering using 32-bit floating-point PCM, source-rate-first playback, high-quality drift compensation, and soft peak limiting for boosted app routes.
+- High-quality experimental route rendering using 32-bit floating-point PCM, source-rate-first playback, Core Audio output sample-rate capability checks, high-quality drift compensation, and soft peak limiting for boosted app routes.
 - Experimental group play: route one app to an output group so the captured source is rendered to multiple connected speakers through separate `AudioQueue` outputs.
 - Per-route volume, mute, and live meters while an experimental process-tap route is active.
 - Smoother fader-style volume controls with clean 1% steps, visible percent readouts, and selected-track keyboard gain control with `Command =` and `Command -`.
@@ -134,6 +134,7 @@ AudioRouter is split into layers:
 - `kAudioDevicePropertyVolumeScalar`
 - `kAudioDevicePropertyMute`
 - `kAudioDevicePropertyStreamConfiguration`
+- `kAudioDevicePropertyAvailableNominalSampleRates`
 - `kAudioDevicePropertyDeviceNameCFString`
 - `kAudioDevicePropertyDeviceUID`
 - `AudioHardwareCreateProcessTap` and `AudioHardwareDestroyProcessTap` on macOS 14.2+
@@ -155,6 +156,8 @@ A production-grade version still needs a dedicated audio backend for reliability
 - Low-latency buffer scheduling and cleanup.
 
 When the experimental route starts successfully, the UI marks it “Live.” If macOS denies capture, the app is not producing a tap-able stream, or the aggregate route cannot start, AudioRouter saves the desired route and marks it “Requires Audio Backend.” Output groups can fan out one live route to multiple devices, but independent Bluetooth/AirPlay/USB devices may have latency differences or drift without a production routing backend.
+
+AudioRouter keeps its internal live route path lossless where public APIs allow it: captured audio is rendered as 32-bit floating-point PCM, the source tap sample rate is preserved when every selected output reports support for it, and mixed-output routes choose the nearest shared hardware-supported sample rate instead of blindly forcing every route to stereo 48 kHz. Bluetooth, AirPlay, and some USB devices can still apply their own codec, firmware, or hardware sample-rate limits outside AudioRouter.
 
 The backend readiness panel is the fastest way to see what to do next:
 

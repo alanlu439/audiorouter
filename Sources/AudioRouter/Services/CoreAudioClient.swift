@@ -252,6 +252,7 @@ final class CoreAudioClient {
             isMuted: isMuted(deviceID: deviceID, scope: scope),
             balance: balance(deviceID: deviceID, scope: scope),
             sampleRate: sampleRate(deviceID: deviceID),
+            availableSampleRateRanges: availableNominalSampleRateRanges(deviceID: deviceID),
             canSetVolume: canSetVolume(deviceID: deviceID, scope: scope, channelCount: channelCount),
             canSetMute: isSettable(deviceID, selector: kAudioDevicePropertyMute, scope: scope),
             canSetBalance: canSetBalance(deviceID: deviceID, scope: scope)
@@ -477,6 +478,43 @@ final class CoreAudioClient {
             return nil
         }
         return Double(rate)
+    }
+
+    private func availableNominalSampleRateRanges(deviceID: AudioObjectID) -> [AudioSampleRateRange]? {
+        guard hasProperty(
+            deviceID,
+            selector: kAudioDevicePropertyAvailableNominalSampleRates,
+            scope: kAudioObjectPropertyScopeGlobal
+        ) else {
+            return nil
+        }
+
+        var address = propertyAddress(
+            selector: kAudioDevicePropertyAvailableNominalSampleRates,
+            scope: kAudioObjectPropertyScopeGlobal
+        )
+        var size: UInt32 = 0
+        guard AudioObjectGetPropertyDataSize(deviceID, &address, 0, nil, &size) == noErr,
+              size >= UInt32(MemoryLayout<AudioValueRange>.stride) else {
+            return nil
+        }
+
+        let count = Int(size) / MemoryLayout<AudioValueRange>.stride
+        var ranges = Array(repeating: AudioValueRange(mMinimum: 0, mMaximum: 0), count: count)
+        guard AudioObjectGetPropertyData(deviceID, &address, 0, nil, &size, &ranges) == noErr else {
+            return nil
+        }
+
+        let normalized = ranges
+            .map { AudioSampleRateRange(minimum: Double($0.mMinimum), maximum: Double($0.mMaximum)) }
+            .filter { $0.maximum > 0 }
+            .sorted {
+                if abs($0.minimum - $1.minimum) > 0.001 {
+                    return $0.minimum < $1.minimum
+                }
+                return $0.maximum < $1.maximum
+            }
+        return normalized.isEmpty ? nil : normalized
     }
 
     private func float64Property(

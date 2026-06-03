@@ -1935,10 +1935,10 @@ public final class AudioRouterStore: ObservableObject {
 
     private var demoDevices: [AudioDevice] {
         [
-            AudioDevice(audioObjectID: 10, uid: "demo-macbook", name: "MacBook Speakers", kind: .output, channelCount: 2, transport: .builtIn, isDefault: true, isAlive: true, volume: 0.72, balance: 0, sampleRate: 48000, canSetVolume: true, canSetMute: true, canSetBalance: true),
-            AudioDevice(audioObjectID: 11, uid: "demo-bluetooth", name: "Bluetooth Speaker", kind: .output, channelCount: 2, transport: .bluetooth, isDefault: false, isAlive: true, volume: 0.82, balance: -0.08, sampleRate: 44100, canSetVolume: true, canSetMute: true, canSetBalance: false),
-            AudioDevice(audioObjectID: 12, uid: "demo-airpods", name: "AirPods", kind: .output, channelCount: 2, transport: .bluetoothLE, isDefault: false, isAlive: true, volume: 0.64, balance: 0.04, sampleRate: 48000, canSetVolume: true, canSetMute: true, canSetBalance: true),
-            AudioDevice(audioObjectID: 16, uid: "demo-mic", name: "MacBook Microphone", kind: .input, channelCount: 1, transport: .builtIn, isDefault: true, isAlive: true, volume: 0.66, sampleRate: 48000, canSetVolume: true, canSetMute: false, canSetBalance: false)
+            AudioDevice(audioObjectID: 10, uid: "demo-macbook", name: "MacBook Speakers", kind: .output, channelCount: 2, transport: .builtIn, isDefault: true, isAlive: true, volume: 0.72, balance: 0, sampleRate: 48000, availableSampleRateRanges: [AudioSampleRateRange(minimum: 44100, maximum: 96000)], canSetVolume: true, canSetMute: true, canSetBalance: true),
+            AudioDevice(audioObjectID: 11, uid: "demo-bluetooth", name: "Bluetooth Speaker", kind: .output, channelCount: 2, transport: .bluetooth, isDefault: false, isAlive: true, volume: 0.82, balance: -0.08, sampleRate: 44100, availableSampleRateRanges: [AudioSampleRateRange(minimum: 44100, maximum: 48000)], canSetVolume: true, canSetMute: true, canSetBalance: false),
+            AudioDevice(audioObjectID: 12, uid: "demo-airpods", name: "AirPods", kind: .output, channelCount: 2, transport: .bluetoothLE, isDefault: false, isAlive: true, volume: 0.64, balance: 0.04, sampleRate: 48000, availableSampleRateRanges: [AudioSampleRateRange(minimum: 48000, maximum: 48000)], canSetVolume: true, canSetMute: true, canSetBalance: true),
+            AudioDevice(audioObjectID: 16, uid: "demo-mic", name: "MacBook Microphone", kind: .input, channelCount: 1, transport: .builtIn, isDefault: true, isAlive: true, volume: 0.66, sampleRate: 48000, availableSampleRateRanges: [AudioSampleRateRange(minimum: 44100, maximum: 96000)], canSetVolume: true, canSetMute: false, canSetBalance: false)
         ]
     }
 
@@ -2038,6 +2038,7 @@ public final class AudioRouterStore: ObservableObject {
             isMuted: isMuted ?? device.isMuted,
             balance: balance ?? device.balance,
             sampleRate: device.sampleRate,
+            availableSampleRateRanges: device.availableSampleRateRanges,
             canSetVolume: device.canSetVolume,
             canSetMute: device.canSetMute,
             canSetBalance: device.canSetBalance
