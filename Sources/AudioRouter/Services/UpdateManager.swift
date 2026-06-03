@@ -5,6 +5,7 @@ import Foundation
 public final class UpdateManager: ObservableObject {
     nonisolated public static let releaseAssetName = "AudioRouter-macOS.zip"
     nonisolated public static let lastAutomaticCheckDefaultsKey = "AudioRouter.lastAutomaticUpdateCheckAt"
+    nonisolated public static let defaultAutomaticCheckInterval: TimeInterval = 900
 
     public struct UpdateInfo: Equatable {
         public enum Kind: String, Equatable {
@@ -38,6 +39,7 @@ public final class UpdateManager: ObservableObject {
     private let automaticCheckInterval: TimeInterval
     private let currentVersionProvider: () -> String
     private let currentCommitProvider: () -> String?
+    private var automaticCheckTimer: Timer?
     private let latestReleaseURL = URL(string: "https://api.github.com/repos/alanlu439/audiorouter/releases/latest")!
     private let latestCommitURL = URL(string: "https://api.github.com/repos/alanlu439/audiorouter/commits/main")!
     private let latestDownloadURL = URL(string: "https://github.com/alanlu439/audiorouter/releases/latest/download/AudioRouter-macOS.zip")!
@@ -45,7 +47,7 @@ public final class UpdateManager: ObservableObject {
     public init(
         session: URLSession = .shared,
         defaults: UserDefaults = .standard,
-        automaticCheckInterval: TimeInterval = 21_600,
+        automaticCheckInterval: TimeInterval = UpdateManager.defaultAutomaticCheckInterval,
         currentVersionProvider: @escaping () -> String = {
             Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.0.0"
         },
@@ -92,6 +94,25 @@ public final class UpdateManager: ObservableObject {
             return
         }
         checkForUpdates(autoFetch: true)
+    }
+
+    public func startAutomaticChecks(enabled: Bool) {
+        automaticCheckTimer?.invalidate()
+        automaticCheckTimer = nil
+        guard enabled else { return }
+
+        checkAutomaticallyIfNeeded(enabled: true)
+        automaticCheckTimer = Timer.scheduledTimer(withTimeInterval: automaticCheckInterval, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.checkAutomaticallyIfNeeded(enabled: true)
+            }
+        }
+        automaticCheckTimer?.tolerance = min(60, automaticCheckInterval * 0.15)
+    }
+
+    public func stopAutomaticChecks() {
+        automaticCheckTimer?.invalidate()
+        automaticCheckTimer = nil
     }
 
     public func dismissInstallPrompt() {
@@ -197,7 +218,7 @@ public final class UpdateManager: ObservableObject {
                 )
                 availableUpdate = update
                 downloadedUpdateURL = nil
-                shouldPromptToInstall = false
+                shouldPromptToInstall = true
                 message = "New AudioRouter commit \(commitLabel) is available on GitHub."
             } else {
                 availableUpdate = nil

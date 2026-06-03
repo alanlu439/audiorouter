@@ -318,6 +318,7 @@ func checkDeviceChangesDoNotSwitchSystemOutput() throws {
 
 func checkUpdateVersionComparison() {
     precondition(UpdateManager.releaseAssetName == "AudioRouter-macOS.zip", "Updater should fetch the ZIP release asset")
+    precondition(UpdateManager.defaultAutomaticCheckInterval == 900, "Automatic update checks should poll often enough for commit update notices")
     precondition(UpdateManager.isVersion("0.1.2", newerThan: "0.1.1"), "Patch update should compare newer")
     precondition(UpdateManager.isVersion("0.2.0", newerThan: "0.1.9"), "Minor update should compare newer")
     precondition(UpdateManager.isVersion("v0.1.10", newerThan: "0.1.9"), "Version tags with v prefixes should compare correctly")

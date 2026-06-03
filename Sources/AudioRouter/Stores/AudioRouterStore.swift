@@ -330,7 +330,7 @@ public final class AudioRouterStore: ObservableObject {
     public func start() {
         refresh()
         startDeviceObservationIfNeeded()
-        updateManager.checkAutomaticallyIfNeeded(enabled: settings.automaticallyCheckForUpdates)
+        updateManager.startAutomaticChecks(enabled: settings.automaticallyCheckForUpdates)
         guard refreshTimer == nil else { return }
         refreshTimer = Timer.scheduledTimer(withTimeInterval: refreshInterval, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
@@ -365,6 +365,7 @@ public final class AudioRouterStore: ObservableObject {
         pendingDeviceDisconnectTasks.removeAll()
         deviceObservation?.cancel()
         deviceObservation = nil
+        updateManager.stopAutomaticChecks()
     }
 
     public func refresh(silent: Bool = false) {
@@ -445,7 +446,10 @@ public final class AudioRouterStore: ObservableObject {
     public func setAutomaticallyCheckForUpdates(_ enabled: Bool) {
         settings.automaticallyCheckForUpdates = enabled
         if enabled {
+            updateManager.startAutomaticChecks(enabled: true)
             updateManager.checkAutomaticallyIfNeeded(enabled: true, force: true)
+        } else {
+            updateManager.stopAutomaticChecks()
         }
     }
 

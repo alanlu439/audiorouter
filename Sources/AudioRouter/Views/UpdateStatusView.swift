@@ -21,10 +21,10 @@ struct UpdateStatusView: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Toggle("Automatically check and fetch updates", isOn: automaticUpdatesBinding)
+            Toggle("Automatically check for updates", isOn: automaticUpdatesBinding)
                 .font(.caption.weight(.semibold))
                 .toggleStyle(.switch)
-                .accessibilityHint("Checks GitHub releases and commits at launch, and fetches the newest AudioRouter ZIP when a release is available")
+                .accessibilityHint("Checks GitHub releases and commits while AudioRouter is running, and fetches the newest AudioRouter ZIP when a release is available")
 
             if let lastCheckedAt = store.updateManager.lastCheckedAt {
                 Text("Last checked \(lastCheckedAt.formatted(date: .abbreviated, time: .shortened))")
