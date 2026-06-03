@@ -122,11 +122,11 @@ public struct MenuBarPopoverView: View {
                 openWindow(id: "main")
             } label: {
                 Text(store.activeUserProfile.displayName)
-                    .font(.caption.weight(.semibold))
+                    .font(.system(size: 14, weight: .semibold))
                     .lineLimit(1)
                     .fixedSize(horizontal: true, vertical: false)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
+                    .frame(height: 30, alignment: .center)
+                    .padding(.horizontal, 10)
                     .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
                     .overlay {
                         RoundedRectangle(cornerRadius: 7, style: .continuous)

@@ -6,6 +6,7 @@
 
 - Added a top-right user profile menu in the main AudioRouter window with full-name display, profile switching, profile creation, renaming, and deletion.
 - Scoped saved setups to the active profile so different users can keep separate preferred presets on the same Mac.
+- Added a quit confirmation warning so users do not accidentally stop active routing controls.
 
 ### EQ
 

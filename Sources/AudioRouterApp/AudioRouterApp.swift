@@ -49,6 +49,7 @@ struct AudioRouterApplication: App {
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private static weak var store: AudioRouterStore?
+    private var confirmedQuit = false
 
     static func configure(with store: AudioRouterStore) {
         Self.store = store
@@ -60,6 +61,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         DispatchQueue.main.async {
             NSApp.activate(ignoringOtherApps: true)
         }
+    }
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard !confirmedQuit else { return .terminateNow }
+
+        let alert = NSAlert()
+        alert.messageText = "Quit AudioRouter?"
+        alert.informativeText = "Quitting will stop AudioRouter's routing controls, active meters, and update checks until you open the app again."
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "Quit AudioRouter")
+        alert.addButton(withTitle: "Cancel")
+
+        NSApp.activate(ignoringOtherApps: true)
+        if alert.runModal() == .alertFirstButtonReturn {
+            confirmedQuit = true
+            return .terminateNow
+        }
+
+        return .terminateCancel
     }
 
     func applicationWillTerminate(_ notification: Notification) {

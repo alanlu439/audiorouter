@@ -157,6 +157,7 @@ private struct UserProfileMenu: View {
             profileLabel
         }
         .menuStyle(.button)
+        .menuIndicator(.hidden)
         .help("AudioRouter profile: \(store.activeUserProfile.displayName)")
         .accessibilityLabel("AudioRouter profile \(store.activeUserProfile.displayName)")
     }
@@ -165,12 +166,7 @@ private struct UserProfileMenu: View {
     private var profileLabel: some View {
         switch style {
         case .full:
-            Text(store.activeUserProfile.displayName)
-                .font(.caption.weight(.semibold))
-                .lineLimit(1)
-                .fixedSize(horizontal: true, vertical: false)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
+            profileNameRow(height: 32, horizontalPadding: 12)
                 .background(.ultraThinMaterial, in: Capsule())
                 .overlay {
                     Capsule()
@@ -178,12 +174,7 @@ private struct UserProfileMenu: View {
                 }
                 .shadow(color: .black.opacity(0.18), radius: 10, y: 4)
         case .toolbar:
-            Text(store.activeUserProfile.displayName)
-                .font(.caption.weight(.semibold))
-                .lineLimit(1)
-                .fixedSize(horizontal: true, vertical: false)
-                .padding(.horizontal, 10)
-                .frame(height: 24)
+            profileNameRow(height: 30, horizontalPadding: 10)
                 .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
                 .overlay {
                     RoundedRectangle(cornerRadius: 7, style: .continuous)
@@ -191,6 +182,23 @@ private struct UserProfileMenu: View {
                 }
                 .contentShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
         }
+    }
+
+    private func profileNameRow(height: CGFloat, horizontalPadding: CGFloat) -> some View {
+        HStack(alignment: .center, spacing: 7) {
+            Text(store.activeUserProfile.displayName)
+                .font(.system(size: 14, weight: .semibold))
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+            Image(systemName: "chevron.down")
+                .font(.system(size: 9, weight: .bold))
+                .foregroundStyle(.secondary)
+                .frame(width: 10, height: height, alignment: .center)
+                .accessibilityHidden(true)
+        }
+        .frame(height: height, alignment: .center)
+        .padding(.horizontal, horizontalPadding)
+        .fixedSize(horizontal: true, vertical: true)
     }
 }
 
