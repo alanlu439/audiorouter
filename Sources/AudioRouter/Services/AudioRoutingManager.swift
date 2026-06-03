@@ -267,6 +267,10 @@ public final class AudioRoutingManager {
         backend.sourceAudioQuality(sourceID: sourceID)
     }
 
+    public func setEQState(_ state: EQState) {
+        backend.setEQState(state)
+    }
+
     public func routeMessage(for sourceID: String) -> String? {
         routeMessagesBySourceID[sourceID]
     }

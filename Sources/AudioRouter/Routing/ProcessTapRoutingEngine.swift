@@ -12,13 +12,13 @@ final class ProcessTapRoutingEngine {
         private var receivedBufferCount = 0
 
         init(volume: Double, muted: Bool) {
-            self.storedVolume = Float(max(0, min(RouteAudioQualityPolicy.maximumGain, volume)))
+            self.storedVolume = Float(RouteAudioQualityPolicy.normalizedGain(volume))
             self.storedMuted = muted
         }
 
         func setVolume(_ volume: Double) {
             lock.lock()
-            storedVolume = Float(max(0, min(RouteAudioQualityPolicy.maximumGain, volume)))
+            storedVolume = Float(RouteAudioQualityPolicy.normalizedGain(volume))
             lock.unlock()
         }
 
@@ -84,23 +84,152 @@ final class ProcessTapRoutingEngine {
         let aggregateDeviceID: AudioObjectID
         let ioProcID: AudioDeviceIOProcID
         let control: RouteControl
+        let pipes: [PCMBufferPipe]
         let outputRenderers: [RouteOutputRenderer]
-        let sourceQuality: SourceAudioQuality
+        var sourceQuality: SourceAudioQuality
+        var sourceQualityCheckedAt: Date
+    }
+
+    private struct BiquadFilter {
+        private var b0 = 1.0
+        private var b1 = 0.0
+        private var b2 = 0.0
+        private var a1 = 0.0
+        private var a2 = 0.0
+        private var z1 = 0.0
+        private var z2 = 0.0
+
+        init(centerFrequency: Double, sampleRate: Double, gain: Double) {
+            update(centerFrequency: centerFrequency, sampleRate: sampleRate, gain: gain)
+        }
+
+        mutating func update(centerFrequency: Double, sampleRate: Double, gain: Double) {
+            guard sampleRate > 0, abs(gain) >= 0.05 else {
+                b0 = 1
+                b1 = 0
+                b2 = 0
+                a1 = 0
+                a2 = 0
+                z1 = 0
+                z2 = 0
+                return
+            }
+
+            let nyquist = sampleRate * 0.5
+            let frequency = min(max(20, centerFrequency), nyquist * 0.95)
+            let q = 1.2
+            let omega = 2 * Double.pi * frequency / sampleRate
+            let alpha = sin(omega) / (2 * q)
+            let amplitude = pow(10, gain / 40)
+            let cosOmega = cos(omega)
+            let unnormalizedB0 = 1 + alpha * amplitude
+            let unnormalizedB1 = -2 * cosOmega
+            let unnormalizedB2 = 1 - alpha * amplitude
+            let unnormalizedA0 = 1 + alpha / amplitude
+            let unnormalizedA1 = -2 * cosOmega
+            let unnormalizedA2 = 1 - alpha / amplitude
+
+            b0 = unnormalizedB0 / unnormalizedA0
+            b1 = unnormalizedB1 / unnormalizedA0
+            b2 = unnormalizedB2 / unnormalizedA0
+            a1 = unnormalizedA1 / unnormalizedA0
+            a2 = unnormalizedA2 / unnormalizedA0
+        }
+
+        mutating func process(_ input: Double) -> Double {
+            let output = b0 * input + z1
+            z1 = b1 * input - a1 * output + z2
+            z2 = b2 * input - a2 * output
+            return output.isFinite ? output : 0
+        }
+    }
+
+    private final class GraphicEQProcessor {
+        private static let centerFrequencies: [Double] = [
+            31, 62, 125, 250, 500, 1_000, 2_000, 4_000, 8_000, 16_000
+        ]
+
+        private let sampleRate: Double
+        private let channelCount: Int
+        private var filtersByChannel: [[BiquadFilter]]
+
+        init(sampleRate: Double, channelCount: Int, bands: [Double]) {
+            self.sampleRate = sampleRate
+            self.channelCount = max(1, channelCount)
+            let normalizedBands = Self.normalizedBands(bands)
+            self.filtersByChannel = (0..<self.channelCount).map { _ in
+                Self.centerFrequencies.enumerated().map { index, frequency in
+                    BiquadFilter(
+                        centerFrequency: frequency,
+                        sampleRate: sampleRate,
+                        gain: normalizedBands[index]
+                    )
+                }
+            }
+        }
+
+        func updateBands(_ bands: [Double]) {
+            let normalizedBands = Self.normalizedBands(bands)
+            for channel in filtersByChannel.indices {
+                for index in filtersByChannel[channel].indices {
+                    filtersByChannel[channel][index].update(
+                        centerFrequency: Self.centerFrequencies[index],
+                        sampleRate: sampleRate,
+                        gain: normalizedBands[index]
+                    )
+                }
+            }
+        }
+
+        func process(sample: Float32, channel: Int) -> Float32 {
+            let filterChannel = min(max(0, channel), channelCount - 1)
+            var value = Double(sample)
+            for index in filtersByChannel[filterChannel].indices {
+                value = filtersByChannel[filterChannel][index].process(value)
+            }
+            guard value.isFinite else { return 0 }
+            return Float32(max(-4, min(4, value)))
+        }
+
+        private static func normalizedBands(_ bands: [Double]) -> [Double] {
+            var normalized = Array(bands.prefix(centerFrequencies.count)).map { max(-12, min(12, $0)) }
+            while normalized.count < centerFrequencies.count {
+                normalized.append(0)
+            }
+            return normalized
+        }
     }
 
     private final class PCMBufferPipe {
         private let lock = NSLock()
-        private var storage: [UInt8]
+        private var storage: [Float32]
         private var readIndex = 0
         private var writeIndex = 0
-        private var availableByteCount = 0
+        private var availableSampleCount = 0
+        private var equalizer: GraphicEQProcessor
 
         let channelCount: Int
 
-        init(format: AudioStreamBasicDescription, seconds: Double = 1.0) {
+        init(
+            format: AudioStreamBasicDescription,
+            eqBands: [Double],
+            seconds: Double = 1.0
+        ) {
             self.channelCount = max(1, Int(format.mChannelsPerFrame))
             let bytesPerSecond = max(4096, Int(format.mSampleRate) * max(1, Int(format.mBytesPerFrame)))
-            self.storage = Array(repeating: 0, count: max(16_384, Int(Double(bytesPerSecond) * seconds)))
+            let sampleCapacity = max(4_096, Int(Double(bytesPerSecond) * seconds) / MemoryLayout<Float32>.size)
+            self.storage = Array(repeating: 0, count: sampleCapacity)
+            self.equalizer = GraphicEQProcessor(
+                sampleRate: format.mSampleRate,
+                channelCount: self.channelCount,
+                bands: eqBands
+            )
+        }
+
+        func setEQBands(_ bands: [Double]) {
+            lock.lock()
+            equalizer.updateBands(bands)
+            lock.unlock()
         }
 
         func writeInterleavedFloat32(
@@ -120,16 +249,16 @@ final class ProcessTapRoutingEngine {
             var sampleCount = 0
             for frame in 0..<frameCount {
                 for channel in 0..<outputChannelCount {
-                    var sample = Self.peakLimited(
-                        sampleAt(frame: frame, channel: channel, inputBuffers: inputBuffers) * gain
+                    let equalizedSample = equalizer.process(
+                        sample: sampleAt(frame: frame, channel: channel, inputBuffers: inputBuffers),
+                        channel: channel
+                    )
+                    let sample = Self.peakLimited(
+                        equalizedSample * gain
                     )
                     squareSum += Double(sample) * Double(sample)
                     sampleCount += 1
-                    withUnsafeBytes(of: &sample) { sampleBytes in
-                        for byte in sampleBytes {
-                            writeByte(byte)
-                        }
-                    }
+                    writeSample(sample)
                 }
             }
 
@@ -139,29 +268,35 @@ final class ProcessTapRoutingEngine {
 
         func read(into destination: UnsafeMutableRawPointer?, byteCount: Int) {
             guard let destination, byteCount > 0 else { return }
-            let bytes = destination.assumingMemoryBound(to: UInt8.self)
+            let samples = destination.assumingMemoryBound(to: Float32.self)
+            let requestedSampleCount = byteCount / MemoryLayout<Float32>.size
             lock.lock()
             defer { lock.unlock() }
 
-            for index in 0..<byteCount {
-                if availableByteCount > 0 {
-                    bytes[index] = storage[readIndex]
+            for index in 0..<requestedSampleCount {
+                if availableSampleCount > 0 {
+                    samples[index] = storage[readIndex]
                     readIndex = (readIndex + 1) % storage.count
-                    availableByteCount -= 1
+                    availableSampleCount -= 1
                 } else {
-                    bytes[index] = 0
+                    samples[index] = 0
                 }
+            }
+
+            let copiedByteCount = requestedSampleCount * MemoryLayout<Float32>.size
+            if copiedByteCount < byteCount {
+                memset(destination.advanced(by: copiedByteCount), 0, byteCount - copiedByteCount)
             }
         }
 
-        private func writeByte(_ byte: UInt8) {
-            if availableByteCount == storage.count {
+        private func writeSample(_ sample: Float32) {
+            if availableSampleCount == storage.count {
                 readIndex = (readIndex + 1) % storage.count
-                availableByteCount -= 1
+                availableSampleCount -= 1
             }
-            storage[writeIndex] = byte
+            storage[writeIndex] = sample
             writeIndex = (writeIndex + 1) % storage.count
-            availableByteCount += 1
+            availableSampleCount += 1
         }
 
         private func frameCount(for inputBuffers: UnsafeMutableAudioBufferListPointer) -> Int? {
@@ -301,6 +436,7 @@ final class ProcessTapRoutingEngine {
     private var sessions: [String: RouteSession] = [:]
     private var pendingVolumes: [String: Double] = [:]
     private var pendingMutes: [String: Bool] = [:]
+    private var currentEQBands: [Double] = EQPreset.flat.bands
 
     var isSupportedOnThisOS: Bool {
         if #available(macOS 14.2, *) {
@@ -355,15 +491,14 @@ final class ProcessTapRoutingEngine {
                 guard canReadFloat32(tapFormat) else {
                     throw AudioRoutingBackendError.unsupported("This app's process tap uses an audio format AudioRouter cannot route yet.")
                 }
-                let sourceQuality = SourceAudioQuality(
-                    sampleRate: tapFormat.mSampleRate,
-                    bitDepth: Int(tapFormat.mBitsPerChannel),
-                    channelCount: Int(tapFormat.mChannelsPerFrame),
-                    isFloatPCM: (tapFormat.mFormatFlags & kAudioFormatFlagIsFloat) != 0
-                )
+                let sourceQuality = SourceAudioQuality(from: tapFormat)
                 let playbackFormat = RouteAudioQualityPolicy.playbackFormat(from: tapFormat, outputDevices: outputDevices)
                 let pipes = outputDevices.map { _ in
-                    PCMBufferPipe(format: playbackFormat, seconds: RouteAudioQualityPolicy.routePipeBufferSeconds)
+                    PCMBufferPipe(
+                        format: playbackFormat,
+                        eqBands: currentEQBands,
+                        seconds: RouteAudioQualityPolicy.routePipeBufferSeconds
+                    )
                 }
                 let outputRenderers = try zip(outputDevices, pipes).map { outputDevice, pipe in
                     try RouteOutputRenderer(
@@ -414,8 +549,10 @@ final class ProcessTapRoutingEngine {
                             aggregateDeviceID: aggregateDeviceID,
                             ioProcID: ioProcID,
                             control: control,
+                            pipes: pipes,
                             outputRenderers: outputRenderers,
-                            sourceQuality: sourceQuality
+                            sourceQuality: sourceQuality,
+                            sourceQualityCheckedAt: Date()
                         )
                     } catch {
                         AudioDeviceDestroyIOProcID(aggregateDeviceID, ioProcID)
@@ -434,6 +571,35 @@ final class ProcessTapRoutingEngine {
         }
 
         throw AudioRoutingBackendError.unsupported("Live per-app routes are unavailable on this macOS version.")
+    }
+
+    func probeSourceAudioQuality(source: AudioSource) throws -> SourceAudioQuality {
+        guard isSupportedOnThisOS else {
+            throw AudioRoutingBackendError.unsupported("Source quality probing requires macOS 14.2 or newer.")
+        }
+        guard let processObjectID = source.audioObjectID else {
+            throw AudioRoutingBackendError.unsupported("AudioRouter cannot see \(source.appName)'s Core Audio process yet.")
+        }
+
+        if #available(macOS 14.2, *) {
+            let tapDescription = CATapDescription(stereoMixdownOfProcesses: [AudioObjectID(processObjectID)])
+            tapDescription.name = "AudioRouter \(source.appName) Quality Probe"
+            tapDescription.isPrivate = true
+            tapDescription.muteBehavior = .unmuted
+
+            var tapID = AudioObjectID(kAudioObjectUnknown)
+            try checkTapStatus(
+                AudioHardwareCreateProcessTap(tapDescription, &tapID),
+                operation: "Create source quality process tap"
+            )
+            defer {
+                AudioHardwareDestroyProcessTap(tapID)
+            }
+
+            return SourceAudioQuality(from: try streamFormat(tapID))
+        }
+
+        throw AudioRoutingBackendError.unsupported("Source quality probing is unavailable on this macOS version.")
     }
 
     func stopRoute(sourceID: String) {
@@ -463,12 +629,33 @@ final class ProcessTapRoutingEngine {
         sessions[sourceID]?.control.setMuted(muted)
     }
 
+    func setEQState(_ state: EQState) {
+        currentEQBands = state.bands
+        for session in sessions.values {
+            session.pipes.forEach { $0.setEQBands(state.bands) }
+        }
+    }
+
     func currentLevel(sourceID: String) -> Double? {
         sessions[sourceID]?.control.level()
     }
 
     func sourceAudioQuality(sourceID: String) -> SourceAudioQuality? {
-        sessions[sourceID]?.sourceQuality
+        guard var session = sessions[sourceID] else {
+            return nil
+        }
+
+        let now = Date()
+        guard now.timeIntervalSince(session.sourceQualityCheckedAt) >= RouteAudioQualityPolicy.liveSourceQualityRefreshInterval else {
+            return session.sourceQuality
+        }
+
+        if let format = try? streamFormat(session.tapID) {
+            session.sourceQuality = SourceAudioQuality(from: format)
+        }
+        session.sourceQualityCheckedAt = now
+        sessions[sourceID] = session
+        return session.sourceQuality
     }
 
     func isRouting(sourceID: String) -> Bool {
@@ -587,5 +774,27 @@ final class ProcessTapRoutingEngine {
             guard let data = buffer.mData else { continue }
             memset(data, 0, Int(buffer.mDataByteSize))
         }
+    }
+}
+
+private extension SourceAudioQuality {
+    init(from format: AudioStreamBasicDescription) {
+        let channelCount = max(1, Int(format.mChannelsPerFrame))
+        let derivedBitDepth: Int
+        if format.mBitsPerChannel > 0 {
+            derivedBitDepth = Int(format.mBitsPerChannel)
+        } else if format.mBytesPerFrame > 0 {
+            derivedBitDepth = max(0, Int(format.mBytesPerFrame) * 8 / channelCount)
+        } else {
+            derivedBitDepth = 0
+        }
+
+        self.init(
+            sampleRate: format.mSampleRate,
+            bitDepth: derivedBitDepth,
+            channelCount: channelCount,
+            isFloatPCM: format.mFormatID == kAudioFormatLinearPCM
+                && (format.mFormatFlags & kAudioFormatFlagIsFloat) != 0
+        )
     }
 }

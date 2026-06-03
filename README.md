@@ -89,14 +89,16 @@ The AudioRouter name, logo, app icon, and branding assets are not licensed for c
 - Core Audio hardware change observation plus a refresh fallback for Bluetooth, AirPlay, USB, HDMI, virtual, aggregate, and built-in device changes.
 - Running audio-capable app discovery through Core Audio process objects, with a running-app fallback.
 - Experimental live per-app routes on macOS 14.2+ using public Core Audio process taps, transient aggregate devices, and an IO callback.
-- High-quality experimental route rendering using 32-bit floating-point PCM, source-rate-first playback, Core Audio output sample-rate capability checks, high-quality drift compensation, and soft peak limiting for boosted app routes.
-- Source-quality badges beside route app names, showing the live process-tap format when a route is active or `Pending` until the source format is available.
+- High-quality experimental route rendering using 32-bit floating-point PCM, source-rate-first AudioQueue client formats, Core Audio output conversion, high-quality drift compensation, and clean unity-gain snapping to avoid accidental limiting near 100%.
+- Source-quality badges beside route app names, dynamically refreshed from the real Core Audio process-tap format when macOS exposes the source, with `Pending` shown only until a tap probe or live route can read the format.
 - Experimental group play: route one app to an output group so the captured source is rendered to multiple connected speakers through separate `AudioQueue` outputs.
 - Per-route volume, mute, and live meters while an experimental process-tap route is active.
+- Live 10-band EQ processing for AudioRouter process-tap routes, with dynamic slider updates and a saved Custom preset.
 - Smoother fader-style volume controls with clean 1% steps, visible percent readouts, and selected-track keyboard gain control with `Command =` and `Command -`.
 - Backend readiness panel in the popover, dashboard, and Advanced settings so the app shows whether routes are ready, live, saved, or waiting for playback.
 - Custom route apps: add running apps from the visual picker or browse for an installed `.app`, then assign that app to an output.
 - Customizable source-app dashboard: hide default source apps, restore defaults, drag to reorder the app list, or add your own route apps visually.
+- Top-right user profiles with custom names and local profile photos, so saved setups can be separated by person.
 - First-run visual onboarding with a route setup walkthrough, permission probe, and Privacy Settings shortcut.
 - Smoother device-change handling that waits through Bluetooth/AirPods re-enumeration bursts before marking a route missing, without forcing another system-output switch during connect or disconnect events.
 - Menu bar mini mixer for quick system and app volume/mute controls.
@@ -105,6 +107,12 @@ The AudioRouter name, logo, app icon, and branding assets are not licensed for c
 - Built-in GitHub release update checking with a persistent latest-download link.
 - Persistent route preferences, EQ settings, shortcuts, setup cards, and visual output groups.
 - Live Mode for real device control, and Demo Mode for UI testing with mock apps/devices/meters.
+
+## Profiles And Setups
+
+Use the profile button in the top-right corner of the main window to switch users, add a profile, rename it, upload a profile photo, or delete the current profile. Profile photos are copied into AudioRouter's local Application Support folder.
+
+Saved setups in the Setups tab belong to the active profile. Existing setups from older builds are kept under `Default Profile`, and new profiles start with an empty setup list so each user can keep their own preferred routing, EQ, volume, and mute presets.
 
 ## Live Versus Demo
 
@@ -158,7 +166,7 @@ A production-grade version still needs a dedicated audio backend for reliability
 
 When the experimental route starts successfully, the UI marks it “Live.” If macOS denies capture, the app is not producing a tap-able stream, or the aggregate route cannot start, AudioRouter saves the desired route and marks it “Requires Audio Backend.” Output groups can fan out one live route to multiple devices, but independent Bluetooth/AirPlay/USB devices may have latency differences or drift without a production routing backend.
 
-AudioRouter keeps its internal live route path lossless where public APIs allow it: captured audio is rendered as 32-bit floating-point PCM, the source tap sample rate is preserved when every selected output reports support for it, and mixed-output routes choose the nearest shared hardware-supported sample rate instead of blindly forcing every route to stereo 48 kHz. Bluetooth, AirPlay, and some USB devices can still apply their own codec, firmware, or hardware sample-rate limits outside AudioRouter.
+AudioRouter keeps its internal live route path lossless where public APIs allow it: captured audio is rendered as 32-bit floating-point PCM, the source tap sample rate is preserved as the AudioQueue client format, and Core Audio performs any device-side conversion required by the selected output. Bluetooth, AirPlay, and some USB devices can still apply their own codec, firmware, latency, or hardware sample-rate limits outside AudioRouter.
 
 The backend readiness panel is the fastest way to see what to do next:
 
@@ -169,7 +177,9 @@ The backend readiness panel is the fastest way to see what to do next:
 
 ## EQ And Effects
 
-The 10-band EQ UI, presets, curve preview, and Custom preset are saved settings. Public Core Audio device APIs do not apply arbitrary system-wide or per-app EQ. EQ is marked as UI-only until a backend processing graph exists.
+The 10-band EQ UI, presets, curve preview, and Custom preset are saved settings. When a source is routed through AudioRouter's live process-tap route engine, EQ bands are applied to the captured 32-bit floating-point PCM stream before it is rendered to the selected output device. EQ changes are dynamic, so moving a slider updates active routes without restarting playback.
+
+Public Core Audio device APIs still do not apply arbitrary EQ to system audio that is not routed through AudioRouter. Full system-wide EQ remains future backend work.
 
 ## Permissions
 
@@ -281,6 +291,6 @@ This Command Line Tools install does not include `XCTest` or Swift's `Testing` m
 - Harden the experimental process-tap aggregate-device IO pipeline across more devices and formats.
 - Sparkle-based automatic in-place updates after the notarized Developer ID release workflow is in place.
 - Routing plugin or virtual audio device for production-grade per-app output routing.
-- Real EQ processing in the backend audio graph.
+- Broader EQ processing through a future backend for audio that is not routed through AudioRouter.
 - Sample-locked output group sync across independent devices.
 - Production launch-at-login behavior.

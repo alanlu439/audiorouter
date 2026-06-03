@@ -2,6 +2,11 @@ import AppKit
 import Foundation
 
 public final class PublicAPIAudioRoutingBackend: AudioRoutingBackend {
+    private struct SourceQualityProbeCacheEntry {
+        let quality: SourceAudioQuality?
+        let expiresAt: Date
+    }
+
     public var supportsPerAppRouting: Bool { processTapRoutingEngine.isSupportedOnThisOS }
     public var supportsPerAppVolume: Bool { processTapRoutingEngine.isSupportedOnThisOS }
     public var supportsPerAppMute: Bool { processTapRoutingEngine.isSupportedOnThisOS }
@@ -13,6 +18,9 @@ public final class PublicAPIAudioRoutingBackend: AudioRoutingBackend {
     private let processTapRoutingEngine: ProcessTapRoutingEngine
     private var latestSourcesByID: [String: AudioSource] = [:]
     private var latestOutputsByUID: [String: AudioDevice] = [:]
+    private var sourceQualityProbeCacheByID: [String: SourceQualityProbeCacheEntry] = [:]
+    private let successfulSourceQualityProbeTTL: TimeInterval = 3
+    private let failedSourceQualityProbeTTL: TimeInterval = 2
 
     public convenience init() {
         self.init(
@@ -84,7 +92,35 @@ public final class PublicAPIAudioRoutingBackend: AudioRoutingBackend {
     }
 
     public func sourceAudioQuality(sourceID: String) -> SourceAudioQuality? {
-        processTapRoutingEngine.sourceAudioQuality(sourceID: sourceID)
+        if let liveQuality = processTapRoutingEngine.sourceAudioQuality(sourceID: sourceID) {
+            cacheSourceQuality(liveQuality, for: sourceID, source: latestSourcesByID[sourceID])
+            return liveQuality
+        }
+
+        let now = Date()
+        if let cached = cachedSourceQualityEntry(for: sourceID, now: now) {
+            return cached.quality
+        }
+
+        guard let source = try? source(for: sourceID) else {
+            cacheSourceQuality(nil, for: sourceID, now: now)
+            return nil
+        }
+
+        do {
+            let quality = try processTapRoutingEngine.probeSourceAudioQuality(
+                source: routeSource(from: source, canonicalSourceID: sourceID)
+            )
+            cacheSourceQuality(quality, for: sourceID, source: source, now: now)
+            return quality
+        } catch {
+            cacheSourceQuality(nil, for: sourceID, source: source, now: now)
+            return nil
+        }
+    }
+
+    public func setEQState(_ state: EQState) {
+        processTapRoutingEngine.setEQState(state)
     }
 
     private func source(for sourceID: String) throws -> AudioSource {
@@ -210,5 +246,51 @@ public final class PublicAPIAudioRoutingBackend: AudioRoutingBackend {
             throw AudioRouterError.missingDevice
         }
         return output
+    }
+
+    private func cachedSourceQualityEntry(
+        for sourceID: String,
+        now: Date
+    ) -> SourceQualityProbeCacheEntry? {
+        guard let entry = sourceQualityProbeCacheByID[sourceID] else {
+            return nil
+        }
+        guard entry.expiresAt > now else {
+            sourceQualityProbeCacheByID.removeValue(forKey: sourceID)
+            return nil
+        }
+        return entry
+    }
+
+    private func cacheSourceQuality(
+        _ quality: SourceAudioQuality?,
+        for sourceID: String,
+        source: AudioSource? = nil,
+        now: Date = Date()
+    ) {
+        guard !sourceID.isEmpty else { return }
+        let ttl = quality == nil ? failedSourceQualityProbeTTL : successfulSourceQualityProbeTTL
+        let entry = SourceQualityProbeCacheEntry(
+            quality: quality,
+            expiresAt: now.addingTimeInterval(ttl)
+        )
+        sourceQualityProbeCacheByID[sourceID] = entry
+
+        guard let source else { return }
+        cacheSourceQualityEntry(entry, for: source.id)
+        if let bundleIdentifier = source.bundleIdentifier {
+            cacheSourceQualityEntry(entry, for: bundleIdentifier)
+            for alias in helperBundleAliases(for: bundleIdentifier) {
+                cacheSourceQualityEntry(entry, for: alias)
+            }
+        }
+    }
+
+    private func cacheSourceQualityEntry(
+        _ entry: SourceQualityProbeCacheEntry,
+        for sourceID: String
+    ) {
+        guard !sourceID.isEmpty else { return }
+        sourceQualityProbeCacheByID[sourceID] = entry
     }
 }

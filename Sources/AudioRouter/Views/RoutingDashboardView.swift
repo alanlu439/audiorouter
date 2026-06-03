@@ -398,12 +398,6 @@ private struct StudioPatchBayPanel: View {
             trailing: "\(store.routeAppDisplayNames.count) configured"
         ) {
             VStack(spacing: 8) {
-                if let note = store.unsupportedNote {
-                    SupportNote(note: note) {
-                        store.dismissUnsupportedNote()
-                    }
-                }
-
                 StudioPatchBayActions(store: store) {
                     isAddingApp = true
                 }

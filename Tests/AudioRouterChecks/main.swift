@@ -6,6 +6,7 @@ import Foundation
 func runChecks() throws {
     checkEQPresets()
     try checkPresetPersistence()
+    try checkUserProfilePresetScoping()
     checkShortcutPersistence()
     try checkSelectedSourceVolumeCommandStep()
     try checkSelectedOutputVolumeCommandStep()
@@ -29,6 +30,22 @@ func checkEQPresets() {
     precondition(EQPreset.allCases.count == 7, "Expected seven EQ presets")
     precondition(EQPreset.music.bands.count == 10, "Music preset should expose ten bands")
     precondition(EQPreset.custom.bands.count == 10, "Custom preset should expose ten bands")
+
+    let suiteName = "AudioRouterChecks-\(UUID().uuidString)"
+    let defaults = UserDefaults(suiteName: suiteName)!
+    defer { defaults.removePersistentDomain(forName: suiteName) }
+
+    let manager = EQManager(defaults: defaults)
+    manager.applyPreset(.music)
+    manager.setBand(index: 0, gain: 7)
+    manager.saveCustomPreset()
+    manager.applyPreset(.flat)
+    precondition(manager.state.bands == EQPreset.flat.bands, "Flat EQ should load flat bands")
+    manager.applyPreset(.custom)
+    precondition(manager.state.bands.first == 7, "Custom EQ should recall saved custom bands")
+
+    let reloaded = EQManager(defaults: defaults)
+    precondition(reloaded.state.customBands.first == 7, "Saved custom EQ should persist")
 }
 
 func checkPresetPersistence() throws {
@@ -57,6 +74,59 @@ func checkPresetPersistence() throws {
     let imported = PresetManager(fileURL: directory.appendingPathComponent("imported.json"))
     imported.importJSON(exported)
     precondition(imported.presets.first?.name == "Desk", "Preset JSON import did not restore setup")
+}
+
+func checkUserProfilePresetScoping() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+
+    let profileManager = UserProfileManager(
+        fileURL: directory.appendingPathComponent("profiles.json"),
+        photosDirectoryURL: directory.appendingPathComponent("photos", isDirectory: true)
+    )
+    let presetManager = PresetManager(fileURL: directory.appendingPathComponent("presets.json"))
+    presetManager.setActiveProfileID(profileManager.activeProfileID)
+
+    presetManager.savePreset(AudioPreset(
+        name: "Default Desk",
+        outputDeviceUID: nil,
+        inputDeviceUID: nil,
+        systemVolume: nil,
+        inputVolume: nil,
+        systemMuted: false,
+        appVolumes: [:],
+        mutedApps: [:],
+        appOutputAssignments: [:],
+        eqPreset: .flat
+    ))
+
+    let secondProfile = profileManager.addProfile(named: "Alan")
+    presetManager.setActiveProfileID(secondProfile.id)
+    precondition(presetManager.presets.isEmpty, "New profiles should not see another user's setup presets")
+
+    presetManager.savePreset(AudioPreset(
+        name: "Alan Music",
+        outputDeviceUID: nil,
+        inputDeviceUID: nil,
+        systemVolume: nil,
+        inputVolume: nil,
+        systemMuted: false,
+        appVolumes: [:],
+        mutedApps: [:],
+        appOutputAssignments: [:],
+        eqPreset: .music
+    ))
+    precondition(presetManager.presets.map(\.name) == ["Alan Music"], "Active profile should see its own presets")
+
+    presetManager.setActiveProfileID(UserProfile.defaultProfileID)
+    precondition(presetManager.presets.map(\.name) == ["Default Desk"], "Switching profiles should restore that user's presets")
+
+    let photoSource = directory.appendingPathComponent("photo.png")
+    try Data([0x89, 0x50, 0x4E, 0x47]).write(to: photoSource)
+    try profileManager.setPhoto(for: secondProfile, sourceURL: photoSource)
+    profileManager.selectProfile(secondProfile)
+    precondition(profileManager.activeProfile.photoPath?.hasSuffix(".png") == true, "Uploaded profile photo path should persist on the active profile")
+    precondition(FileManager.default.fileExists(atPath: profileManager.activeProfile.photoPath ?? ""), "Uploaded profile photo should be copied into app storage")
 }
 
 func checkShortcutPersistence() {
@@ -291,18 +361,19 @@ func checkRouteAudioQualityPolicy() {
     precondition((sourceRateFormat.mFormatFlags & kAudioFormatFlagIsFloat) != 0, "Route quality should keep 32-bit float samples")
     precondition(sourceRateFormat.mBitsPerChannel == 32, "Route quality should keep 32-bit samples")
     precondition(sourceRateFormat.mChannelsPerFrame == 6, "Route quality should keep the highest practical shared channel count")
+    precondition(RouteAudioQualityPolicy.normalizedGain(1.006) == 1, "Route gain should snap tiny persisted over-unity drift back to clean 100%")
 
     let sharedOutputFormat = RouteAudioQualityPolicy.playbackFormat(
         from: tapFormat,
         outputDevices: [studioInterface, bluetoothSpeaker]
     )
-    precondition(sharedOutputFormat.mSampleRate == 48_000, "Group routes should choose the nearest shared supported hardware sample rate")
+    precondition(sharedOutputFormat.mSampleRate == 96_000, "Group routes should keep the source tap rate and let Core Audio convert at the output renderer")
     precondition(sharedOutputFormat.mChannelsPerFrame == 2, "Group routes should use the highest channel count shared by every output")
 }
 
 func checkSourceAudioQualityDisplay() throws {
     let quality = SourceAudioQuality(sampleRate: 44_100, bitDepth: 32, channelCount: 2, isFloatPCM: true)
-    precondition(quality.compactDisplayLabel == "44.1k · 32f · 2ch", "Source quality should use a compact route-row label")
+    precondition(quality.compactDisplayLabel == "44.1k", "Source quality should show only the sample rate in route rows")
     precondition(
         quality.accessibilityDescription == "44.1 kHz, floating point 32-bit, 2 channels",
         "Source quality should keep a readable expanded accessibility description"
@@ -315,7 +386,7 @@ func checkSourceAudioQualityDisplay() throws {
         fileURL: directory.appendingPathComponent("routes.json")
     )
     precondition(
-        manager.sourceAudioQuality(for: "spotify")?.compactDisplayLabel == "44.1k · 32f · 2ch",
+        manager.sourceAudioQuality(for: "spotify")?.compactDisplayLabel == "44.1k",
         "AudioRoutingManager should expose backend source quality"
     )
 }

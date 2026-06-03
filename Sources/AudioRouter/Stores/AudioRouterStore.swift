@@ -39,6 +39,7 @@ public final class AudioRouterStore: ObservableObject {
     public let settings: AppSettingsStore
     public let eqManager: EQManager
     public let presetManager: PresetManager
+    public let userProfileManager: UserProfileManager
     public let shortcutManager: ShortcutManager
     public let updateManager: UpdateManager
 
@@ -81,6 +82,7 @@ public final class AudioRouterStore: ObservableObject {
         settings: AppSettingsStore = AppSettingsStore(),
         eqManager: EQManager = EQManager(),
         presetManager: PresetManager = PresetManager(),
+        userProfileManager: UserProfileManager = UserProfileManager(),
         shortcutManager: ShortcutManager = ShortcutManager(),
         updateManager: UpdateManager? = nil,
         audioRoutingManager: AudioRoutingManager = AudioRoutingManager(),
@@ -95,6 +97,7 @@ public final class AudioRouterStore: ObservableObject {
         self.settings = settings
         self.eqManager = eqManager
         self.presetManager = presetManager
+        self.userProfileManager = userProfileManager
         self.shortcutManager = shortcutManager
         self.updateManager = updateManager ?? UpdateManager()
         self.audioRoutingManager = audioRoutingManager
@@ -112,7 +115,21 @@ public final class AudioRouterStore: ObservableObject {
         settings.objectWillChange
             .sink { [weak self] _ in self?.objectWillChange.send() }
             .store(in: &cancellables)
-        eqManager.objectWillChange
+        audioRoutingManager.setEQState(eqManager.state)
+        eqManager.$state
+            .sink { [weak self] state in
+                self?.audioRoutingManager.setEQState(state)
+                self?.objectWillChange.send()
+            }
+            .store(in: &cancellables)
+        presetManager.setActiveProfileID(userProfileManager.activeProfileID)
+        userProfileManager.$activeProfileID
+            .sink { [weak self] profileID in
+                self?.presetManager.setActiveProfileID(profileID)
+                self?.objectWillChange.send()
+            }
+            .store(in: &cancellables)
+        userProfileManager.objectWillChange
             .sink { [weak self] _ in self?.objectWillChange.send() }
             .store(in: &cancellables)
         presetManager.objectWillChange
@@ -1110,10 +1127,10 @@ public final class AudioRouterStore: ObservableObject {
 
     public func sourceAudioQualityHelp(for source: AudioSource) -> String {
         if let quality = sourceAudioQuality(for: source) {
-            let mode = settings.demoMode ? "Demo source quality" : "Live source tap quality"
+            let mode = settings.demoMode ? "Demo source quality" : "Core Audio process-tap format"
             return "\(mode): \(quality.accessibilityDescription)."
         }
-        return "Source audio quality appears after a live process-tap route starts."
+        return "Source audio quality appears after macOS allows AudioRouter to create a process-tap probe for this app."
     }
 
     public var routeSummaryText: String {
@@ -1272,6 +1289,39 @@ public final class AudioRouterStore: ObservableObject {
 
     public func routeStatusIsWarning(for source: AudioSource) -> Bool {
         ["Requires Audio Backend", "Unsupported", "Device Missing"].contains(routeStatus(for: source))
+    }
+
+    public var activeUserProfile: UserProfile {
+        userProfileManager.activeProfile
+    }
+
+    @discardableResult
+    public func addUserProfile(named name: String) -> UserProfile {
+        userProfileManager.addProfile(named: name)
+    }
+
+    public func selectUserProfile(_ profile: UserProfile) {
+        userProfileManager.selectProfile(profile)
+    }
+
+    public func renameUserProfile(_ profile: UserProfile, to name: String) {
+        userProfileManager.rename(profile, to: name)
+    }
+
+    public func deleteUserProfile(_ profile: UserProfile) {
+        userProfileManager.delete(profile)
+    }
+
+    public func setPhoto(for profile: UserProfile, sourceURL: URL) {
+        do {
+            try userProfileManager.setPhoto(for: profile, sourceURL: sourceURL)
+        } catch {
+            lastError = "Profile photo could not be saved: \(error.localizedDescription)"
+        }
+    }
+
+    public func removePhoto(for profile: UserProfile) {
+        userProfileManager.removePhoto(for: profile)
     }
 
     public func saveCurrentSetup() {

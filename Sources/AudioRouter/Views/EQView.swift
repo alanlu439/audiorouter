@@ -63,11 +63,7 @@ struct EQView: View {
                         isSelected: eqManager.state.selectedPreset == preset && !showBefore
                     ) {
                         showBefore = false
-                        if preset == .custom {
-                            eqManager.saveCustomPreset()
-                        } else {
-                            eqManager.applyPreset(preset)
-                        }
+                        eqManager.applyPreset(preset)
                     }
                 }
             }
@@ -157,7 +153,7 @@ struct EQView: View {
             Image(systemName: "info.circle.fill")
                 .foregroundStyle(.teal)
                 .frame(width: 18, height: 18)
-            Text("EQ settings are saved visually. Applying EQ to live system or per-app audio requires AudioRouter's routing backend to own the audio stream and run a processing graph.")
+            Text("EQ applies live to AudioRouter process-tap routes and is saved with your presets. System audio that is not routed through AudioRouter is unchanged.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

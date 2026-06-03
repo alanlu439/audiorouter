@@ -19,7 +19,7 @@ public struct SourceAudioQuality: Codable, Hashable {
     }
 
     public var compactDisplayLabel: String {
-        "\(compactSampleRateLabel) · \(compactBitDepthLabel) · \(channelCount)ch"
+        compactSampleRateLabel
     }
 
     public var accessibilityDescription: String {
@@ -44,13 +44,4 @@ public struct SourceAudioQuality: Codable, Hashable {
         return String(format: "%.1fk", kilohertz)
     }
 
-    private var bitDepthLabel: String {
-        guard bitDepth > 0 else { return "Depth N/A" }
-        return isFloatPCM ? "\(bitDepth)-bit float" : "\(bitDepth)-bit"
-    }
-
-    private var compactBitDepthLabel: String {
-        guard bitDepth > 0 else { return "N/A" }
-        return isFloatPCM ? "\(bitDepth)f" : "\(bitDepth)b"
-    }
 }

@@ -29,12 +29,6 @@ public struct MenuBarPopoverView: View {
                             compactOnboardingPrompt
                         }
 
-                        if let note = store.unsupportedNote {
-                            SupportNote(note: note) {
-                                store.dismissUnsupportedNote()
-                            }
-                        }
-
                         if let error = store.lastError {
                             SupportNote(note: error) {
                                 store.dismissUnsupportedNote()

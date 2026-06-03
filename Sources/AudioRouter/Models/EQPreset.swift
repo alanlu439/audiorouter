@@ -36,9 +36,36 @@ public enum EQPreset: String, Codable, CaseIterable, Identifiable {
 public struct EQState: Codable, Equatable {
     public var selectedPreset: EQPreset
     public var bands: [Double]
+    public var customBands: [Double]
 
-    public init(selectedPreset: EQPreset = .flat, bands: [Double] = EQPreset.flat.bands) {
+    private enum CodingKeys: String, CodingKey {
+        case selectedPreset
+        case bands
+        case customBands
+    }
+
+    public init(
+        selectedPreset: EQPreset = .flat,
+        bands: [Double] = EQPreset.flat.bands,
+        customBands: [Double] = EQPreset.flat.bands
+    ) {
         self.selectedPreset = selectedPreset
         self.bands = bands
+        self.customBands = customBands
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        selectedPreset = try container.decodeIfPresent(EQPreset.self, forKey: .selectedPreset) ?? .flat
+        bands = try container.decodeIfPresent([Double].self, forKey: .bands) ?? selectedPreset.bands
+        customBands = try container.decodeIfPresent([Double].self, forKey: .customBands)
+            ?? (selectedPreset == .custom ? bands : EQPreset.flat.bands)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(selectedPreset, forKey: .selectedPreset)
+        try container.encode(bands, forKey: .bands)
+        try container.encode(customBands, forKey: .customBands)
     }
 }

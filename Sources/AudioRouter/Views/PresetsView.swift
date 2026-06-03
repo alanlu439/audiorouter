@@ -11,7 +11,11 @@ struct PresetsView: View {
 
     var body: some View {
         DockCard {
-            SectionHeader(title: "Setups", systemImage: "square.stack.3d.up", trailing: "\(store.presetManager.presets.count)")
+            SectionHeader(
+                title: "Setups",
+                systemImage: "square.stack.3d.up",
+                trailing: "\(store.activeUserProfile.displayName) · \(store.presetManager.presets.count)"
+            )
 
             HStack {
                 Button {

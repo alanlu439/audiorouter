@@ -3,6 +3,8 @@ import Foundation
 
 public enum RouteAudioQualityPolicy {
     public static let maximumGain: Double = 1.5
+    public static let unityGainSnapTolerance: Double = 0.01
+    public static let liveSourceQualityRefreshInterval: TimeInterval = 1.0
     public static let maximumRenderedChannels = 8
     public static let routePipeBufferSeconds: Double = 2.0
     public static let outputQueueBufferCount = 5
@@ -44,19 +46,11 @@ public enum RouteAudioQualityPolicy {
         outputDevices: [AudioDevice]
     ) -> Double {
         let tapRate = tapFormat.mSampleRate > 0 ? tapFormat.mSampleRate : nil
-        if let tapRate, allOutputsSupport(sampleRate: tapRate, outputDevices: outputDevices) {
+        if let tapRate {
             return tapRate
         }
 
-        let targetRate = tapRate
-            ?? outputDevices.compactMap(\.sampleRate).first(where: { $0 > 0 })
-            ?? 48_000
-
-        if let nearestSharedRate = nearestSharedSampleRate(to: targetRate, outputDevices: outputDevices) {
-            return nearestSharedRate
-        }
-
-        return targetRate
+        return outputDevices.compactMap(\.sampleRate).first(where: { $0 > 0 }) ?? 48_000
     }
 
     public static func outputSupports(sampleRate: Double, device: AudioDevice) -> Bool {
@@ -66,7 +60,12 @@ public enum RouteAudioQualityPolicy {
         return ranges.contains { $0.contains(sampleRate) }
     }
 
-    private static func allOutputsSupport(sampleRate: Double, outputDevices: [AudioDevice]) -> Bool {
+    public static func normalizedGain(_ volume: Double) -> Double {
+        let clamped = max(0, min(maximumGain, volume))
+        return abs(clamped - 1) <= unityGainSnapTolerance ? 1 : clamped
+    }
+
+    public static func allOutputsSupport(sampleRate: Double, outputDevices: [AudioDevice]) -> Bool {
         outputDevices.allSatisfy { outputSupports(sampleRate: sampleRate, device: $0) }
     }
 

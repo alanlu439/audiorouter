@@ -2,9 +2,25 @@
 
 ## Unreleased
 
+### Profiles
+
+- Added a top-right user profile menu in the main AudioRouter window with profile switching, profile creation, renaming, deletion, and local profile photo upload.
+- Scoped saved setups to the active profile so different users can keep separate preferred presets on the same Mac.
+
+### EQ
+
+- Added live 10-band EQ processing to AudioRouter process-tap routes, applying band changes to routed 32-bit floating-point PCM before output rendering.
+- Made EQ slider changes dynamic for active routes.
+- Fixed Custom EQ so Save Custom stores the current curve and selecting Custom recalls the saved bands.
+
 ### Audio Quality
 
-- Added compact source-quality badges beside route app names, showing live process-tap format such as `48k · 32f · 2ch` when available.
+- Kept live route AudioQueue client formats at the source tap sample rate, letting Core Audio handle device-side conversion instead of relabeling source frames as a different hardware rate.
+- Reworked the live route pipe to buffer Float32 samples directly, reducing CPU churn that could cause routed playback dropouts.
+- Added live source-quality refreshes so active route badges update when Core Audio reports a changed process-tap format.
+- Snapped tiny persisted gain drift around 100% back to clean unity gain to avoid accidental limiting on normal playback.
+- Source-quality badges now fetch the real Core Audio process-tap format through a lightweight unmuted tap probe when a live route is not already running.
+- Simplified source-quality badges beside route app names to show only the live process-tap sample rate, such as `48k`, while keeping detailed format info in the tooltip.
 - Added Core Audio nominal sample-rate range discovery for output devices.
 - Centralized experimental route format selection so live routes keep 32-bit floating-point PCM, prefer the source tap sample rate when every selected output supports it, and otherwise choose the nearest shared hardware-supported rate.
 - Added regression checks for route sample-rate, channel-count, and float-PCM quality decisions.

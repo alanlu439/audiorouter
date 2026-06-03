@@ -10,7 +10,7 @@ public final class EQManager: ObservableObject {
         self.defaults = defaults
         if let data = defaults.data(forKey: key),
            let decoded = try? JSONDecoder().decode(EQState.self, from: data) {
-            state = decoded
+            state = Self.normalized(decoded)
         } else {
             state = EQState()
         }
@@ -21,16 +21,27 @@ public final class EQManager: ObservableObject {
     }
 
     public func applyPreset(_ preset: EQPreset) {
-        state = EQState(selectedPreset: preset, bands: preset.bands)
+        if preset == .custom {
+            state = EQState(
+                selectedPreset: .custom,
+                bands: Self.normalizedBands(state.customBands),
+                customBands: Self.normalizedBands(state.customBands)
+            )
+        } else {
+            state = EQState(
+                selectedPreset: preset,
+                bands: preset.bands,
+                customBands: Self.normalizedBands(state.customBands)
+            )
+        }
         save()
-        // TODO: Applying this EQ to all system audio requires owning the output stream through
-        // a virtual audio device, AudioServerPlugIn, or app-specific audio engine.
     }
 
     public func setBand(index: Int, gain: Double) {
         guard state.bands.indices.contains(index) else { return }
         state.bands[index] = max(-12, min(12, gain))
         state.selectedPreset = .custom
+        state.customBands = state.bands
         scheduleSave()
     }
 
@@ -40,7 +51,24 @@ public final class EQManager: ObservableObject {
 
     public func saveCustomPreset() {
         state.selectedPreset = .custom
+        state.customBands = Self.normalizedBands(state.bands)
         save()
+    }
+
+    private static func normalized(_ state: EQState) -> EQState {
+        EQState(
+            selectedPreset: state.selectedPreset,
+            bands: normalizedBands(state.bands),
+            customBands: normalizedBands(state.customBands)
+        )
+    }
+
+    private static func normalizedBands(_ bands: [Double]) -> [Double] {
+        var normalized = Array(bands.prefix(10)).map { max(-12, min(12, $0)) }
+        while normalized.count < 10 {
+            normalized.append(0)
+        }
+        return normalized
     }
 
     private func save() {
