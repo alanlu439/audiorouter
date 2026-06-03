@@ -14,7 +14,20 @@ public final class AudioRouterStore: ObservableObject {
     @Published public var systemOutputMeter: Double = 0
     @Published public var inputMeter: Double = 0
     @Published public var soloSourceID: String?
-    @Published public var selectedSourceID: String?
+    @Published public var selectedSourceID: String? {
+        didSet {
+            if selectedSourceID != oldValue, selectedSourceID != nil {
+                selectedOutputDeviceID = nil
+            }
+        }
+    }
+    @Published public var selectedOutputDeviceID: String? {
+        didSet {
+            if selectedOutputDeviceID != oldValue, selectedOutputDeviceID != nil {
+                selectedSourceID = nil
+            }
+        }
+    }
     @Published public private(set) var preparingRouteSourceIDs: Set<String> = []
     @Published public private(set) var meteringNote: String = "Live meters appear when a process-tap route is active."
     @Published public private(set) var processTapProbeMessage: String?
@@ -403,6 +416,7 @@ public final class AudioRouterStore: ObservableObject {
             if refreshedSources != audioSources {
                 audioSources = refreshedSources
             }
+            ensureSelectedOutputDeviceStillExists()
             ensureSelectedSourceStillExists()
             retryReadySavedRoutes(using: refreshedSources)
             if !silent || availableAppCandidates.isEmpty {
@@ -600,6 +614,24 @@ public final class AudioRouterStore: ObservableObject {
         setDeviceVolume(output, volume: (output.volume ?? 0.5) + delta)
     }
 
+    public func selectOutputDevice(_ device: AudioDevice) {
+        guard device.kind == .output else { return }
+        selectedOutputDeviceID = device.uid
+    }
+
+    public func changeSelectedVolume(by delta: Double) {
+        ensureSelectedOutputDeviceStillExists()
+        if let output = selectedOutputDevice {
+            guard output.canSetVolume else {
+                showUnsupportedNote("\(output.name) does not expose software volume control.")
+                return
+            }
+            setDeviceVolume(output, volume: (output.volume ?? 0.5) + delta)
+            return
+        }
+        changeSelectedSourceVolume(by: delta)
+    }
+
     public func changeSelectedSourceVolume(by delta: Double) {
         ensureSelectedSourceStillExists()
         guard let source = selectedSource else {
@@ -616,6 +648,13 @@ public final class AudioRouterStore: ObservableObject {
     public var selectedSourceVolumeCommandTitle: String {
         guard let selectedSource else { return "Selected Track" }
         return selectedSource.appName
+    }
+
+    public var selectedVolumeCommandTitle: String {
+        if let output = selectedOutputDevice {
+            return output.name
+        }
+        return selectedSourceVolumeCommandTitle
     }
 
     public func switchToNextOutputDevice() {
@@ -1379,12 +1418,29 @@ public final class AudioRouterStore: ObservableObject {
         return audioSources.first { $0.id == selectedSourceID }
     }
 
+    private var selectedOutputDevice: AudioDevice? {
+        guard let selectedOutputDeviceID else { return nil }
+        return outputDevices.first { $0.uid == selectedOutputDeviceID }
+    }
+
     private func ensureSelectedSourceStillExists() {
+        if let selectedOutputDeviceID,
+           outputDevices.contains(where: { $0.uid == selectedOutputDeviceID }) {
+            return
+        }
         if let selectedSourceID,
            audioSources.contains(where: { $0.id == selectedSourceID }) {
             return
         }
         selectedSourceID = audioSources.first?.id
+    }
+
+    private func ensureSelectedOutputDeviceStillExists() {
+        guard let selectedOutputDeviceID else { return }
+        if outputDevices.contains(where: { $0.uid == selectedOutputDeviceID }) {
+            return
+        }
+        self.selectedOutputDeviceID = nil
     }
 
     private func scheduleSourceVolumeCommit(sourceID: String, volume: Double) {
@@ -1657,7 +1713,6 @@ public final class AudioRouterStore: ObservableObject {
             return
         }
         meterPhase += 0.19
-        let nextSystemOutputMeter = abs(sin(meterPhase * 0.72)) * 0.82 + 0.08
         let nextInputMeter = abs(sin(meterPhase * 0.51 + 1.1)) * 0.65
         let nextSourceMeters = Dictionary(uniqueKeysWithValues: audioSources.map { source in
             let seed = Double(abs(source.id.hashValue % 100)) / 31.0
@@ -1665,11 +1720,14 @@ public final class AudioRouterStore: ObservableObject {
             let level = source.isMuted ? 0 : min(1, abs(sin(meterPhase + seed)) * 0.55 + activeBoost)
             return (source.id, level)
         })
+        let systemSourceIDs = systemRoutedSourceIDs()
+        let nextSystemOutputMeter = maxMeterLevel(for: systemSourceIDs, using: nextSourceMeters)
         let nextDeviceMeters = Dictionary(uniqueKeysWithValues: devices.map { device in
             let routed = routedSources(to: device)
-            let base = routed.isEmpty
-                ? (device.isDefault ? nextSystemOutputMeter : 0.14)
-                : min(1, routed.map { nextSourceMeters[$0.id] ?? 0 }.reduce(0, +) / Double(max(1, routed.count)) + 0.12)
+            let customRouteLevel = averageMeterLevel(for: routed.map(\.id), using: nextSourceMeters)
+            let systemRouteLevel = device.isDefault ? nextSystemOutputMeter : 0
+            let idleLevel = routed.isEmpty && !device.isDefault ? 0.14 : 0
+            let base = min(1, max(systemRouteLevel, customRouteLevel == 0 ? idleLevel : customRouteLevel + 0.12))
             return (device.id, device.kind == .input ? nextInputMeter : base)
         })
         publishMeters(
@@ -1685,12 +1743,13 @@ public final class AudioRouterStore: ObservableObject {
             let level = audioRoutingManager.currentLevel(for: source.id) ?? source.currentLevel ?? 0
             return (source.id, level)
         })
-        let nextSystemOutputMeter = nextSourceMeters.values.max() ?? 0
+        let systemSourceIDs = systemRoutedSourceIDs()
+        let nextSystemOutputMeter = maxMeterLevel(for: systemSourceIDs, using: nextSourceMeters)
         let nextDeviceMeters = Dictionary(uniqueKeysWithValues: devices.map { device in
             let routed = routedSources(to: device)
-            let level = routed.isEmpty
-                ? (device.isDefault ? nextSystemOutputMeter : 0)
-                : min(1, routed.map { nextSourceMeters[$0.id] ?? 0 }.reduce(0, +) / Double(max(1, routed.count)))
+            let customRouteLevel = averageMeterLevel(for: routed.map(\.id), using: nextSourceMeters)
+            let systemRouteLevel = device.isDefault ? nextSystemOutputMeter : 0
+            let level = max(systemRouteLevel, customRouteLevel)
             return (device.id, device.kind == .input ? 0 : level)
         })
         publishMeters(
@@ -1751,6 +1810,21 @@ public final class AudioRouterStore: ObservableObject {
         return newValue.contains { entry in
             shouldPublishMeterValue(oldValue[entry.key] ?? 0, entry.value)
         }
+    }
+
+    private func systemRoutedSourceIDs() -> [String] {
+        audioSources
+            .filter { route(for: $0).routeMode == .followSystemOutput }
+            .map(\.id)
+    }
+
+    private func maxMeterLevel(for sourceIDs: [String], using sourceMeters: [String: Double]) -> Double {
+        sourceIDs.map { sourceMeters[$0] ?? 0 }.max() ?? 0
+    }
+
+    private func averageMeterLevel(for sourceIDs: [String], using sourceMeters: [String: Double]) -> Double {
+        guard !sourceIDs.isEmpty else { return 0 }
+        return min(1, sourceIDs.map { sourceMeters[$0] ?? 0 }.reduce(0, +) / Double(sourceIDs.count))
     }
 
     private func focusedSources(from detectedSources: [AudioSource]) -> [AudioSource] {

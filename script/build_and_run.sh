@@ -21,6 +21,8 @@ NOTICE_SOURCE="$ROOT_DIR/NOTICE"
 
 cd "$ROOT_DIR"
 
+APP_GIT_COMMIT="${AUDIO_ROUTER_GIT_COMMIT:-$(git rev-parse HEAD 2>/dev/null || echo unknown)}"
+
 export CLANG_MODULE_CACHE_PATH="${CLANG_MODULE_CACHE_PATH:-$ROOT_DIR/.build/module-cache}"
 export SWIFTPM_CACHE_PATH="${SWIFTPM_CACHE_PATH:-$ROOT_DIR/.build/swiftpm-cache}"
 mkdir -p "$CLANG_MODULE_CACHE_PATH" "$SWIFTPM_CACHE_PATH"
@@ -69,6 +71,8 @@ cat >"$INFO_PLIST" <<PLIST
   <string>1</string>
   <key>CFBundleShortVersionString</key>
   <string>$APP_VERSION</string>
+  <key>AudioRouterGitCommit</key>
+  <string>$APP_GIT_COMMIT</string>
   <key>LSMinimumSystemVersion</key>
   <string>$MIN_SYSTEM_VERSION</string>
   <key>LSApplicationCategoryType</key>

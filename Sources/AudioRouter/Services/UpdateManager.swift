@@ -7,11 +7,22 @@ public final class UpdateManager: ObservableObject {
     nonisolated public static let lastAutomaticCheckDefaultsKey = "AudioRouter.lastAutomaticUpdateCheckAt"
 
     public struct UpdateInfo: Equatable {
+        public enum Kind: String, Equatable {
+            case release
+            case commit
+        }
+
+        public let kind: Kind
         public let version: String
         public let releaseURL: URL
         public let downloadURL: URL
         public let publishedAt: Date?
         public let body: String?
+        public let commitSHA: String?
+
+        public var isDownloadable: Bool {
+            kind == .release
+        }
     }
 
     @Published public private(set) var isChecking = false
@@ -26,7 +37,9 @@ public final class UpdateManager: ObservableObject {
     private let defaults: UserDefaults
     private let automaticCheckInterval: TimeInterval
     private let currentVersionProvider: () -> String
+    private let currentCommitProvider: () -> String?
     private let latestReleaseURL = URL(string: "https://api.github.com/repos/alanlu439/audiorouter/releases/latest")!
+    private let latestCommitURL = URL(string: "https://api.github.com/repos/alanlu439/audiorouter/commits/main")!
     private let latestDownloadURL = URL(string: "https://github.com/alanlu439/audiorouter/releases/latest/download/AudioRouter-macOS.zip")!
 
     public init(
@@ -35,17 +48,25 @@ public final class UpdateManager: ObservableObject {
         automaticCheckInterval: TimeInterval = 21_600,
         currentVersionProvider: @escaping () -> String = {
             Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.0.0"
+        },
+        currentCommitProvider: @escaping () -> String? = {
+            Bundle.main.object(forInfoDictionaryKey: "AudioRouterGitCommit") as? String
         }
     ) {
         self.session = session
         self.defaults = defaults
         self.automaticCheckInterval = automaticCheckInterval
         self.currentVersionProvider = currentVersionProvider
+        self.currentCommitProvider = currentCommitProvider
         self.lastCheckedAt = defaults.object(forKey: Self.lastAutomaticCheckDefaultsKey) as? Date
     }
 
     public var currentVersion: String {
         currentVersionProvider()
+    }
+
+    public var currentCommit: String? {
+        Self.normalizedCommit(currentCommitProvider())
     }
 
     public var hasUpdate: Bool {
@@ -100,6 +121,11 @@ public final class UpdateManager: ObservableObject {
             NSWorkspace.shared.open(latestDownloadURL)
             return
         }
+        guard availableUpdate.isDownloadable else {
+            openLatestRelease()
+            message = "Opened the GitHub commit. A packaged ZIP is published from GitHub Releases."
+            return
+        }
         guard !isDownloading else { return }
 
         if let existingURL = existingDownloadedUpdateURL(for: availableUpdate), FileManager.default.fileExists(atPath: existingURL.path) {
@@ -128,15 +154,8 @@ public final class UpdateManager: ObservableObject {
     private func performUpdateCheck(autoFetch: Bool) async {
         defer { isChecking = false }
         do {
-            var request = URLRequest(url: latestReleaseURL)
-            request.timeoutInterval = 12
-            request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
-            request.setValue("AudioRouter/\(currentVersion)", forHTTPHeaderField: "User-Agent")
-            let (data, response) = try await session.data(for: request)
-            if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
-                throw UpdateCheckError.badStatus(http.statusCode)
-            }
-            let release = try JSONDecoder.releaseDecoder.decode(GitHubRelease.self, from: data)
+            let release = try await fetchLatestRelease()
+            let latestCommit = try? await fetchLatestCommit()
             let latestVersion = Self.displayVersion(from: release.tagName)
             markChecked()
 
@@ -144,11 +163,13 @@ public final class UpdateManager: ObservableObject {
                 let assetURL = release.assets.first { $0.name == Self.releaseAssetName }?.browserDownloadURL
                     ?? latestDownloadURL
                 let update = UpdateInfo(
+                    kind: .release,
                     version: latestVersion,
                     releaseURL: release.htmlURL,
                     downloadURL: assetURL,
                     publishedAt: release.publishedAt,
-                    body: release.body
+                    body: release.body,
+                    commitSHA: latestCommit?.sha
                 )
                 availableUpdate = update
                 downloadedUpdateURL = existingDownloadedUpdateURL(for: update)
@@ -161,11 +182,32 @@ public final class UpdateManager: ObservableObject {
                 } else {
                     message = "AudioRouter \(latestVersion) is available."
                 }
+            } else if let latestCommit,
+                      let currentCommit,
+                      Self.isCommit(latestCommit.sha, differentFrom: currentCommit) {
+                let commitLabel = Self.shortCommit(latestCommit.sha)
+                let update = UpdateInfo(
+                    kind: .commit,
+                    version: "\(currentVersion)+\(commitLabel)",
+                    releaseURL: latestCommit.htmlURL,
+                    downloadURL: latestCommit.htmlURL,
+                    publishedAt: latestCommit.commit.committer.date,
+                    body: latestCommit.commit.message,
+                    commitSHA: latestCommit.sha
+                )
+                availableUpdate = update
+                downloadedUpdateURL = nil
+                shouldPromptToInstall = false
+                message = "New AudioRouter commit \(commitLabel) is available on GitHub."
             } else {
                 availableUpdate = nil
                 downloadedUpdateURL = nil
                 shouldPromptToInstall = false
-                message = "AudioRouter is up to date."
+                if latestCommit == nil, currentCommit != nil {
+                    message = "AudioRouter release is up to date. Could not check the latest commit."
+                } else {
+                    message = "AudioRouter is up to date."
+                }
             }
         } catch {
             markChecked()
@@ -180,6 +222,10 @@ public final class UpdateManager: ObservableObject {
     private func performUpdateDownload(_ update: UpdateInfo) async {
         defer { isDownloading = false }
         do {
+            guard update.isDownloadable else {
+                message = "Commit updates are shown on GitHub. Packaged ZIPs come from GitHub Releases."
+                return
+            }
             var request = URLRequest(url: update.downloadURL)
             request.timeoutInterval = 60
             request.setValue("application/octet-stream", forHTTPHeaderField: "Accept")
@@ -213,6 +259,7 @@ public final class UpdateManager: ObservableObject {
     }
 
     private func existingDownloadedUpdateURL(for update: UpdateInfo) -> URL? {
+        guard update.isDownloadable else { return nil }
         guard let url = try? downloadedUpdateURL(for: update),
               FileManager.default.fileExists(atPath: url.path) else {
             return nil
@@ -221,6 +268,7 @@ public final class UpdateManager: ObservableObject {
     }
 
     private func downloadedUpdateURL(for update: UpdateInfo) throws -> URL {
+        precondition(update.isDownloadable, "Commit-only updates do not have packaged ZIP downloads")
         let baseURL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first
             ?? FileManager.default.temporaryDirectory
         return baseURL
@@ -251,6 +299,27 @@ public final class UpdateManager: ObservableObject {
         return false
     }
 
+    nonisolated public static func normalizedCommit(_ commit: String?) -> String? {
+        guard let commit else { return nil }
+        let cleaned = commit
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        return cleaned.isEmpty || cleaned == "unknown" ? nil : cleaned
+    }
+
+    nonisolated public static func shortCommit(_ commit: String) -> String {
+        let normalized = normalizedCommit(commit) ?? commit
+        return String(normalized.prefix(7))
+    }
+
+    nonisolated public static func isCommit(_ candidate: String, differentFrom current: String?) -> Bool {
+        guard let candidate = normalizedCommit(candidate),
+              let current = normalizedCommit(current) else {
+            return false
+        }
+        return !candidate.hasPrefix(current) && !current.hasPrefix(candidate)
+    }
+
     nonisolated private static func numericVersionParts(_ version: String) -> [Int] {
         let base = displayVersion(from: version)
             .split(whereSeparator: { $0 == "-" || $0 == "+" })
@@ -261,6 +330,32 @@ public final class UpdateManager: ObservableObject {
             let digits = component.prefix { $0.isNumber }
             return Int(digits) ?? 0
         }
+    }
+}
+
+private extension UpdateManager {
+    func fetchLatestRelease() async throws -> GitHubRelease {
+        var request = URLRequest(url: latestReleaseURL)
+        request.timeoutInterval = 12
+        request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+        request.setValue("AudioRouter/\(currentVersion)", forHTTPHeaderField: "User-Agent")
+        let (data, response) = try await session.data(for: request)
+        if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+            throw UpdateCheckError.badStatus(http.statusCode)
+        }
+        return try JSONDecoder.releaseDecoder.decode(GitHubRelease.self, from: data)
+    }
+
+    func fetchLatestCommit() async throws -> GitHubCommit {
+        var request = URLRequest(url: latestCommitURL)
+        request.timeoutInterval = 12
+        request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+        request.setValue("AudioRouter/\(currentVersion)", forHTTPHeaderField: "User-Agent")
+        let (data, response) = try await session.data(for: request)
+        if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+            throw UpdateCheckError.badStatus(http.statusCode)
+        }
+        return try JSONDecoder.releaseDecoder.decode(GitHubCommit.self, from: data)
     }
 }
 
@@ -301,6 +396,27 @@ private struct GitHubAsset: Decodable {
     enum CodingKeys: String, CodingKey {
         case name
         case browserDownloadURL = "browser_download_url"
+    }
+}
+
+private struct GitHubCommit: Decodable {
+    let sha: String
+    let htmlURL: URL
+    let commit: Commit
+
+    struct Commit: Decodable {
+        let message: String
+        let committer: Committer
+    }
+
+    struct Committer: Decodable {
+        let date: Date?
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case sha
+        case htmlURL = "html_url"
+        case commit
     }
 }
 

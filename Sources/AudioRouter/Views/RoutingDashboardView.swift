@@ -2007,7 +2007,10 @@ private struct StudioOutputStrip: View {
                 accent: StudioPalette.amber,
                 accessibilityLabel: "\(device.name) output volume",
                 accessibilityHint: device.canSetVolume ? "Adjusts \(device.name) output volume" : "Volume is not supported by this output",
-                onChange: { store.setDeviceVolume(device, volume: $0) }
+                onChange: {
+                    store.selectOutputDevice(device)
+                    store.setDeviceVolume(device, volume: $0)
+                }
             )
             .controlSize(.small)
             .frame(width: 246, alignment: .leading)
@@ -2021,16 +2024,23 @@ private struct StudioOutputStrip: View {
         }
         .padding(.horizontal, 9)
         .padding(.vertical, 7)
-        .background(StudioPalette.strip.opacity(0.72), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .background(
+            (isSelected ? StudioPalette.amber.opacity(0.08) : StudioPalette.strip.opacity(0.72)),
+            in: RoundedRectangle(cornerRadius: 6, style: .continuous)
+        )
         .overlay(alignment: .leading) {
             Rectangle()
-                .fill(device.isDefault ? StudioPalette.green : StudioPalette.teal)
+                .fill(isSelected ? StudioPalette.amber : (device.isDefault ? StudioPalette.green : StudioPalette.teal))
                 .frame(width: 3)
                 .clipShape(RoundedRectangle(cornerRadius: 2, style: .continuous))
         }
         .overlay {
             RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .stroke(StudioPalette.stroke, lineWidth: 1)
+                .stroke(isSelected ? StudioPalette.amber.opacity(0.64) : StudioPalette.stroke, lineWidth: isSelected ? 1.4 : 1)
+        }
+        .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .onTapGesture {
+            store.selectOutputDevice(device)
         }
         .dropDestination(for: String.self) { sourceIDs, _ in
             guard let sourceID = sourceIDs.first,
@@ -2043,6 +2053,11 @@ private struct StudioOutputStrip: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("\(device.name), \(device.typeDescription), \(device.isDefault ? "system output" : "available output")")
+        .accessibilityHint(isSelected ? "Selected for Command = and Command - volume shortcuts" : "Selects this output for Command = and Command - volume shortcuts")
+    }
+
+    private var isSelected: Bool {
+        store.selectedOutputDeviceID == device.uid
     }
 
     private var outputIdentity: some View {
@@ -2067,6 +2082,7 @@ private struct StudioOutputStrip: View {
     private var outputActions: some View {
         HStack(spacing: 6) {
             Button {
+                store.selectOutputDevice(device)
                 store.setDeviceMuted(device, isMuted: !(device.isMuted ?? false))
             } label: {
                 Image(systemName: (device.isMuted ?? false) ? "speaker.slash.fill" : "speaker.wave.1.fill")
@@ -2078,6 +2094,7 @@ private struct StudioOutputStrip: View {
             .accessibilityLabel((device.isMuted ?? false) ? "Unmute \(device.name)" : "Mute \(device.name)")
 
             Button(device.isDefault ? "System" : "Set System") {
+                store.selectOutputDevice(device)
                 store.setDefaultDevice(device)
             }
             .buttonStyle(.bordered)
@@ -2795,13 +2812,17 @@ private struct StudioOutputModule: View {
                 accent: StudioPalette.amber,
                 accessibilityLabel: "\(device.name) output volume",
                 accessibilityHint: device.canSetVolume ? "Adjusts \(device.name) output volume" : "Volume is not supported by this output",
-                onChange: { store.setDeviceVolume(device, volume: $0) }
+                onChange: {
+                    store.selectOutputDevice(device)
+                    store.setDeviceVolume(device, volume: $0)
+                }
             )
             .controlSize(.small)
             .help(device.canSetVolume ? "Set \(device.name) output volume" : "Volume is not supported by this output.")
 
             HStack(spacing: 8) {
                 Button {
+                    store.selectOutputDevice(device)
                     store.setDeviceMuted(device, isMuted: !(device.isMuted ?? false))
                 } label: {
                     Image(systemName: (device.isMuted ?? false) ? "speaker.slash.fill" : "speaker.wave.1.fill")
@@ -2813,6 +2834,7 @@ private struct StudioOutputModule: View {
                 .accessibilityHint(device.canSetMute ? "Toggles mute for this output" : "Mute is not supported by this output")
 
                 Button(device.isDefault ? "System" : "Set System") {
+                    store.selectOutputDevice(device)
                     store.setDefaultDevice(device)
                 }
                 .buttonStyle(.bordered)
@@ -2830,13 +2852,25 @@ private struct StudioOutputModule: View {
             routedSources
         }
         .padding(10)
-        .background(StudioPalette.strip.opacity(0.76), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .background(
+            (isSelected ? StudioPalette.amber.opacity(0.08) : StudioPalette.strip.opacity(0.76)),
+            in: RoundedRectangle(cornerRadius: 6, style: .continuous)
+        )
         .overlay {
             RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .stroke(StudioPalette.stroke, lineWidth: 1)
+                .stroke(isSelected ? StudioPalette.amber.opacity(0.64) : StudioPalette.stroke, lineWidth: isSelected ? 1.4 : 1)
+        }
+        .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .onTapGesture {
+            store.selectOutputDevice(device)
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("\(device.name), \(device.typeDescription), \(device.isDefault ? "system output" : "available output")")
+        .accessibilityHint(isSelected ? "Selected for Command = and Command - volume shortcuts" : "Selects this output for Command = and Command - volume shortcuts")
+    }
+
+    private var isSelected: Bool {
+        store.selectedOutputDeviceID == device.uid
     }
 
     @ViewBuilder

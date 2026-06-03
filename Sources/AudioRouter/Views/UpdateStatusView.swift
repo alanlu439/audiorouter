@@ -24,7 +24,7 @@ struct UpdateStatusView: View {
             Toggle("Automatically check and fetch updates", isOn: automaticUpdatesBinding)
                 .font(.caption.weight(.semibold))
                 .toggleStyle(.switch)
-                .accessibilityHint("Checks GitHub Releases at launch and fetches the newest AudioRouter ZIP when available")
+                .accessibilityHint("Checks GitHub releases and commits at launch, and fetches the newest AudioRouter ZIP when a release is available")
 
             if let lastCheckedAt = store.updateManager.lastCheckedAt {
                 Text("Last checked \(lastCheckedAt.formatted(date: .abbreviated, time: .shortened))")
@@ -40,7 +40,7 @@ struct UpdateStatusView: View {
                 }
                 .disabled(store.updateManager.isChecking || store.updateManager.isDownloading)
                 .accessibilityLabel(store.updateManager.isChecking ? "Checking for updates" : "Check for updates")
-                .accessibilityHint("Checks the latest AudioRouter release on GitHub")
+                .accessibilityHint("Checks the latest AudioRouter release and commit on GitHub")
 
                 if store.updateManager.isDownloading {
                     ProgressView()
@@ -58,15 +58,26 @@ struct UpdateStatusView: View {
                     .buttonStyle(.borderedProminent)
                     .tint(.teal)
                     .accessibilityHint("Opens the downloaded AudioRouter ZIP")
-                } else if store.updateManager.hasUpdate {
-                    Button {
-                        store.downloadAvailableUpdate()
-                    } label: {
-                        Label("Fetch ZIP", systemImage: "square.and.arrow.down")
+                } else if let update = store.updateManager.availableUpdate {
+                    if update.isDownloadable {
+                        Button {
+                            store.downloadAvailableUpdate()
+                        } label: {
+                            Label("Fetch ZIP", systemImage: "square.and.arrow.down")
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.teal)
+                        .accessibilityHint("Downloads the newest AudioRouter ZIP")
+                    } else {
+                        Button {
+                            store.openLatestRelease()
+                        } label: {
+                            Label("View Commit", systemImage: "point.3.connected.trianglepath.dotted")
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.teal)
+                        .accessibilityHint("Opens the newest AudioRouter commit on GitHub")
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.teal)
-                    .accessibilityHint("Downloads the newest AudioRouter ZIP")
                 } else if !compact {
                     Button {
                         store.openLatestRelease()

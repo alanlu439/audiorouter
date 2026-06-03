@@ -7,6 +7,7 @@ func runChecks() throws {
     try checkPresetPersistence()
     checkShortcutPersistence()
     try checkSelectedSourceVolumeCommandStep()
+    try checkSelectedOutputVolumeCommandStep()
     checkDeviceModelIDs()
     checkFocusedOutputFiltering()
     checkRouteBackwardCompatibility()
@@ -103,6 +104,38 @@ func checkSelectedSourceVolumeCommandStep() throws {
     precondition(abs((store.audioSources.first { $0.id == source.id }?.volume ?? 0) - 0.51) < 0.0001, "Command = should increase selected track volume by one percent")
     store.changeSelectedSourceVolume(by: -0.01)
     precondition(abs((store.audioSources.first { $0.id == source.id }?.volume ?? 0) - 0.50) < 0.0001, "Command - should decrease selected track volume by one percent")
+}
+
+@MainActor
+func checkSelectedOutputVolumeCommandStep() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    let settings = AppSettingsStore(defaults: UserDefaults(suiteName: "AudioRouterChecks-\(UUID().uuidString)")!)
+    settings.demoMode = true
+    let store = AudioRouterStore(
+        settings: settings,
+        audioRoutingManager: AudioRoutingManager(
+            backend: FakeRoutingBackend(),
+            fileURL: directory.appendingPathComponent("routes.json")
+        ),
+        outputGroupsURL: directory.appendingPathComponent("groups.json"),
+        appSourcesURL: directory.appendingPathComponent("sources.json"),
+        hiddenDefaultSourcesURL: directory.appendingPathComponent("hidden-defaults.json"),
+        sourceOrderURL: directory.appendingPathComponent("source-order.json")
+    )
+
+    store.refresh(silent: true)
+    guard let output = store.outputDevices.first(where: { $0.canSetVolume }) else {
+        preconditionFailure("Expected a demo output for selected output volume command")
+    }
+    store.selectOutputDevice(output)
+    precondition(store.selectedOutputDeviceID == output.uid, "Selecting an output should make it the shared volume shortcut target")
+    precondition(store.selectedSourceID == nil, "Selecting an output should clear the selected app target")
+    store.setDeviceVolume(output, volume: 0.25)
+    store.changeSelectedVolume(by: 0.01)
+    precondition(abs((store.outputDevices.first { $0.uid == output.uid }?.volume ?? 0) - 0.26) < 0.0001, "Command = should increase selected output volume by one percent")
+    store.changeSelectedVolume(by: -0.01)
+    precondition(abs((store.outputDevices.first { $0.uid == output.uid }?.volume ?? 0) - 0.25) < 0.0001, "Command - should decrease selected output volume by one percent")
 }
 
 func checkDeviceModelIDs() {
@@ -292,6 +325,10 @@ func checkUpdateVersionComparison() {
     precondition(!UpdateManager.isVersion("0.1.1", newerThan: "0.1.1"), "Same version should not compare newer")
     precondition(!UpdateManager.isVersion("0.1.0", newerThan: "0.1.1"), "Older version should not compare newer")
     precondition(UpdateManager.displayVersion(from: " v0.1.2 ") == "0.1.2", "Display version should trim whitespace and v prefix")
+    precondition(UpdateManager.shortCommit("ABCDEF1234567890") == "abcdef1", "Commit labels should use a normalized short SHA")
+    precondition(!UpdateManager.isCommit("abcdef123456", differentFrom: "abcdef1"), "Short and full forms of the same commit should not be treated as different")
+    precondition(UpdateManager.isCommit("abcdef123456", differentFrom: "123456abcdef"), "Different commits should be treated as a commit update")
+    precondition(UpdateManager.normalizedCommit(" unknown ") == nil, "Unknown commit metadata should not force commit update prompts")
 }
 
 @MainActor
@@ -305,11 +342,13 @@ func checkAutomaticUpdateCheckPersistence() {
     let manager = UpdateManager(
         defaults: suite,
         automaticCheckInterval: 60,
-        currentVersionProvider: { "1.0.0" }
+        currentVersionProvider: { "1.0.0" },
+        currentCommitProvider: { "abcdef123456" }
     )
 
     precondition(manager.lastCheckedAt == date, "Automatic update check timestamp should persist across launches")
     precondition(manager.currentVersion == "1.0.0", "Injected current version should be used for update checks")
+    precondition(manager.currentCommit == "abcdef123456", "Injected current commit should be used for commit update checks")
 }
 
 @MainActor

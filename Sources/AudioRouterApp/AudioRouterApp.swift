@@ -118,14 +118,14 @@ struct AudioRouterCommands: Commands {
 
             Divider()
 
-            Button("Increase \(store.selectedSourceVolumeCommandTitle) Volume") {
-                store.changeSelectedSourceVolume(by: 0.01)
+            Button("Increase \(store.selectedVolumeCommandTitle) Volume") {
+                store.changeSelectedVolume(by: 0.01)
             }
             .keyboardShortcut(store.shortcutManager.shortcut(for: .increaseVolume).keyEquivalent,
                               modifiers: store.shortcutManager.shortcut(for: .increaseVolume).modifiers)
 
-            Button("Decrease \(store.selectedSourceVolumeCommandTitle) Volume") {
-                store.changeSelectedSourceVolume(by: -0.01)
+            Button("Decrease \(store.selectedVolumeCommandTitle) Volume") {
+                store.changeSelectedVolume(by: -0.01)
             }
             .keyboardShortcut(store.shortcutManager.shortcut(for: .decreaseVolume).keyEquivalent,
                               modifiers: store.shortcutManager.shortcut(for: .decreaseVolume).modifiers)
