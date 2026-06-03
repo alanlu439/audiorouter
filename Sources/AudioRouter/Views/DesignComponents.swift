@@ -47,6 +47,138 @@ struct SectionHeader: View {
     }
 }
 
+struct AudioRouterWatermarkBanner: View {
+    var titleSize: CGFloat = 10
+    var subtitleSize: CGFloat = 9
+    var titleTracking: CGFloat = 0.8
+    var lineSpacing: CGFloat = 1
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: lineSpacing) {
+            Text("AUDIOROUTER")
+                .font(.system(size: titleSize, weight: .black, design: .rounded))
+                .tracking(titleTracking)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+            Text("by Alan")
+                .font(.system(size: subtitleSize, weight: .semibold, design: .rounded))
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
+        .foregroundStyle(Color.white.opacity(0.50))
+        .shadow(color: .black.opacity(0.35), radius: 5, y: 2)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("AUDIOROUTER by Alan")
+    }
+}
+
+struct ProfileAvatar: View {
+    let profile: UserProfile
+    let size: CGFloat
+
+    var body: some View {
+        Group {
+            if let image = NSImage(contentsOfFile: profile.photoPath ?? "") {
+                CircularProfileImage(image: image, size: size)
+            } else {
+                Text(profile.initials)
+                    .font(.system(size: max(10, size * 0.34), weight: .heavy, design: .rounded))
+                    .foregroundStyle(.white)
+                    .frame(width: size, height: size)
+                    .background(
+                        LinearGradient(
+                            colors: [.teal, .blue],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(Circle())
+        .overlay {
+            Circle()
+                .strokeBorder(.white.opacity(0.34), lineWidth: max(1.4, size * 0.055))
+        }
+        .shadow(color: .black.opacity(0.18), radius: 5, y: 2)
+        .accessibilityHidden(true)
+    }
+}
+
+private struct CircularProfileImage: NSViewRepresentable {
+    let image: NSImage
+    let size: CGFloat
+
+    func makeNSView(context: Context) -> CircularProfileImageView {
+        let view = CircularProfileImageView()
+        view.image = image
+        view.avatarSize = size
+        return view
+    }
+
+    func updateNSView(_ nsView: CircularProfileImageView, context: Context) {
+        nsView.image = image
+        nsView.avatarSize = size
+    }
+}
+
+private final class CircularProfileImageView: NSView {
+    var image: NSImage? {
+        didSet { needsDisplay = true }
+    }
+
+    var avatarSize: CGFloat = 30 {
+        didSet {
+            frame.size = NSSize(width: avatarSize, height: avatarSize)
+            needsDisplay = true
+        }
+    }
+
+    override var intrinsicContentSize: NSSize {
+        NSSize(width: avatarSize, height: avatarSize)
+    }
+
+    override var isFlipped: Bool {
+        true
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        let avatarBounds = NSRect(origin: .zero, size: NSSize(width: avatarSize, height: avatarSize))
+        NSColor.black.withAlphaComponent(0.32).setFill()
+        NSBezierPath(ovalIn: avatarBounds).fill()
+
+        if let image, image.size.width > 0, image.size.height > 0 {
+            let sourceSide = min(image.size.width, image.size.height)
+            let sourceRect = NSRect(
+                x: (image.size.width - sourceSide) / 2,
+                y: (image.size.height - sourceSide) / 2,
+                width: sourceSide,
+                height: sourceSide
+            )
+
+            NSGraphicsContext.saveGraphicsState()
+            NSBezierPath(ovalIn: avatarBounds).addClip()
+            NSGraphicsContext.current?.imageInterpolation = .high
+            image.draw(
+                in: avatarBounds,
+                from: sourceRect,
+                operation: .sourceOver,
+                fraction: 1,
+                respectFlipped: true,
+                hints: [.interpolation: NSImageInterpolation.high]
+            )
+            NSGraphicsContext.restoreGraphicsState()
+        }
+
+        NSColor.white.withAlphaComponent(0.34).setStroke()
+        let borderWidth = max(1.4, avatarSize * 0.055)
+        let strokeRect = avatarBounds.insetBy(dx: borderWidth / 2, dy: borderWidth / 2)
+        let border = NSBezierPath(ovalIn: strokeRect)
+        border.lineWidth = borderWidth
+        border.stroke()
+    }
+}
+
 struct StatusBadge: View {
     let text: String
     var isActive: Bool = false

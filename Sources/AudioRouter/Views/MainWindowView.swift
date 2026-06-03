@@ -25,6 +25,13 @@ public struct MainWindowView: View {
             SettingsDetailView(section: store.selectedSettingsSection, store: store)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
+        .overlay(alignment: .bottomLeading) {
+            AudioRouterWatermarkBanner()
+                .padding(.leading, 24)
+                .padding(.bottom, 22)
+                .allowsHitTesting(false)
+                .zIndex(20)
+        }
         .preferredColorScheme(store.settings.effectiveColorScheme)
         .sheet(isPresented: $store.isOnboardingPresented) {
             GuidedOnboardingSheet(store: store)
@@ -38,7 +45,7 @@ public struct MainWindowView: View {
         }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                UserProfileMenu(store: store) { mode in
+                UserProfileMenu(store: store, style: .toolbar) { mode in
                     profileSheetMode = mode
                 }
             }
@@ -95,8 +102,24 @@ public struct MainWindowView: View {
 }
 
 private struct UserProfileMenu: View {
+    enum Style {
+        case full
+        case toolbar
+    }
+
     @ObservedObject var store: AudioRouterStore
+    let style: Style
     let openSheet: (ProfileNameSheet.Mode) -> Void
+
+    init(
+        store: AudioRouterStore,
+        style: Style = .full,
+        openSheet: @escaping (ProfileNameSheet.Mode) -> Void
+    ) {
+        self.store = store
+        self.style = style
+        self.openSheet = openSheet
+    }
 
     var body: some View {
         Menu {
@@ -147,19 +170,52 @@ private struct UserProfileMenu: View {
                 }
             }
         } label: {
+            profileLabel
+        }
+        .menuStyle(.button)
+        .help("AudioRouter profile: \(store.activeUserProfile.displayName)")
+        .accessibilityLabel("AudioRouter profile \(store.activeUserProfile.displayName)")
+    }
+
+    @ViewBuilder
+    private var profileLabel: some View {
+        switch style {
+        case .full:
             HStack(spacing: 7) {
                 ProfileAvatar(profile: store.activeUserProfile, size: 28)
                 Text(store.activeUserProfile.displayName)
                     .font(.caption.weight(.semibold))
                     .lineLimit(1)
             }
-            .padding(.horizontal, 7)
-            .padding(.vertical, 4)
-            .background(.secondary.opacity(0.10), in: Capsule())
+            .padding(.leading, 5)
+            .padding(.trailing, 10)
+            .padding(.vertical, 5)
+            .background(.ultraThinMaterial, in: Capsule())
+            .overlay {
+                Capsule()
+                    .stroke(.white.opacity(0.16), lineWidth: 1)
+            }
+            .shadow(color: .black.opacity(0.18), radius: 10, y: 4)
+        case .toolbar:
+            HStack(spacing: 6) {
+                ProfileAvatar(profile: store.activeUserProfile, size: 20)
+                    .frame(width: 20, height: 20)
+                Text(store.activeUserProfile.displayName)
+                    .font(.caption.weight(.semibold))
+                    .lineLimit(1)
+                    .frame(maxWidth: 120, alignment: .leading)
+            }
+            .frame(height: 24)
+            .fixedSize(horizontal: true, vertical: true)
+            .padding(.leading, 4)
+            .padding(.trailing, 8)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .stroke(.white.opacity(0.16), lineWidth: 1)
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
         }
-        .menuStyle(.button)
-        .help("AudioRouter profile: \(store.activeUserProfile.displayName)")
-        .accessibilityLabel("AudioRouter profile \(store.activeUserProfile.displayName)")
     }
 
     private func choosePhoto() {
@@ -175,45 +231,6 @@ private struct UserProfileMenu: View {
                 store.setPhoto(for: store.activeUserProfile, sourceURL: url)
             }
         }
-    }
-}
-
-private struct ProfileAvatar: View {
-    let profile: UserProfile
-    let size: CGFloat
-
-    var body: some View {
-        Group {
-            if let image {
-                Image(nsImage: image)
-                    .resizable()
-                    .scaledToFill()
-            } else {
-                Text(profile.initials)
-                    .font(.system(size: max(10, size * 0.34), weight: .heavy, design: .rounded))
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(
-                        LinearGradient(
-                            colors: [.teal, .blue],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-            }
-        }
-        .frame(width: size, height: size)
-        .clipShape(Circle())
-        .overlay {
-            Circle()
-                .stroke(.white.opacity(0.18), lineWidth: 1)
-        }
-        .accessibilityHidden(true)
-    }
-
-    private var image: NSImage? {
-        guard let photoPath = profile.photoPath else { return nil }
-        return NSImage(contentsOfFile: photoPath)
     }
 }
 

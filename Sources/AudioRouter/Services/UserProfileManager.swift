@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 
 public final class UserProfileManager: ObservableObject {
@@ -11,6 +12,7 @@ public final class UserProfileManager: ObservableObject {
 
     private let fileURL: URL
     private let photosDirectoryURL: URL
+    private let profilePhotoPixelSize = 256
 
     public convenience init() {
         let profileURL = try! AppSupport.fileURL(named: "user-profiles.json")
@@ -39,7 +41,7 @@ public final class UserProfileManager: ObservableObject {
     public func addProfile(named name: String) -> UserProfile {
         let baseName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let profile = UserProfile(displayName: baseName.isEmpty ? "New Profile" : baseName)
-        profiles.insert(profile, at: 0)
+        profiles = [profile] + profiles
         activeProfileID = profile.id
         save()
         return profile
@@ -52,17 +54,18 @@ public final class UserProfileManager: ObservableObject {
     }
 
     public func rename(_ profile: UserProfile, to name: String) {
-        guard let index = profiles.firstIndex(where: { $0.id == profile.id }) else { return }
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        profiles[index].displayName = trimmed
-        profiles[index].updatedAt = Date()
+        updateProfile(profile.id) { profile in
+            profile.displayName = trimmed
+            profile.updatedAt = Date()
+        }
         save()
     }
 
     public func delete(_ profile: UserProfile) {
         guard profiles.count > 1 else { return }
-        profiles.removeAll { $0.id == profile.id }
+        profiles = profiles.filter { $0.id != profile.id }
         if activeProfileID == profile.id {
             activeProfileID = profiles.first?.id ?? UserProfile.defaultProfileID
         }
@@ -70,28 +73,35 @@ public final class UserProfileManager: ObservableObject {
     }
 
     public func setPhoto(for profile: UserProfile, sourceURL: URL) throws {
-        guard let index = profiles.firstIndex(where: { $0.id == profile.id }) else { return }
+        guard profiles.contains(where: { $0.id == profile.id }) else { return }
         try FileManager.default.createDirectory(
             at: photosDirectoryURL,
             withIntermediateDirectories: true
         )
 
-        let ext = sourceURL.pathExtension.isEmpty ? "png" : sourceURL.pathExtension
-        let destinationURL = photosDirectoryURL.appendingPathComponent("\(profile.id.uuidString).\(ext)")
+        let destinationURL = photosDirectoryURL.appendingPathComponent("\(profile.id.uuidString).png")
         if FileManager.default.fileExists(atPath: destinationURL.path) {
             try FileManager.default.removeItem(at: destinationURL)
         }
-        try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
+        let thumbnailData = try squareThumbnailPNGData(from: sourceURL, pixelSize: profilePhotoPixelSize)
+        try thumbnailData.write(to: destinationURL, options: .atomic)
 
-        profiles[index].photoPath = destinationURL.path
-        profiles[index].updatedAt = Date()
+        updateProfile(profile.id) { profile in
+            profile.photoPath = destinationURL.path
+            profile.updatedAt = Date()
+        }
         save()
     }
 
     public func removePhoto(for profile: UserProfile) {
-        guard let index = profiles.firstIndex(where: { $0.id == profile.id }) else { return }
-        profiles[index].photoPath = nil
-        profiles[index].updatedAt = Date()
+        let previousPhotoPath = profiles.first { $0.id == profile.id }?.photoPath
+        updateProfile(profile.id) { profile in
+            profile.photoPath = nil
+            profile.updatedAt = Date()
+        }
+        if let previousPhotoPath, FileManager.default.fileExists(atPath: previousPhotoPath) {
+            try? FileManager.default.removeItem(atPath: previousPhotoPath)
+        }
         save()
     }
 
@@ -127,5 +137,47 @@ public final class UserProfileManager: ObservableObject {
         } catch {
             assertionFailure("Could not save AudioRouter profiles: \(error)")
         }
+    }
+
+    private func updateProfile(_ profileID: UUID, mutate: (inout UserProfile) -> Void) {
+        guard let index = profiles.firstIndex(where: { $0.id == profileID }) else { return }
+        var updatedProfiles = profiles
+        mutate(&updatedProfiles[index])
+        profiles = updatedProfiles
+    }
+
+    private func squareThumbnailPNGData(from sourceURL: URL, pixelSize: Int) throws -> Data {
+        guard let sourceImage = NSImage(contentsOf: sourceURL), sourceImage.size.width > 0, sourceImage.size.height > 0 else {
+            throw CocoaError(.fileReadCorruptFile)
+        }
+
+        let sourceSide = min(sourceImage.size.width, sourceImage.size.height)
+        let sourceRect = NSRect(
+            x: (sourceImage.size.width - sourceSide) / 2,
+            y: (sourceImage.size.height - sourceSide) / 2,
+            width: sourceSide,
+            height: sourceSide
+        )
+        let thumbnailSize = NSSize(width: pixelSize, height: pixelSize)
+        let thumbnail = NSImage(size: thumbnailSize)
+
+        thumbnail.lockFocus()
+        NSColor.clear.setFill()
+        NSRect(origin: .zero, size: thumbnailSize).fill()
+        NSGraphicsContext.current?.imageInterpolation = .high
+        sourceImage.draw(
+            in: NSRect(origin: .zero, size: thumbnailSize),
+            from: sourceRect,
+            operation: .copy,
+            fraction: 1
+        )
+        thumbnail.unlockFocus()
+
+        guard let tiffData = thumbnail.tiffRepresentation,
+              let bitmap = NSBitmapImageRep(data: tiffData),
+              let pngData = bitmap.representation(using: .png, properties: [:]) else {
+            throw CocoaError(.fileWriteUnknown)
+        }
+        return pngData
     }
 }

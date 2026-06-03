@@ -50,6 +50,20 @@ public struct MenuBarPopoverView: View {
                     .padding(.vertical, 12)
             }
         }
+        .overlay(alignment: .bottomLeading) {
+            AudioRouterWatermarkBanner(
+                titleSize: 23,
+                subtitleSize: 16,
+                titleTracking: 1.8,
+                lineSpacing: 2
+            )
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.leading, 30)
+                .padding(.trailing, 30)
+                .padding(.bottom, 26)
+                .allowsHitTesting(false)
+                .zIndex(20)
+        }
         .preferredColorScheme(store.settings.effectiveColorScheme)
         .onAppear {
             syncSelectionIfNeeded()
@@ -103,6 +117,15 @@ public struct MenuBarPopoverView: View {
                 text: store.settings.demoMode ? "Demo" : "Live",
                 status: store.settings.demoMode ? .demo : .working
             )
+
+            Button {
+                openWindow(id: "main")
+            } label: {
+                ProfileAvatar(profile: store.activeUserProfile, size: 26)
+            }
+            .buttonStyle(.plain)
+            .help("Open profile settings for \(store.activeUserProfile.displayName)")
+            .accessibilityLabel("Open AudioRouter profile \(store.activeUserProfile.displayName)")
 
             Button {
                 store.refresh()
@@ -227,6 +250,8 @@ public struct MenuBarPopoverView: View {
 
     private var footer: some View {
         HStack(spacing: 10) {
+            Spacer(minLength: 250)
+
             Button {
                 store.selectedSettingsSection = .dashboard
                 openWindow(id: "main")
@@ -235,8 +260,6 @@ public struct MenuBarPopoverView: View {
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
-
-            Spacer()
 
             Button {
                 store.selectedSettingsSection = .dashboard
