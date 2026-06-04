@@ -48,12 +48,21 @@ struct StatusLabel: View {
     var status: RouteVisualStatus = .working
 
     var body: some View {
-        Label(text, systemImage: status.systemImage)
+        HStack(spacing: 5) {
+            Image(systemName: status.systemImage)
+                .font(.caption2.weight(.bold))
+                .accessibilityHidden(true)
+            Text(text)
+                .font(.caption2.weight(.bold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.78)
+        }
             .font(.caption2.weight(.bold))
             .foregroundStyle(status.foreground)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
             .background(status.background, in: Capsule())
+            .fixedSize(horizontal: true, vertical: false)
             .accessibilityLabel("\(text) status")
     }
 }

@@ -185,13 +185,14 @@ private struct ShortcutsSettingsView: View {
 private struct AdvancedSettingsView: View {
     @ObservedObject var store: AudioRouterStore
     @State private var showDebug = false
+    @State private var selectedAdvancedSection: AdvancedSection = .system
 
     var body: some View {
         ConsoleFrame {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 18) {
                 ConsolePageHeader(
                     title: "Advanced",
-                    subtitle: "Backend health, app behavior, permissions, updates, and reset tools.",
+                    subtitle: "Choose one system area at a time. Backend status stays visible above the controls.",
                     systemImage: "gearshape.2.fill",
                     tint: ConsolePalette.teal
                 ) {
@@ -200,8 +201,24 @@ private struct AdvancedSettingsView: View {
 
                 BackendStatusPanel(store: store, compact: true)
 
-                ConsolePanel(title: "Controls", systemImage: "slider.horizontal.3", tint: ConsolePalette.teal) {
-                    VStack(alignment: .leading, spacing: 8) {
+                AdvancedSectionPicker(selection: $selectedAdvancedSection)
+
+                selectedSectionContent
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var selectedSectionContent: some View {
+        switch selectedAdvancedSection {
+        case .system:
+            ConsolePanel(title: "System Controls", systemImage: "slider.horizontal.3", tint: ConsolePalette.teal) {
+                VStack(alignment: .leading, spacing: 12) {
+                    AdvancedSectionIntro(
+                        title: "App behavior",
+                        detail: "These settings change how AudioRouter starts, appears, and switches between Live and Demo modes."
+                    )
+                    VStack(alignment: .leading, spacing: 10) {
                         ToggleRow(
                             title: "Launch at login",
                             detail: "Start AudioRouter automatically",
@@ -223,9 +240,16 @@ private struct AdvancedSettingsView: View {
                         DarkAppearanceRow()
                     }
                 }
+            }
 
-                ConsolePanel(title: "Permissions", systemImage: "checkmark.shield", tint: ConsolePalette.green) {
-                    VStack(alignment: .leading, spacing: 8) {
+        case .permissions:
+            ConsolePanel(title: "Permissions", systemImage: "checkmark.shield", tint: ConsolePalette.green) {
+                VStack(alignment: .leading, spacing: 12) {
+                    AdvancedSectionIntro(
+                        title: "Audio access",
+                        detail: "Use these controls when meters, process taps, or setup prompts need macOS permission help."
+                    )
+                    VStack(alignment: .leading, spacing: 10) {
                         AdvancedActionRow(
                             title: "Guided Setup",
                             detail: "Open the route setup flow",
@@ -249,11 +273,19 @@ private struct AdvancedSettingsView: View {
                         }
                     }
                 }
+            }
 
-                UpdateStatusView(store: store, compact: true)
+        case .updates:
+            UpdateStatusView(store: store, compact: false)
 
-                ConsolePanel(title: "Diagnostics", systemImage: "stethoscope", tint: ConsolePalette.blue) {
-                    VStack(alignment: .leading, spacing: 8) {
+        case .diagnostics:
+            ConsolePanel(title: "Diagnostics", systemImage: "stethoscope", tint: ConsolePalette.blue) {
+                VStack(alignment: .leading, spacing: 12) {
+                    AdvancedSectionIntro(
+                        title: "Troubleshooting",
+                        detail: "Keep these visible only when you are checking devices or public API limitation notes."
+                    )
+                    VStack(alignment: .leading, spacing: 10) {
                         ToggleRow(
                             title: "Unsupported notes",
                             detail: "Show public API limitation labels",
@@ -272,16 +304,23 @@ private struct AdvancedSettingsView: View {
                                 Text(store.debugDeviceList.isEmpty ? "No devices loaded." : store.debugDeviceList)
                                     .font(.caption.monospaced())
                                     .textSelection(.enabled)
-                                    .padding(10)
+                                .padding(10)
                             }
                             .frame(maxHeight: 130)
                             .background(ConsolePalette.inset.opacity(0.86), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                         }
                     }
                 }
+            }
 
-                ConsolePanel(title: "Reset", systemImage: "exclamationmark.triangle", tint: ConsolePalette.red) {
-                    HStack(spacing: 12) {
+        case .reset:
+            ConsolePanel(title: "Reset", systemImage: "exclamationmark.triangle", tint: ConsolePalette.red) {
+                VStack(alignment: .leading, spacing: 12) {
+                    AdvancedSectionIntro(
+                        title: "Start over",
+                        detail: "This is intentionally separated from daily controls so it is harder to trigger by accident."
+                    )
+                    HStack(spacing: 16) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Reset AudioRouter")
                                 .font(.subheadline.weight(.semibold))
@@ -349,6 +388,103 @@ private struct AdvancedSettingsView: View {
 
 }
 
+private enum AdvancedSection: String, CaseIterable, Identifiable {
+    case system = "System"
+    case permissions = "Access"
+    case updates = "Updates"
+    case diagnostics = "Diagnostics"
+    case reset = "Reset"
+
+    var id: String { rawValue }
+
+    var systemImage: String {
+        switch self {
+        case .system: return "slider.horizontal.3"
+        case .permissions: return "checkmark.shield"
+        case .updates: return "arrow.down.circle"
+        case .diagnostics: return "stethoscope"
+        case .reset: return "exclamationmark.triangle"
+        }
+    }
+
+    var tint: Color {
+        switch self {
+        case .system: return ConsolePalette.teal
+        case .permissions: return ConsolePalette.green
+        case .updates: return ConsolePalette.blue
+        case .diagnostics: return ConsolePalette.blue
+        case .reset: return ConsolePalette.red
+        }
+    }
+}
+
+private struct AdvancedSectionPicker: View {
+    @Binding var selection: AdvancedSection
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Advanced Area")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+
+            HStack(spacing: 10) {
+                ForEach(AdvancedSection.allCases) { section in
+                    Button {
+                        selection = section
+                    } label: {
+                        HStack(spacing: 7) {
+                            Image(systemName: section.systemImage)
+                                .font(.system(size: 12, weight: .bold))
+                            Text(section.rawValue)
+                                .font(.caption.weight(.bold))
+                                .lineLimit(1)
+                        }
+                        .foregroundStyle(selection == section ? section.tint : .secondary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 9)
+                        .frame(maxWidth: .infinity)
+                        .background(
+                            (selection == section ? section.tint.opacity(0.14) : ConsolePalette.inset.opacity(0.78)),
+                            in: RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        )
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                                .stroke(selection == section ? section.tint.opacity(0.38) : ConsolePalette.stroke, lineWidth: 1)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(section.rawValue)
+                    .accessibilityValue(selection == section ? "Selected" : "Not selected")
+                }
+            }
+        }
+        .padding(14)
+        .background(ConsolePalette.header.opacity(0.7), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(ConsolePalette.stroke, lineWidth: 1)
+        }
+    }
+}
+
+private struct AdvancedSectionIntro: View {
+    let title: String
+    let detail: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.headline.weight(.semibold))
+            Text(detail)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, 2)
+    }
+}
+
 private struct ToggleRow: View {
     let title: String
     var detail: String? = nil
@@ -359,7 +495,9 @@ private struct ToggleRow: View {
         HStack(spacing: 10) {
             Image(systemName: systemImage)
                 .foregroundStyle(ConsolePalette.teal)
-                .frame(width: 22)
+                .font(.system(size: 14, weight: .semibold))
+                .frame(width: 32, height: 32)
+                .background(ConsolePalette.teal.opacity(0.10), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.subheadline.weight(.semibold))
@@ -375,9 +513,9 @@ private struct ToggleRow: View {
                 .labelsHidden()
                 .toggleStyle(.switch)
         }
-        .padding(.vertical, 7)
-        .padding(.horizontal, 10)
-        .frame(minHeight: 38)
+        .padding(.vertical, 11)
+        .padding(.horizontal, 12)
+        .frame(minHeight: 56)
         .background(ConsolePalette.inset.opacity(0.72), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -398,7 +536,9 @@ private struct AdvancedActionRow: View {
             HStack(spacing: 10) {
                 Image(systemName: systemImage)
                     .foregroundStyle(ConsolePalette.teal)
-                    .frame(width: 22)
+                    .font(.system(size: 14, weight: .semibold))
+                    .frame(width: 32, height: 32)
+                    .background(ConsolePalette.teal.opacity(0.10), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
                         .font(.subheadline.weight(.semibold))
@@ -415,8 +555,9 @@ private struct AdvancedActionRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 7)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 11)
+        .frame(minHeight: 56)
         .background(ConsolePalette.inset.opacity(0.72), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -432,7 +573,9 @@ private struct DarkAppearanceRow: View {
         HStack(spacing: 10) {
             Image(systemName: "moon.fill")
                 .foregroundStyle(ConsolePalette.teal)
-                .frame(width: 22)
+                .font(.system(size: 14, weight: .semibold))
+                .frame(width: 32, height: 32)
+                .background(ConsolePalette.teal.opacity(0.10), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             VStack(alignment: .leading, spacing: 2) {
                 Text("Appearance")
                     .font(.subheadline.weight(.semibold))
@@ -449,9 +592,9 @@ private struct DarkAppearanceRow: View {
                 .padding(.vertical, 4)
                 .background(ConsolePalette.inset, in: Capsule())
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 7)
-        .frame(minHeight: 38)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 11)
+        .frame(minHeight: 56)
         .background(ConsolePalette.inset.opacity(0.72), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 8, style: .continuous)

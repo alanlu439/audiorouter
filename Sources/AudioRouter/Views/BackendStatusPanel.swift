@@ -28,11 +28,7 @@ struct BackendStatusPanel: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
 
-                if compact {
-                    compactRows
-                } else {
-                    fullRows
-                }
+                readinessList(showDetails: !compact)
 
                 if showActions {
                     HStack(spacing: 8) {
@@ -62,10 +58,10 @@ struct BackendStatusPanel: View {
         }
     }
 
-    private var compactRows: some View {
+    private func readinessList(showDetails: Bool) -> some View {
         VStack(spacing: 0) {
             ForEach(store.backendReadinessItems) { item in
-                BackendReadinessLine(item: item)
+                BackendReadinessLine(item: item, showDetail: showDetails)
             }
         }
         .background(ConsolePalette.inset.opacity(0.62), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
@@ -75,50 +71,52 @@ struct BackendStatusPanel: View {
         }
     }
 
-    private var fullRows: some View {
-        VStack(spacing: 8) {
-            ForEach(store.backendReadinessItems) { item in
-                HStack(alignment: .firstTextBaseline, spacing: 10) {
-                    StatusLabel(text: item.state.badgeTitle, status: item.state.visualStatus)
-                        .frame(width: 118, alignment: .leading)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(item.title)
-                            .font(.subheadline.weight(.semibold))
-                        Text(item.detail)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    Spacer(minLength: 0)
-                }
-            }
-        }
-    }
 }
 
 private struct BackendReadinessLine: View {
     let item: BackendReadinessItem
+    var showDetail: Bool
 
     var body: some View {
-        HStack(spacing: 9) {
-            ConsoleLED(color: item.state.visualStatus.foreground)
-            Text(item.title)
-                .font(.caption.weight(.semibold))
-                .lineLimit(1)
-                .minimumScaleFactor(0.85)
-            Spacer(minLength: 10)
-            Text(item.state.badgeTitle)
-                .font(.caption2.weight(.bold))
-                .foregroundStyle(item.state.visualStatus.foreground)
-                .lineLimit(1)
+        VStack(alignment: .leading, spacing: showDetail ? 4 : 0) {
+            HStack(spacing: 10) {
+                Image(systemName: item.state.visualStatus.systemImage)
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(item.state.visualStatus.foreground)
+                    .frame(width: 18, height: 18)
+                    .accessibilityHidden(true)
+
+                Text(item.title)
+                    .font(.caption.weight(.semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+                    .allowsTightening(true)
+                    .layoutPriority(1)
+
+                Spacer(minLength: 12)
+
+                Text(item.state.badgeTitle)
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(item.state.visualStatus.foreground)
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
+            }
+
+            if showDetail {
+                Text(item.detail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.leading, 28)
+            }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 7)
+        .padding(.horizontal, 12)
+        .padding(.vertical, showDetail ? 10 : 8)
         .overlay(alignment: .bottom) {
             Rectangle()
                 .fill(ConsolePalette.stroke)
                 .frame(height: 1)
-                .padding(.leading, 26)
+                .padding(.leading, 30)
         }
         .help(item.detail)
         .accessibilityElement(children: .combine)
