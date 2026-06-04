@@ -36,6 +36,9 @@ public final class AppSettingsStore: ObservableObject {
     @Published public var automaticallyCheckForUpdates: Bool {
         didSet { saveBool(automaticallyCheckForUpdates, for: Keys.automaticallyCheckForUpdates) }
     }
+    @Published public var protectPlaybackDuringDeviceChanges: Bool {
+        didSet { saveBool(protectPlaybackDuringDeviceChanges, for: Keys.protectPlaybackDuringDeviceChanges) }
+    }
     @Published public var hasCompletedOnboarding: Bool {
         didSet { saveBool(hasCompletedOnboarding, for: Keys.hasCompletedOnboarding) }
     }
@@ -54,6 +57,7 @@ public final class AppSettingsStore: ObservableObject {
         showUnsupportedNotes = defaults.object(forKey: Keys.showUnsupportedNotes) as? Bool ?? true
         demoMode = defaults.bool(forKey: Keys.demoMode)
         automaticallyCheckForUpdates = defaults.object(forKey: Keys.automaticallyCheckForUpdates) as? Bool ?? true
+        protectPlaybackDuringDeviceChanges = defaults.object(forKey: Keys.protectPlaybackDuringDeviceChanges) as? Bool ?? true
         hasCompletedOnboarding = defaults.bool(forKey: Keys.hasCompletedOnboarding)
     }
 
@@ -70,11 +74,11 @@ public final class AppSettingsStore: ObservableObject {
 
     public func applyActivationPolicy() {
         applyAppearance()
-        NSApp.setActivationPolicy(showInDock ? .regular : .accessory)
+        NSApp?.setActivationPolicy(showInDock ? .regular : .accessory)
     }
 
     public func applyAppearance() {
-        NSApp.appearance = NSAppearance(named: .darkAqua)
+        NSApp?.appearance = NSAppearance(named: .darkAqua)
     }
 
     public func reset() {
@@ -84,6 +88,7 @@ public final class AppSettingsStore: ObservableObject {
         showUnsupportedNotes = true
         demoMode = false
         automaticallyCheckForUpdates = true
+        protectPlaybackDuringDeviceChanges = true
         hasCompletedOnboarding = false
         applyActivationPolicy()
     }
@@ -99,6 +104,7 @@ public final class AppSettingsStore: ObservableObject {
         static let showUnsupportedNotes = "AudioRouter.showUnsupportedNotes"
         static let demoMode = "AudioRouter.demoMode"
         static let automaticallyCheckForUpdates = "AudioRouter.automaticallyCheckForUpdates"
+        static let protectPlaybackDuringDeviceChanges = "AudioRouter.protectPlaybackDuringDeviceChanges"
         static let hasCompletedOnboarding = "AudioRouter.hasCompletedOnboarding"
     }
 }

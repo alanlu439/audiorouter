@@ -100,7 +100,7 @@ The AudioRouter name, logo, app icon, and branding assets are not licensed for c
 - Customizable source-app dashboard: hide default source apps, restore defaults, drag to reorder the app list, or add your own route apps visually.
 - Top-right user profiles with full display names, so saved setups can be separated by person.
 - First-run visual onboarding with a route setup walkthrough, permission probe, and Privacy Settings shortcut.
-- Smoother device-change handling that waits through Bluetooth/AirPods re-enumeration bursts before marking a route missing, without forcing another system-output switch during connect or disconnect events.
+- Playback-protected device-change handling that waits through Bluetooth/AirPods re-enumeration bursts before refreshing routes or marking a route missing, without forcing another system-output switch during connect or disconnect events.
 - Menu bar mini mixer for quick system and app volume/mute controls.
 - Route health diagnostics showing app detection, playback activity, output availability, backend readiness, and exact failure reasons.
 - VoiceOver-friendly labels, values, hints, keyboard commands, and Reduce Motion-aware meters across the main audio controls.
@@ -257,6 +257,8 @@ If the backend panel says `Saved Only`, leave the source app playing and click `
 
 AudioRouter starts with Spotify, Apple Music, and Chrome as source apps. You can add more apps from the Routing Dashboard. Output choices are connected Bluetooth devices plus the built-in/system speaker.
 
+AudioRouter also includes `Advanced` -> `System` -> `Protect playback`, which is on by default. It debounces Bluetooth and AirPods device-change notifications before refreshing devices or retrying routes, so temporary wear/remove re-enumeration is less likely to disturb active playback. AirPods Automatic Ear Detection can still send a pause command directly to Spotify or other media apps; turn that off in macOS Bluetooth/AirPods settings if removing an AirPod still pauses playback even when AudioRouter is not changing routes.
+
 ## Status Badges
 
 - `Live`: AudioRouter started a process-tap route and is rendering it to the selected output.
@@ -270,6 +272,7 @@ AudioRouter starts with Spotify, Apple Music, and Chrome as source apps. You can
 - If the route does not start, make sure the source app is actively playing audio, then click `Retry Route`.
 - If permission was denied, open System Settings, grant AudioRouter System Audio Recording permission, then quit and reopen AudioRouter.
 - If the selected Bluetooth speaker is missing, connect it in macOS System Settings first.
+- If Spotify pauses when you take AirPods out of your ears, check AirPods Automatic Ear Detection in macOS Bluetooth settings. AudioRouter protects its own route refreshes, but it cannot block pause commands sent by AirPods/macOS directly to Spotify.
 - If the app still plays through the original output, remove the route with `Follow System Output`, start playback again, and reassign the output.
 - Some protected streams and device formats may not be routable through public macOS APIs.
 

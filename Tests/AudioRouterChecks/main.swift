@@ -23,6 +23,7 @@ func runChecks() throws {
     try checkFocusedSourceIconsStayWithConfiguredApps()
     checkUpdateVersionComparison()
     checkAutomaticUpdateCheckPersistence()
+    checkPlaybackProtectionPersistence()
     try checkRouteHealthDiagnostics()
 }
 
@@ -480,6 +481,23 @@ func checkAutomaticUpdateCheckPersistence() {
 
     precondition(manager.lastCheckedAt == date, "Automatic update check timestamp should persist across launches")
     precondition(manager.currentVersion == "1.0.0", "Injected current version should be used for update checks")
+}
+
+func checkPlaybackProtectionPersistence() {
+    let suiteName = "AudioRouterChecks-\(UUID().uuidString)"
+    let defaults = UserDefaults(suiteName: suiteName)!
+    defer { defaults.removePersistentDomain(forName: suiteName) }
+
+    let settings = AppSettingsStore(defaults: defaults)
+    precondition(settings.protectPlaybackDuringDeviceChanges, "Bluetooth playback protection should default on")
+    settings.protectPlaybackDuringDeviceChanges = false
+
+    let reloaded = AppSettingsStore(defaults: defaults)
+    precondition(!reloaded.protectPlaybackDuringDeviceChanges, "Bluetooth playback protection toggle should persist")
+    reloaded.reset()
+
+    let reset = AppSettingsStore(defaults: defaults)
+    precondition(reset.protectPlaybackDuringDeviceChanges, "Reset should turn Bluetooth playback protection back on")
 }
 
 @MainActor

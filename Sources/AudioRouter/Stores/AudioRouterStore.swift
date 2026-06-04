@@ -56,6 +56,7 @@ public final class AudioRouterStore: ObservableObject {
     private var pendingSourceVolumes: [String: Double] = [:]
     private var lastDeviceVolumeCommitDates: [String: Date] = [:]
     private var pendingRefreshTask: Task<Void, Never>?
+    private var pendingDeviceRefreshTask: Task<Void, Never>?
     private var pendingRoutePreparationTasks: [String: Task<Void, Never>] = [:]
     private var meterPhase: Double = 0
     private var lastRefreshUsedDemoMode: Bool?
@@ -75,7 +76,10 @@ public final class AudioRouterStore: ObservableObject {
     private let meterPublishThreshold = 0.005
     private let deviceVolumeCommitInterval: TimeInterval = 0.10
     private let deviceDisconnectGraceInterval: TimeInterval = 12
-    private let deviceChangeRouteRetrySuppressionInterval: TimeInterval = 8
+    private let protectedDeviceDisconnectGraceInterval: TimeInterval = 30
+    private let deviceChangeRouteRetrySuppressionInterval: TimeInterval = 20
+    private let protectedDeviceRefreshDelay: TimeInterval = 2.5
+    private let protectedDeviceRefreshFollowUpDelay: TimeInterval = 6.5
 
     public init(
         deviceManager: AudioDeviceManaging = AudioDeviceService(),
@@ -376,6 +380,8 @@ public final class AudioRouterStore: ObservableObject {
         pendingSourceVolumeTasks.removeAll()
         pendingRefreshTask?.cancel()
         pendingRefreshTask = nil
+        pendingDeviceRefreshTask?.cancel()
+        pendingDeviceRefreshTask = nil
         pendingRoutePreparationTasks.values.forEach { $0.cancel() }
         pendingRoutePreparationTasks.removeAll()
         pendingDeviceDisconnectTasks.values.forEach { $0.cancel() }
@@ -434,8 +440,10 @@ public final class AudioRouterStore: ObservableObject {
             if refreshedSources != audioSources {
                 audioSources = refreshedSources
             }
-            ensureSelectedOutputDeviceStillExists()
-            ensureSelectedSourceStillExists()
+            if !settings.protectPlaybackDuringDeviceChanges || !isDeviceTopologySettling {
+                ensureSelectedOutputDeviceStillExists()
+                ensureSelectedSourceStillExists()
+            }
             retryReadySavedRoutes(using: refreshedSources)
             if !silent || availableAppCandidates.isEmpty {
                 updateAvailableAppCandidates()
@@ -1583,10 +1591,33 @@ public final class AudioRouterStore: ObservableObject {
         guard !settings.demoMode, deviceObservation == nil else { return }
         deviceObservation = deviceManager.observeDeviceChanges { [weak self] in
             Task { @MainActor [weak self] in
-                self?.noteDeviceTopologyIsSettling()
-                self?.refresh(silent: true)
-                self?.refreshAfterDelay(interval: 1.8)
+                self?.handleObservedDeviceChange()
             }
+        }
+    }
+
+    private func handleObservedDeviceChange() {
+        noteDeviceTopologyIsSettling()
+        guard settings.protectPlaybackDuringDeviceChanges else {
+            refresh(silent: true)
+            refreshAfterDelay(interval: 1.8)
+            return
+        }
+        scheduleProtectedDeviceRefresh()
+    }
+
+    private func scheduleProtectedDeviceRefresh() {
+        pendingDeviceRefreshTask?.cancel()
+        pendingDeviceRefreshTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            try? await Task.sleep(nanoseconds: UInt64(protectedDeviceRefreshDelay * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            refresh(silent: true)
+
+            try? await Task.sleep(nanoseconds: UInt64(protectedDeviceRefreshFollowUpDelay * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            refresh(silent: true)
+            pendingDeviceRefreshTask = nil
         }
     }
 
@@ -1594,7 +1625,10 @@ public final class AudioRouterStore: ObservableObject {
         pendingDeviceDisconnectTasks[uid]?.cancel()
         pendingDeviceDisconnectTasks[uid] = Task { @MainActor [weak self] in
             guard let self else { return }
-            try? await Task.sleep(nanoseconds: UInt64(deviceDisconnectGraceInterval * 1_000_000_000))
+            let graceInterval = settings.protectPlaybackDuringDeviceChanges
+                ? protectedDeviceDisconnectGraceInterval
+                : deviceDisconnectGraceInterval
+            try? await Task.sleep(nanoseconds: UInt64(graceInterval * 1_000_000_000))
             guard !Task.isCancelled else { return }
             if !Self.aliveOutputUIDs(from: devices).contains(uid) {
                 audioRoutingManager.handleDeviceDisconnected(deviceID: uid)

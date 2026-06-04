@@ -237,6 +237,12 @@ private struct AdvancedSettingsView: View {
                             systemImage: "play.rectangle",
                             isOn: demoModeBinding
                         )
+                        ToggleRow(
+                            title: "Protect playback",
+                            detail: "Debounce AirPods and Bluetooth changes before refreshing routes",
+                            systemImage: "earbuds",
+                            isOn: protectPlaybackBinding
+                        )
                         DarkAppearanceRow()
                     }
                 }
@@ -383,6 +389,13 @@ private struct AdvancedSettingsView: View {
         Binding(
             get: { store.settings.showInDock },
             set: { store.settings.showInDock = $0 }
+        )
+    }
+
+    private var protectPlaybackBinding: Binding<Bool> {
+        Binding(
+            get: { store.settings.protectPlaybackDuringDeviceChanges },
+            set: { store.settings.protectPlaybackDuringDeviceChanges = $0 }
         )
     }
 
