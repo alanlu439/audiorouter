@@ -188,111 +188,113 @@ private struct AdvancedSettingsView: View {
 
     var body: some View {
         ConsoleFrame {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 12) {
                 ConsolePageHeader(
                     title: "Advanced",
-                    subtitle: "System behavior, permissions, updates, and diagnostics.",
+                    subtitle: "Backend health, app behavior, permissions, updates, and reset tools.",
                     systemImage: "gearshape.2.fill",
                     tint: ConsolePalette.teal
                 ) {
-                    HStack(spacing: 8) {
-                        StatusLabel(
-                            text: store.settings.demoMode ? "Demo" : "Live",
-                            status: store.settings.demoMode ? .demo : .working
+                    AdvancedHeaderStatus(store: store)
+                }
+
+                BackendStatusPanel(store: store, compact: true)
+
+                ConsolePanel(title: "Controls", systemImage: "slider.horizontal.3", tint: ConsolePalette.teal) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        ToggleRow(
+                            title: "Launch at login",
+                            detail: "Start AudioRouter automatically",
+                            systemImage: "power",
+                            isOn: launchAtLoginBinding
                         )
-                        StatusLabel(
-                            text: store.backendReadinessTitle,
-                            status: store.backendReadinessState.visualStatus
+                        ToggleRow(
+                            title: "Show in Dock",
+                            detail: "Keep a Dock icon while running",
+                            systemImage: "dock.rectangle",
+                            isOn: showInDockBinding
                         )
+                        ToggleRow(
+                            title: "Demo Mode",
+                            detail: "Use sample apps, devices, and meters",
+                            systemImage: "play.rectangle",
+                            isOn: demoModeBinding
+                        )
+                        DarkAppearanceRow()
                     }
                 }
 
-                LazyVGrid(columns: advancedColumns, alignment: .leading, spacing: 14) {
-                    BackendStatusPanel(store: store, compact: true)
-
-                    ConsolePanel(title: "App", systemImage: "macwindow", tint: ConsolePalette.teal) {
-                        VStack(alignment: .leading, spacing: 9) {
-                            ToggleRow(
-                                title: "Launch at login",
-                                systemImage: "power",
-                                isOn: launchAtLoginBinding
-                            )
-                            ToggleRow(
-                                title: "Show in Dock",
-                                systemImage: "dock.rectangle",
-                                isOn: showInDockBinding
-                            )
-                            DarkAppearanceRow()
-                            ToggleRow(
-                                title: "Demo Mode",
-                                systemImage: "play.rectangle",
-                                isOn: demoModeBinding
-                            )
+                ConsolePanel(title: "Permissions", systemImage: "checkmark.shield", tint: ConsolePalette.green) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        AdvancedActionRow(
+                            title: "Guided Setup",
+                            detail: "Open the route setup flow",
+                            systemImage: "sparkles.rectangle.stack"
+                        ) {
+                            store.showOnboarding()
+                        }
+                        AdvancedActionRow(
+                            title: "Audio Permission",
+                            detail: permissionStatusText,
+                            systemImage: "waveform.badge.magnifyingglass"
+                        ) {
+                            store.probeProcessTapPermission()
+                        }
+                        AdvancedActionRow(
+                            title: "Privacy Settings",
+                            detail: "Open System Settings",
+                            systemImage: "switch.2"
+                        ) {
+                            store.openSystemAudioPermissionSettings()
                         }
                     }
+                }
 
-                    ConsolePanel(title: "Permissions", systemImage: "checkmark.shield", tint: ConsolePalette.green) {
-                        VStack(alignment: .leading, spacing: 8) {
-                            AdvancedActionRow(
-                                title: "Guided Setup",
-                                detail: "Open route setup",
-                                systemImage: "sparkles.rectangle.stack"
-                            ) {
-                                store.showOnboarding()
+                UpdateStatusView(store: store, compact: true)
+
+                ConsolePanel(title: "Diagnostics", systemImage: "stethoscope", tint: ConsolePalette.blue) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        ToggleRow(
+                            title: "Unsupported notes",
+                            detail: "Show public API limitation labels",
+                            systemImage: "exclamationmark.bubble",
+                            isOn: unsupportedNotesBinding
+                        )
+                        AdvancedActionRow(
+                            title: showDebug ? "Hide Device List" : "Show Device List",
+                            detail: "\(store.outputDevices.count) outputs, \(store.inputDevices.count) inputs",
+                            systemImage: "list.bullet.rectangle"
+                        ) {
+                            showDebug.toggle()
+                        }
+                        if showDebug {
+                            ScrollView(.horizontal) {
+                                Text(store.debugDeviceList.isEmpty ? "No devices loaded." : store.debugDeviceList)
+                                    .font(.caption.monospaced())
+                                    .textSelection(.enabled)
+                                    .padding(10)
                             }
-                            AdvancedActionRow(
-                                title: "Audio Permission",
-                                detail: permissionStatusText,
-                                systemImage: "waveform.badge.magnifyingglass"
-                            ) {
-                                store.probeProcessTapPermission()
-                            }
-                            AdvancedActionRow(
-                                title: "Privacy Settings",
-                                detail: "System Audio Recording",
-                                systemImage: "switch.2"
-                            ) {
-                                store.openSystemAudioPermissionSettings()
-                            }
+                            .frame(maxHeight: 130)
+                            .background(ConsolePalette.inset.opacity(0.86), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                         }
                     }
+                }
 
-                    UpdateStatusView(store: store, compact: true)
-
-                    ConsolePanel(title: "Diagnostics", systemImage: "stethoscope", tint: ConsolePalette.blue) {
-                        VStack(alignment: .leading, spacing: 9) {
-                            ToggleRow(
-                                title: "Unsupported notes",
-                                systemImage: "exclamationmark.bubble",
-                                isOn: unsupportedNotesBinding
-                            )
-                            Button {
-                                showDebug.toggle()
-                            } label: {
-                                Label(showDebug ? "Hide Device List" : "Show Device List", systemImage: "list.bullet.rectangle")
-                            }
-                            .buttonStyle(.bordered)
-                            .controlSize(.small)
-                            .accessibilityHint("Shows the raw Core Audio device list")
-                            if showDebug {
-                                ScrollView(.horizontal) {
-                                    Text(store.debugDeviceList.isEmpty ? "No devices loaded." : store.debugDeviceList)
-                                        .font(.caption.monospaced())
-                                        .textSelection(.enabled)
-                                        .padding(10)
-                                }
-                                .frame(maxHeight: 150)
-                                .background(ConsolePalette.inset.opacity(0.86), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                            }
+                ConsolePanel(title: "Reset", systemImage: "exclamationmark.triangle", tint: ConsolePalette.red) {
+                    HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Reset AudioRouter")
+                                .font(.subheadline.weight(.semibold))
+                            Text("Restore preferences, routes, profiles, and visual settings to defaults.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
-                    }
-
-                    ConsolePanel(title: "Reset", systemImage: "exclamationmark.triangle", tint: ConsolePalette.red) {
+                        Spacer()
                         Button(role: .destructive) {
                             store.resetAllSettings()
                         } label: {
-                            Label("Reset All Settings", systemImage: "arrow.counterclockwise")
-                                .frame(maxWidth: .infinity)
+                            Label("Reset", systemImage: "arrow.counterclockwise")
                         }
                         .buttonStyle(.bordered)
                         .controlSize(.small)
@@ -301,12 +303,6 @@ private struct AdvancedSettingsView: View {
                 }
             }
         }
-    }
-
-    private var advancedColumns: [GridItem] {
-        [
-            GridItem(.adaptive(minimum: 300, maximum: 460), spacing: 14, alignment: .top)
-        ]
     }
 
     private var permissionStatusText: String {
@@ -355,6 +351,7 @@ private struct AdvancedSettingsView: View {
 
 private struct ToggleRow: View {
     let title: String
+    var detail: String? = nil
     let systemImage: String
     let isOn: Binding<Bool>
 
@@ -363,16 +360,24 @@ private struct ToggleRow: View {
             Image(systemName: systemImage)
                 .foregroundStyle(ConsolePalette.teal)
                 .frame(width: 22)
-            Text(title)
-                .font(.subheadline.weight(.semibold))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                if let detail {
+                    Text(detail)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
             Spacer()
             Toggle(title, isOn: isOn)
                 .labelsHidden()
                 .toggleStyle(.switch)
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, 7)
         .padding(.horizontal, 10)
-        .frame(minHeight: 34)
+        .frame(minHeight: 38)
         .background(ConsolePalette.inset.opacity(0.72), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -424,10 +429,18 @@ private struct AdvancedActionRow: View {
 
 private struct DarkAppearanceRow: View {
     var body: some View {
-        HStack {
-            Label("Appearance", systemImage: "moon.fill")
-                .font(.subheadline.weight(.semibold))
+        HStack(spacing: 10) {
+            Image(systemName: "moon.fill")
                 .foregroundStyle(ConsolePalette.teal)
+                .frame(width: 22)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Appearance")
+                    .font(.subheadline.weight(.semibold))
+                Text("Fixed dark console theme")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
             Spacer()
             Text("Dark")
                 .font(.caption.weight(.semibold))
@@ -437,12 +450,55 @@ private struct DarkAppearanceRow: View {
                 .background(ConsolePalette.inset, in: Capsule())
         }
         .padding(.horizontal, 10)
-        .frame(minHeight: 34)
+        .padding(.vertical, 7)
+        .frame(minHeight: 38)
         .background(ConsolePalette.inset.opacity(0.72), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .stroke(Color.white.opacity(0.06), lineWidth: 1)
         }
         .help("AudioRouter uses a fixed dark appearance for console readability.")
+    }
+}
+
+private struct AdvancedHeaderStatus: View {
+    @ObservedObject var store: AudioRouterStore
+
+    var body: some View {
+        HStack(spacing: 8) {
+            CompactModeBadge(
+                text: store.settings.demoMode ? "Demo" : "Live",
+                tint: store.settings.demoMode ? ConsolePalette.amber : ConsolePalette.green
+            )
+            CompactModeBadge(
+                text: store.backendReadinessTitle,
+                tint: store.backendReadinessState.visualStatus.foreground
+            )
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Mode \(store.settings.demoMode ? "Demo" : "Live"), backend \(store.backendReadinessTitle)")
+    }
+}
+
+private struct CompactModeBadge: View {
+    let text: String
+    let tint: Color
+
+    var body: some View {
+        HStack(spacing: 5) {
+            ConsoleLED(color: tint)
+            Text(text)
+                .font(.caption.weight(.bold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .foregroundStyle(tint)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(tint.opacity(0.12), in: Capsule())
+        .overlay {
+            Capsule()
+                .stroke(tint.opacity(0.28), lineWidth: 1)
+        }
     }
 }

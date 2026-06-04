@@ -12,61 +12,66 @@ struct BackendStatusPanel: View {
             trailing: store.routingBackendName,
             tint: ConsolePalette.teal
         ) {
-            HStack(alignment: .center, spacing: 12) {
-                Text("Routing Engine")
-                    .font(.subheadline.weight(.semibold))
-                Spacer()
-                StatusLabel(
-                    text: store.backendReadinessTitle,
-                    status: store.backendReadinessState.visualStatus
-                )
-            }
-
-            Text(store.backendReadinessDetail)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-
-            if compact {
-                compactRows
-            } else {
-                fullRows
-            }
-
-            if showActions {
-                HStack(spacing: 10) {
-                    Button {
-                        store.refresh()
-                    } label: {
-                        Label("Refresh", systemImage: "arrow.clockwise")
-                    }
-                    Button {
-                        store.probeProcessTapPermission()
-                    } label: {
-                        Label("Probe Tap", systemImage: "waveform.badge.magnifyingglass")
-                    }
-                    .disabled(store.settings.demoMode)
-                    Spacer(minLength: 0)
+            VStack(alignment: .leading, spacing: compact ? 10 : 12) {
+                HStack(alignment: .center, spacing: 12) {
+                    Text("Routing Engine")
+                        .font(compact ? .subheadline.weight(.semibold) : .headline.weight(.semibold))
+                    Spacer()
+                    StatusLabel(
+                        text: store.backendReadinessTitle,
+                        status: store.backendReadinessState.visualStatus
+                    )
                 }
-                .controlSize(.small)
-            }
 
-            if let message = store.processTapProbeMessage, !compact {
-                Text(message)
+                Text(store.backendReadinessDetail)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+
+                if compact {
+                    compactRows
+                } else {
+                    fullRows
+                }
+
+                if showActions {
+                    HStack(spacing: 8) {
+                        Button {
+                            store.refresh()
+                        } label: {
+                            Label("Refresh", systemImage: "arrow.clockwise")
+                        }
+                        Button {
+                            store.probeProcessTapPermission()
+                        } label: {
+                            Label("Probe Tap", systemImage: "waveform.badge.magnifyingglass")
+                        }
+                        .disabled(store.settings.demoMode)
+                        Spacer(minLength: 0)
+                    }
+                    .controlSize(.small)
+                }
+
+                if let message = store.processTapProbeMessage, !compact {
+                    Text(message)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         }
     }
 
     private var compactRows: some View {
-        HStack(spacing: 8) {
+        VStack(spacing: 0) {
             ForEach(store.backendReadinessItems) { item in
-                StatusLabel(text: item.title, status: item.state.visualStatus)
-                    .help(item.detail)
+                BackendReadinessLine(item: item)
             }
-            Spacer(minLength: 0)
+        }
+        .background(ConsolePalette.inset.opacity(0.62), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(ConsolePalette.stroke, lineWidth: 1)
         }
     }
 
@@ -88,6 +93,37 @@ struct BackendStatusPanel: View {
                 }
             }
         }
+    }
+}
+
+private struct BackendReadinessLine: View {
+    let item: BackendReadinessItem
+
+    var body: some View {
+        HStack(spacing: 9) {
+            ConsoleLED(color: item.state.visualStatus.foreground)
+            Text(item.title)
+                .font(.caption.weight(.semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
+            Spacer(minLength: 10)
+            Text(item.state.badgeTitle)
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(item.state.visualStatus.foreground)
+                .lineLimit(1)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(ConsolePalette.stroke)
+                .frame(height: 1)
+                .padding(.leading, 26)
+        }
+        .help(item.detail)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(item.title), \(item.state.badgeTitle)")
+        .accessibilityHint(item.detail)
     }
 }
 
