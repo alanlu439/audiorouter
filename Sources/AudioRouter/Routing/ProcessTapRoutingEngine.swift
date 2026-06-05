@@ -493,6 +493,7 @@ final class ProcessTapRoutingEngine {
                 }
                 let sourceQuality = SourceAudioQuality(from: tapFormat)
                 let playbackFormat = RouteAudioQualityPolicy.playbackFormat(from: tapFormat, outputDevices: outputDevices)
+                HALVirtualInputBridge.shared.prepare()
                 let pipes = outputDevices.map { _ in
                     PCMBufferPipe(
                         format: playbackFormat,
@@ -752,6 +753,7 @@ final class ProcessTapRoutingEngine {
         let outputBuffers = UnsafeMutableAudioBufferListPointer(outputData)
         zero(outputBuffers)
         let gain = control.gain()
+        HALVirtualInputBridge.shared.writeInterleavedFloat32(from: inputData, gain: gain)
         var maxLevel = 0.0
         var wroteFrames = false
         for pipe in pipes {

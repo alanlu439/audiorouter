@@ -31,6 +31,7 @@ public final class AudioRouterStore: ObservableObject {
     @Published public private(set) var preparingRouteSourceIDs: Set<String> = []
     @Published public private(set) var meteringNote: String = "Live meters appear when a process-tap route is active."
     @Published public private(set) var processTapProbeMessage: String?
+    @Published public private(set) var publishedAppInputDevices: [PublishedAppInputDevice] = []
     @Published public var isOnboardingPresented = false
     @Published public var outputGroups: [OutputDeviceGroup] = [] {
         didSet { saveOutputGroups() }
@@ -47,6 +48,7 @@ public final class AudioRouterStore: ObservableObject {
     private let volumeManager: SystemVolumeManager
     private let audioRoutingManager: AudioRoutingManager
     private let processAudioMonitor: ProcessAudioMonitor
+    private let appInputPublisher: AppInputPublishing
     private var refreshTimer: Timer?
     private var meterTimer: Timer?
     private var deviceObservation: DevicePropertyObservation?
@@ -91,6 +93,7 @@ public final class AudioRouterStore: ObservableObject {
         updateManager: UpdateManager? = nil,
         audioRoutingManager: AudioRoutingManager = AudioRoutingManager(),
         processAudioMonitor: ProcessAudioMonitor = ProcessAudioMonitor(),
+        appInputPublisher: AppInputPublishing = AppInputDevicePublisher(),
         outputGroupsURL: URL = try! AppSupport.fileURL(named: "output-groups.json"),
         appSourcesURL: URL = try! AppSupport.fileURL(named: "audio-sources.json"),
         hiddenDefaultSourcesURL: URL = try! AppSupport.fileURL(named: "hidden-default-sources.json"),
@@ -106,6 +109,7 @@ public final class AudioRouterStore: ObservableObject {
         self.updateManager = updateManager ?? UpdateManager()
         self.audioRoutingManager = audioRoutingManager
         self.processAudioMonitor = processAudioMonitor
+        self.appInputPublisher = appInputPublisher
         self.outputGroupsURL = outputGroupsURL
         self.appSourcesURL = appSourcesURL
         self.hiddenDefaultSourcesURL = hiddenDefaultSourcesURL
@@ -386,6 +390,8 @@ public final class AudioRouterStore: ObservableObject {
         pendingRoutePreparationTasks.removeAll()
         pendingDeviceDisconnectTasks.values.forEach { $0.cancel() }
         pendingDeviceDisconnectTasks.removeAll()
+        appInputPublisher.stopAll()
+        publishedAppInputDevices = []
         deviceObservation?.cancel()
         deviceObservation = nil
         updateManager.stopAutomaticChecks()
@@ -440,6 +446,7 @@ public final class AudioRouterStore: ObservableObject {
             if refreshedSources != audioSources {
                 audioSources = refreshedSources
             }
+            syncAppInputDevices(using: refreshedSources)
             if !settings.protectPlaybackDuringDeviceChanges || !isDeviceTopologySettling {
                 ensureSelectedOutputDeviceStillExists()
                 ensureSelectedSourceStillExists()
@@ -2021,6 +2028,20 @@ public final class AudioRouterStore: ObservableObject {
                 current.routeMode = updatedRoute.routeMode
                 current.followsSystemOutput = updatedRoute.routeMode == .followSystemOutput
             }
+        }
+    }
+
+    private func syncAppInputDevices(using sources: [AudioSource]) {
+        let shouldPublish = !settings.demoMode && settings.publishAppInputsAsSystemDevices
+        appInputPublisher.sync(sources: sources, enabled: shouldPublish)
+        let nextDevices = appInputPublisher.publishedDevices
+        if nextDevices != publishedAppInputDevices {
+            publishedAppInputDevices = nextDevices
+        }
+        if let message = appInputPublisher.lastMessage,
+           !message.isEmpty,
+           !message.contains("published") {
+            processTapProbeMessage = message
         }
     }
 

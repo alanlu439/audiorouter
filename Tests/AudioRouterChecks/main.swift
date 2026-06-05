@@ -24,6 +24,7 @@ func runChecks() throws {
     checkUpdateVersionComparison()
     checkAutomaticUpdateCheckPersistence()
     checkPlaybackProtectionPersistence()
+    checkAppInputPublishingMetadata()
     try checkRouteHealthDiagnostics()
 }
 
@@ -498,6 +499,35 @@ func checkPlaybackProtectionPersistence() {
 
     let reset = AppSettingsStore(defaults: defaults)
     precondition(reset.protectPlaybackDuringDeviceChanges, "Reset should turn Bluetooth playback protection back on")
+}
+
+func checkAppInputPublishingMetadata() {
+    let suiteName = "AudioRouterChecks-\(UUID().uuidString)"
+    let defaults = UserDefaults(suiteName: suiteName)!
+    defer { defaults.removePersistentDomain(forName: suiteName) }
+
+    let settings = AppSettingsStore(defaults: defaults)
+    precondition(settings.publishAppInputsAsSystemDevices, "App mixer input publishing should default on")
+    settings.publishAppInputsAsSystemDevices = false
+    precondition(!AppSettingsStore(defaults: defaults).publishAppInputsAsSystemDevices, "App mixer input publishing toggle should persist")
+
+    let source = AudioSource(
+        id: "com.spotify.client",
+        appName: "Spotify",
+        bundleIdentifier: "com.spotify.client",
+        processID: 42,
+        audioObjectID: 99,
+        icon: nil,
+        isProducingAudio: true
+    )
+    precondition(
+        AppInputDevicePublisher.inputDeviceUID(for: source) == "com.local.AudioRouter.input.com.spotify.client",
+        "Published app input UID should be stable for mixer software"
+    )
+    precondition(
+        AppInputDevicePublisher.inputDeviceName(for: source) == "AudioRouter Spotify Input",
+        "Published app input name should be clear in mixer software"
+    )
 }
 
 @MainActor

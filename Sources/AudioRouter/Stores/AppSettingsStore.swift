@@ -39,6 +39,9 @@ public final class AppSettingsStore: ObservableObject {
     @Published public var protectPlaybackDuringDeviceChanges: Bool {
         didSet { saveBool(protectPlaybackDuringDeviceChanges, for: Keys.protectPlaybackDuringDeviceChanges) }
     }
+    @Published public var publishAppInputsAsSystemDevices: Bool {
+        didSet { saveBool(publishAppInputsAsSystemDevices, for: Keys.publishAppInputsAsSystemDevices) }
+    }
     @Published public var hasCompletedOnboarding: Bool {
         didSet { saveBool(hasCompletedOnboarding, for: Keys.hasCompletedOnboarding) }
     }
@@ -58,6 +61,7 @@ public final class AppSettingsStore: ObservableObject {
         demoMode = defaults.bool(forKey: Keys.demoMode)
         automaticallyCheckForUpdates = defaults.object(forKey: Keys.automaticallyCheckForUpdates) as? Bool ?? true
         protectPlaybackDuringDeviceChanges = defaults.object(forKey: Keys.protectPlaybackDuringDeviceChanges) as? Bool ?? true
+        publishAppInputsAsSystemDevices = defaults.object(forKey: Keys.publishAppInputsAsSystemDevices) as? Bool ?? true
         hasCompletedOnboarding = defaults.bool(forKey: Keys.hasCompletedOnboarding)
     }
 
@@ -89,6 +93,7 @@ public final class AppSettingsStore: ObservableObject {
         demoMode = false
         automaticallyCheckForUpdates = true
         protectPlaybackDuringDeviceChanges = true
+        publishAppInputsAsSystemDevices = true
         hasCompletedOnboarding = false
         applyActivationPolicy()
     }
@@ -105,6 +110,7 @@ public final class AppSettingsStore: ObservableObject {
         static let demoMode = "AudioRouter.demoMode"
         static let automaticallyCheckForUpdates = "AudioRouter.automaticallyCheckForUpdates"
         static let protectPlaybackDuringDeviceChanges = "AudioRouter.protectPlaybackDuringDeviceChanges"
+        static let publishAppInputsAsSystemDevices = "AudioRouter.publishAppInputsAsSystemDevices"
         static let hasCompletedOnboarding = "AudioRouter.hasCompletedOnboarding"
     }
 }

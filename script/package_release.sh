@@ -9,6 +9,9 @@ APP_BUNDLE="$DIST_DIR/$APP_NAME.app"
 STAGING_DIR="$DIST_DIR/$APP_NAME-macOS"
 MANUAL_SOURCE="$ROOT_DIR/DOWNLOAD_AND_USE.md"
 MANUAL_NAME="DOWNLOAD_AND_USE.md"
+DRIVER_MANUAL_SOURCE="$ROOT_DIR/DRIVER_INSTALL.md"
+DRIVER_MANUAL_NAME="DRIVER_INSTALL.md"
+DRIVER_BUNDLE="$DIST_DIR/AudioRouterHAL.driver"
 PUBLIC_ZIP_PATH="$DIST_DIR/$APP_NAME-macOS.zip"
 LOCAL_ZIP_PATH="$DIST_DIR/$APP_NAME-macOS-local-untrusted.zip"
 LEGACY_DMG_PATH="$DIST_DIR/$APP_NAME-macOS.dmg"
@@ -55,6 +58,7 @@ if [[ -n "${DEVELOPER_ID_INSTALLER:-}" ]]; then
 fi
 
 ./script/build_and_run.sh --bundle >/dev/null
+./script/build_hal_driver.sh >/dev/null
 
 if [[ -n "$SIGN_IDENTITY" ]]; then
   echo "Signing app with Developer ID Application identity: $SIGN_IDENTITY"
@@ -76,7 +80,13 @@ create_zip() {
   rm -rf "$STAGING_DIR"
   mkdir -p "$STAGING_DIR"
   /usr/bin/ditto "$APP_BUNDLE" "$STAGING_DIR/$APP_NAME.app"
+  /usr/bin/ditto "$DRIVER_BUNDLE" "$STAGING_DIR/AudioRouterHAL.driver"
   cp "$MANUAL_SOURCE" "$STAGING_DIR/$MANUAL_NAME"
+  cp "$DRIVER_MANUAL_SOURCE" "$STAGING_DIR/$DRIVER_MANUAL_NAME"
+  mkdir -p "$STAGING_DIR/script"
+  cp "$ROOT_DIR/script/install_hal_driver.sh" "$STAGING_DIR/script/install_hal_driver.sh"
+  cp "$ROOT_DIR/script/uninstall_hal_driver.sh" "$STAGING_DIR/script/uninstall_hal_driver.sh"
+  chmod +x "$STAGING_DIR/script/install_hal_driver.sh" "$STAGING_DIR/script/uninstall_hal_driver.sh"
   (cd "$DIST_DIR" && /usr/bin/ditto -c -k --sequesterRsrc --keepParent "$APP_NAME-macOS" "$output_path")
   /usr/bin/unzip -tq "$output_path" >/dev/null
 }

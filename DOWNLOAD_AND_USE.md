@@ -34,6 +34,28 @@ If macOS still blocks the app:
 
 AudioRouter cannot approve macOS privacy prompts automatically. If macOS asks for permission, the user has to approve it manually.
 
+## Optional Mixer Input Driver
+
+If you want AudioRouter to appear in DAWs or mixer software as a real input, install the experimental HAL driver:
+
+```bash
+./script/install_hal_driver.sh
+```
+
+macOS will ask for an administrator password, install `AudioRouterHAL.driver`, and restart Core Audio once. Reopen your mixer app after that and choose:
+
+```text
+AudioRouter Virtual Input
+```
+
+The driver is fed by active live AudioRouter routes. If no live route is running, the virtual input outputs silence.
+
+To remove the driver:
+
+```bash
+./script/uninstall_hal_driver.sh
+```
+
 ## What The Badges Mean
 
 - `Live`: AudioRouter is actively routing the selected app through the process-tap backend.

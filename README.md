@@ -91,6 +91,8 @@ The AudioRouter name, logo, app icon, and branding assets are not licensed for c
 - Experimental live per-app routes on macOS 14.2+ using public Core Audio process taps, transient aggregate devices, and an IO callback.
 - High-quality experimental route rendering using 32-bit floating-point PCM, source-rate-first AudioQueue client formats, Core Audio output conversion, high-quality drift compensation, and clean unity-gain snapping to avoid accidental limiting near 100%.
 - Source-quality badges beside route app names, dynamically refreshed from the real Core Audio process-tap format when macOS exposes the source, with `Pending` shown only until a tap probe or live route can read the format.
+- Experimental app-as-input publishing: configured route apps can appear in macOS and mixer software as selectable inputs such as `AudioRouter Spotify Input` when Core Audio exposes that app's process tap.
+- Experimental HAL driver: `AudioRouterHAL.driver` publishes a real stereo macOS input named `AudioRouter Virtual Input`, and AudioRouter can feed active live process-tap routes into it through a shared-memory bridge.
 - Experimental group play: route one app to an output group so the captured source is rendered to multiple connected speakers through separate `AudioQueue` outputs.
 - Per-route volume, mute, and live meters while an experimental process-tap route is active.
 - Live 10-band EQ processing for AudioRouter process-tap routes, with dynamic slider updates and a saved Custom preset.
@@ -127,6 +129,9 @@ AudioRouter is split into layers:
 - `AudioDeviceService`: real Core Audio device management.
 - `RunningAppService` and `ProcessAudioMonitor`: running app detection and process-tap probing.
 - `ProcessTapRoutingEngine`: experimental public-API routing path using `CATapDescription`, a private process tap, a transient aggregate capture device, PCM ring buffers, and one or more `AudioQueue` renderers pinned to selected output devices.
+- `AppInputDevicePublisher`: experimental public process-tap aggregate devices that expose configured app audio as selectable macOS input devices for mixer software while AudioRouter is running.
+- `AudioRouterHAL.driver`: experimental Core Audio HAL/AudioServerPlugIn virtual input driver for mixer-visible input selection.
+- `HALVirtualInputBridge`: shared-memory bridge that writes active live route audio into the HAL driver.
 - `AudioRoutingManager`: route preference persistence and status calculation.
 - `PublicAPIAudioRoutingBackend`: real public-API support for devices, app discovery, system controls, and experimental process-tap routing.
 - `FutureRoutingPluginBackend`: stub architecture for a future audio backend that could own streams and render them to chosen outputs.
@@ -167,6 +172,8 @@ A production-grade version still needs a dedicated audio backend for reliability
 When the experimental route starts successfully, the UI marks it “Live.” If macOS denies capture, the app is not producing a tap-able stream, or the aggregate route cannot start, AudioRouter saves the desired route and marks it “Requires Audio Backend.” Output groups can fan out one live route to multiple devices, but independent Bluetooth/AirPlay/USB devices may have latency differences or drift without a production routing backend.
 
 AudioRouter keeps its internal live route path lossless where public APIs allow it: captured audio is rendered as 32-bit floating-point PCM, the source tap sample rate is preserved as the AudioQueue client format, and Core Audio performs any device-side conversion required by the selected output. Bluetooth, AirPlay, and some USB devices can still apply their own codec, firmware, latency, or hardware sample-rate limits outside AudioRouter.
+
+App mixer inputs have two layers. The app-only layer in `Advanced` -> `System` -> `Publish mixer inputs` can still try public aggregate inputs when Core Audio exposes a process tap, but some DAWs do not show those temporary devices. The stronger path is the experimental HAL driver. Install `AudioRouterHAL.driver`, reopen your mixer app, then select `AudioRouter Virtual Input`. AudioRouter feeds that driver from active live process-tap routes through a shared-memory bridge. The current driver exposes one stereo virtual input, not one independent input per app.
 
 The backend readiness panel is the fastest way to see what to do next:
 
@@ -253,6 +260,16 @@ The script builds the SwiftPM product, stages `dist/AudioRouter.app`, writes the
 9. Select a route/app row, then press `Command =` or `Command -` to adjust that track's gain by exactly 1% per press. The source card fader and mute button also work when the route backend supports per-app control.
 10. Use `Follow System Output` to remove a custom route and send the app back to the normal system output.
 
+To use an app as an input in mixer software:
+
+1. Install the HAL driver with `./script/install_hal_driver.sh`.
+2. Reopen AudioRouter and your mixer software.
+3. Start playback in the source app, such as Spotify.
+4. Create a live route for that app in AudioRouter.
+5. In your mixer software, choose `AudioRouter Virtual Input`.
+
+If the input is not listed yet, confirm `Advanced` -> `System` says the HAL driver is installed, then reopen the mixer app. If the input is listed but silent, make sure the app route is `Live`; the driver outputs silence when no live AudioRouter route is feeding it.
+
 If the backend panel says `Saved Only`, leave the source app playing and click `Retry Route`. If it says `Requires Backend`, the chosen app/device pair could not be made live through public Core Audio process taps, but the route preference is saved for a future routing backend.
 
 AudioRouter starts with Spotify, Apple Music, and Chrome as source apps. You can add more apps from the Routing Dashboard. Output choices are connected Bluetooth devices plus the built-in/system speaker.
@@ -271,6 +288,8 @@ AudioRouter also includes `Advanced` -> `System` -> `Protect playback`, which is
 
 - If the route does not start, make sure the source app is actively playing audio, then click `Retry Route`.
 - If permission was denied, open System Settings, grant AudioRouter System Audio Recording permission, then quit and reopen AudioRouter.
+- If `AudioRouter Virtual Input` does not appear in mixer software, install the HAL driver with `./script/install_hal_driver.sh`, approve the administrator prompt, then reopen the mixer app.
+- If `AudioRouter Virtual Input` appears but is silent, start playback in the source app and make the route live in AudioRouter. The virtual input is fed by active live process-tap routes.
 - If the selected Bluetooth speaker is missing, connect it in macOS System Settings first.
 - If Spotify pauses when you take AirPods out of your ears, check AirPods Automatic Ear Detection in macOS Bluetooth settings. AudioRouter protects its own route refreshes, but it cannot block pause commands sent by AirPods/macOS directly to Spotify.
 - If the app still plays through the original output, remove the route with `Follow System Output`, start playback again, and reassign the output.

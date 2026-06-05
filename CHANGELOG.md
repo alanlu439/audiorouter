@@ -8,6 +8,14 @@
 - Extended the device-disconnect grace period while playback protection is enabled so temporary AirPods wear/remove re-enumeration does not immediately mark routes missing.
 - Kept selected output/source state stable while macOS audio topology is settling.
 
+### App Mixer Inputs
+
+- Added experimental behind-the-scenes app input publishing: configured route apps can appear as selectable macOS input devices named like `AudioRouter Spotify Input` when Core Audio exposes a process tap.
+- Added an Advanced setting to disable app mixer input publishing if another audio app should not see those temporary input devices.
+- Added an experimental `AudioRouterHAL.driver` Core Audio HAL input device named `AudioRouter Virtual Input` for DAWs and mixer software that require real system input devices.
+- Added a shared-memory bridge so active live process-tap routes can feed the HAL virtual input instead of leaving the driver silent.
+- Added HAL driver build, install, and uninstall scripts plus in-app Advanced status for whether the driver is installed.
+
 ## 1.1.1 - 2026-06-03
 
 ### Profiles

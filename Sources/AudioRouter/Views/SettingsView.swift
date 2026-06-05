@@ -243,6 +243,14 @@ private struct AdvancedSettingsView: View {
                             systemImage: "earbuds",
                             isOn: protectPlaybackBinding
                         )
+                        ToggleRow(
+                            title: "Publish mixer inputs",
+                            detail: "Expose route apps as selectable macOS input devices when taps are available",
+                            systemImage: "music.mic",
+                            isOn: appInputPublishingBinding
+                        )
+                        HALDriverStatusView()
+                        AppInputPublishingStatusView(store: store)
                         DarkAppearanceRow()
                     }
                 }
@@ -395,7 +403,19 @@ private struct AdvancedSettingsView: View {
     private var protectPlaybackBinding: Binding<Bool> {
         Binding(
             get: { store.settings.protectPlaybackDuringDeviceChanges },
-            set: { store.settings.protectPlaybackDuringDeviceChanges = $0 }
+            set: { value in
+                store.settings.protectPlaybackDuringDeviceChanges = value
+            }
+        )
+    }
+
+    private var appInputPublishingBinding: Binding<Bool> {
+        Binding(
+            get: { store.settings.publishAppInputsAsSystemDevices },
+            set: { value in
+                store.settings.publishAppInputsAsSystemDevices = value
+                store.refresh(silent: true)
+            }
         )
     }
 
@@ -578,6 +598,151 @@ private struct AdvancedActionRow: View {
         }
         .accessibilityLabel(title)
         .accessibilityHint(detail)
+    }
+}
+
+private struct HALDriverStatusView: View {
+    @State private var driverInstalled = false
+
+    private static let driverPath = "/Library/Audio/Plug-Ins/HAL/AudioRouterHAL.driver"
+    private let installCommand = "./script/install_hal_driver.sh"
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
+                Image(systemName: driverInstalled ? "checkmark.seal.fill" : "externaldrive.badge.plus")
+                    .foregroundStyle(driverInstalled ? ConsolePalette.green : ConsolePalette.amber)
+                    .font(.system(size: 14, weight: .semibold))
+                    .frame(width: 32, height: 32)
+                    .background((driverInstalled ? ConsolePalette.green : ConsolePalette.amber).opacity(0.10), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(driverInstalled ? "HAL driver installed" : "HAL driver not installed")
+                        .font(.subheadline.weight(.semibold))
+                    Text(driverInstalled ? "Mixer apps should list AudioRouter Virtual Input after they reopen." : "Install the driver to make AudioRouter appear as a true macOS input device.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer()
+                Button {
+                    driverInstalled = FileManager.default.fileExists(atPath: Self.driverPath)
+                } label: {
+                    Label("Refresh", systemImage: "arrow.clockwise")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            }
+
+            if !driverInstalled {
+                Text("Run `\(installCommand)` from the project folder. macOS will ask for an administrator password and restart Core Audio once.")
+                    .font(.caption.monospaced())
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(ConsolePalette.panel.opacity(0.65), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 11)
+        .background(ConsolePalette.inset.opacity(0.72), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(Color.white.opacity(0.06), lineWidth: 1)
+        }
+        .onAppear {
+            driverInstalled = FileManager.default.fileExists(atPath: Self.driverPath)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(driverInstalled ? "HAL driver installed" : "HAL driver not installed")
+    }
+}
+
+private struct AppInputPublishingStatusView: View {
+    @ObservedObject var store: AudioRouterStore
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
+                Image(systemName: statusImage)
+                    .foregroundStyle(statusTint)
+                    .font(.system(size: 14, weight: .semibold))
+                    .frame(width: 32, height: 32)
+                    .background(statusTint.opacity(0.10), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(statusTitle)
+                        .font(.subheadline.weight(.semibold))
+                    Text(statusDetail)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer()
+                Button {
+                    store.refresh(silent: true)
+                } label: {
+                    Label("Refresh", systemImage: "arrow.clockwise")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            }
+
+            if !store.publishedAppInputDevices.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(store.publishedAppInputDevices) { device in
+                        HStack(spacing: 8) {
+                            Image(systemName: "music.mic")
+                                .foregroundStyle(ConsolePalette.teal)
+                            Text(device.name)
+                                .font(.caption.weight(.semibold))
+                                .lineLimit(1)
+                            Spacer()
+                            Text("\(device.channelCount) ch")
+                                .font(.caption2.monospacedDigit().weight(.bold))
+                                .foregroundStyle(ConsolePalette.teal)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(ConsolePalette.teal.opacity(0.12), in: Capsule())
+                        }
+                    }
+                }
+                .padding(10)
+                .background(ConsolePalette.panel.opacity(0.65), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 11)
+        .background(ConsolePalette.inset.opacity(0.72), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(Color.white.opacity(0.06), lineWidth: 1)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(statusTitle)
+        .accessibilityHint(statusDetail)
+    }
+
+    private var statusImage: String {
+        store.publishedAppInputDevices.isEmpty ? "exclamationmark.triangle.fill" : "checkmark.circle.fill"
+    }
+
+    private var statusTint: Color {
+        store.publishedAppInputDevices.isEmpty ? ConsolePalette.amber : ConsolePalette.green
+    }
+
+    private var statusTitle: String {
+        store.publishedAppInputDevices.isEmpty ? "No mixer inputs visible yet" : "Published mixer inputs"
+    }
+
+    private var statusDetail: String {
+        if store.publishedAppInputDevices.isEmpty {
+            return store.processTapProbeMessage
+                ?? "Open the app you want, let it produce audio once, then refresh. macOS only exposes app inputs when a process tap can be created."
+        }
+        let names = store.publishedAppInputDevices.map(\.sourceName).joined(separator: ", ")
+        return "Select these inputs in mixer software while AudioRouter is running: \(names)."
     }
 }
 
