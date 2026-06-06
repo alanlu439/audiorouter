@@ -244,6 +244,12 @@ private struct AdvancedSettingsView: View {
                             isOn: protectPlaybackBinding
                         )
                         ToggleRow(
+                            title: "Auto-resume media",
+                            detail: "After AirPods wear/remove events, tell Spotify or Music to keep playing",
+                            systemImage: "play.circle",
+                            isOn: resumeMediaBinding
+                        )
+                        ToggleRow(
                             title: "Publish mixer inputs",
                             detail: "Expose route apps as selectable macOS input devices when taps are available",
                             systemImage: "music.mic",
@@ -405,6 +411,15 @@ private struct AdvancedSettingsView: View {
             get: { store.settings.protectPlaybackDuringDeviceChanges },
             set: { value in
                 store.settings.protectPlaybackDuringDeviceChanges = value
+            }
+        )
+    }
+
+    private var resumeMediaBinding: Binding<Bool> {
+        Binding(
+            get: { store.settings.resumeMediaAfterDeviceChanges },
+            set: { value in
+                store.settings.resumeMediaAfterDeviceChanges = value
             }
         )
     }

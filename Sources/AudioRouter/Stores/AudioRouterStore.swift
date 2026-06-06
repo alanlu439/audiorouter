@@ -49,6 +49,7 @@ public final class AudioRouterStore: ObservableObject {
     private let audioRoutingManager: AudioRoutingManager
     private let processAudioMonitor: ProcessAudioMonitor
     private let appInputPublisher: AppInputPublishing
+    private let playbackKeepAliveService: PlaybackKeepAliveService
     private var refreshTimer: Timer?
     private var meterTimer: Timer?
     private var deviceObservation: DevicePropertyObservation?
@@ -59,6 +60,7 @@ public final class AudioRouterStore: ObservableObject {
     private var lastDeviceVolumeCommitDates: [String: Date] = [:]
     private var pendingRefreshTask: Task<Void, Never>?
     private var pendingDeviceRefreshTask: Task<Void, Never>?
+    private var pendingMediaResumeTask: Task<Void, Never>?
     private var pendingRoutePreparationTasks: [String: Task<Void, Never>] = [:]
     private var meterPhase: Double = 0
     private var lastRefreshUsedDemoMode: Bool?
@@ -82,6 +84,7 @@ public final class AudioRouterStore: ObservableObject {
     private let deviceChangeRouteRetrySuppressionInterval: TimeInterval = 20
     private let protectedDeviceRefreshDelay: TimeInterval = 2.5
     private let protectedDeviceRefreshFollowUpDelay: TimeInterval = 6.5
+    private let mediaResumeAttemptDelays: [TimeInterval] = [0.8, 2.0, 4.5]
 
     public init(
         deviceManager: AudioDeviceManaging = AudioDeviceService(),
@@ -94,6 +97,7 @@ public final class AudioRouterStore: ObservableObject {
         audioRoutingManager: AudioRoutingManager = AudioRoutingManager(),
         processAudioMonitor: ProcessAudioMonitor = ProcessAudioMonitor(),
         appInputPublisher: AppInputPublishing = AppInputDevicePublisher(),
+        playbackKeepAliveService: PlaybackKeepAliveService = PlaybackKeepAliveService(),
         outputGroupsURL: URL = try! AppSupport.fileURL(named: "output-groups.json"),
         appSourcesURL: URL = try! AppSupport.fileURL(named: "audio-sources.json"),
         hiddenDefaultSourcesURL: URL = try! AppSupport.fileURL(named: "hidden-default-sources.json"),
@@ -110,6 +114,7 @@ public final class AudioRouterStore: ObservableObject {
         self.audioRoutingManager = audioRoutingManager
         self.processAudioMonitor = processAudioMonitor
         self.appInputPublisher = appInputPublisher
+        self.playbackKeepAliveService = playbackKeepAliveService
         self.outputGroupsURL = outputGroupsURL
         self.appSourcesURL = appSourcesURL
         self.hiddenDefaultSourcesURL = hiddenDefaultSourcesURL
@@ -386,6 +391,8 @@ public final class AudioRouterStore: ObservableObject {
         pendingRefreshTask = nil
         pendingDeviceRefreshTask?.cancel()
         pendingDeviceRefreshTask = nil
+        pendingMediaResumeTask?.cancel()
+        pendingMediaResumeTask = nil
         pendingRoutePreparationTasks.values.forEach { $0.cancel() }
         pendingRoutePreparationTasks.removeAll()
         pendingDeviceDisconnectTasks.values.forEach { $0.cancel() }
@@ -417,6 +424,7 @@ public final class AudioRouterStore: ObservableObject {
             let currentOutputUIDs = Self.aliveOutputUIDs(from: refreshedDevices)
             if hadDeviceSnapshot, currentOutputUIDs != previousOutputUIDs {
                 noteDeviceTopologyIsSettling()
+                scheduleMediaResumeAfterDeviceChange()
             }
             if refreshedDevices != devices {
                 devices = refreshedDevices
@@ -1605,6 +1613,7 @@ public final class AudioRouterStore: ObservableObject {
 
     private func handleObservedDeviceChange() {
         noteDeviceTopologyIsSettling()
+        scheduleMediaResumeAfterDeviceChange()
         guard settings.protectPlaybackDuringDeviceChanges else {
             refresh(silent: true)
             refreshAfterDelay(interval: 1.8)
@@ -1625,6 +1634,27 @@ public final class AudioRouterStore: ObservableObject {
             guard !Task.isCancelled else { return }
             refresh(silent: true)
             pendingDeviceRefreshTask = nil
+        }
+    }
+
+    private func scheduleMediaResumeAfterDeviceChange() {
+        guard !settings.demoMode,
+              settings.resumeMediaAfterDeviceChanges else {
+            return
+        }
+
+        pendingMediaResumeTask?.cancel()
+        pendingMediaResumeTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            for delay in mediaResumeAttemptDelays {
+                try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                guard !Task.isCancelled,
+                      settings.resumeMediaAfterDeviceChanges else {
+                    return
+                }
+                playbackKeepAliveService.resumeAfterDeviceChange(sources: audioSources)
+            }
+            pendingMediaResumeTask = nil
         }
     }
 
