@@ -445,26 +445,24 @@ private struct StudioPatchBayPanel: View {
     }
 }
 
-struct ReliabilityView: View {
+struct ReliabilityControlsView: View {
     @ObservedObject var store: AudioRouterStore
 
     var body: some View {
-        StudioConsoleFrame {
-            VStack(alignment: .leading, spacing: 10) {
-                ConsolePageHeader(
-                    title: "Reliability",
-                    subtitle: "Route health, test actions, permissions, and Bluetooth/AirPods protection.",
-                    systemImage: "stethoscope",
-                    tint: ConsolePalette.amber
-                ) {
-                    StatusLabel(text: store.backendReadinessTitle, status: store.backendReadinessState.visualStatus)
-                }
-
-                StudioRouteReliabilityCenter(store: store)
-                StudioDeviceChangeGuardPanel(store: store)
+        VStack(alignment: .leading, spacing: 10) {
+            ConsolePageHeader(
+                title: "Reliability",
+                subtitle: "Route health, test actions, permissions, and Bluetooth/AirPods protection.",
+                systemImage: "stethoscope",
+                tint: ConsolePalette.amber
+            ) {
+                StatusLabel(text: store.backendReadinessTitle, status: store.backendReadinessState.visualStatus)
             }
-            .frame(maxWidth: .infinity, alignment: .topLeading)
+
+            StudioRouteReliabilityCenter(store: store)
+            StudioDeviceChangeGuardPanel(store: store)
         }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 }
 

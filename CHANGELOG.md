@@ -4,9 +4,9 @@
 
 ### Routing Workflow
 
-- Added a dedicated Reliability tab with a Route Reliability Center that summarizes route health across every source app, with refresh, permission probe, retry, and route test actions.
+- Added `Advanced` -> `Reliability` with a Route Reliability Center that summarizes route health across every source app, with refresh, permission probe, retry, and route test actions.
 - Added route and output test tones so users can preview individual speakers, assigned app routes, and Group Play destinations.
-- Added Device Change Guard to the Reliability tab for Bluetooth/AirPods route protection and keep-playing controls.
+- Added Device Change Guard to `Advanced` -> `Reliability` for Bluetooth/AirPods route protection and keep-playing controls.
 - Expanded Group Play controls with group test, retry, and per-speaker volume controls.
 - Tightened the menu bar popover into a Quick Router with source/output selection, route status, gain, mute, and test controls.
 

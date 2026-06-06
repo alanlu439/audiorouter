@@ -36,8 +36,6 @@ struct SettingsDetailView: View {
                     switch section {
                     case .dashboard:
                         RoutingDashboardView(store: store)
-                    case .reliability:
-                        ReliabilityView(store: store)
                     case .devices:
                         DevicesView(store: store)
                     case .eq:
@@ -264,6 +262,9 @@ private struct AdvancedSettingsView: View {
                 }
             }
 
+        case .reliability:
+            ReliabilityControlsView(store: store)
+
         case .permissions:
             ConsolePanel(title: "Permissions", systemImage: "checkmark.shield", tint: ConsolePalette.green) {
                 VStack(alignment: .leading, spacing: 12) {
@@ -440,6 +441,7 @@ private struct AdvancedSettingsView: View {
 
 private enum AdvancedSection: String, CaseIterable, Identifiable {
     case system = "System"
+    case reliability = "Reliability"
     case permissions = "Access"
     case updates = "Updates"
     case diagnostics = "Diagnostics"
@@ -450,6 +452,7 @@ private enum AdvancedSection: String, CaseIterable, Identifiable {
     var systemImage: String {
         switch self {
         case .system: return "slider.horizontal.3"
+        case .reliability: return "stethoscope"
         case .permissions: return "checkmark.shield"
         case .updates: return "arrow.down.circle"
         case .diagnostics: return "stethoscope"
@@ -460,6 +463,7 @@ private enum AdvancedSection: String, CaseIterable, Identifiable {
     var tint: Color {
         switch self {
         case .system: return ConsolePalette.teal
+        case .reliability: return ConsolePalette.amber
         case .permissions: return ConsolePalette.green
         case .updates: return ConsolePalette.blue
         case .diagnostics: return ConsolePalette.blue

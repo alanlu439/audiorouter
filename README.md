@@ -94,9 +94,9 @@ The AudioRouter name, logo, app icon, and branding assets are not licensed for c
 - Experimental app-as-input publishing: configured route apps can appear in macOS and mixer software as selectable inputs such as `AudioRouter Spotify Input` when Core Audio exposes that app's process tap.
 - Experimental HAL driver: `AudioRouterHAL.driver` publishes a real stereo macOS input named `AudioRouter Virtual Input`, and AudioRouter can feed active live process-tap routes into it through a shared-memory bridge.
 - Experimental group play: route one app to an output group so the captured source is rendered to multiple connected speakers through separate `AudioQueue` outputs.
-- Dedicated Reliability tab with route health, exact failure reasons, permission probe, retry, and route test actions in one place.
+- `Advanced` -> `Reliability` with route health, exact failure reasons, permission probe, retry, and route test actions in one place.
 - Output and route test tones for previewing individual speakers, app route assignments, and Group Play destinations.
-- Device Change Guard in the Reliability tab for AirPods/Bluetooth protection and keep-playing controls.
+- Device Change Guard in `Advanced` -> `Reliability` for AirPods/Bluetooth protection and keep-playing controls.
 - Expanded Group Play controls with source assignment, group test, retry, and per-speaker level controls.
 - Per-route volume, mute, and live meters while an experimental process-tap route is active.
 - Live 10-band EQ processing for AudioRouter process-tap routes, with dynamic slider updates and a saved Custom preset.
