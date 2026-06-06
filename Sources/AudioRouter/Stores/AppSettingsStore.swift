@@ -39,8 +39,8 @@ public final class AppSettingsStore: ObservableObject {
     @Published public var protectPlaybackDuringDeviceChanges: Bool {
         didSet { saveBool(protectPlaybackDuringDeviceChanges, for: Keys.protectPlaybackDuringDeviceChanges) }
     }
-    @Published public var resumeMediaAfterDeviceChanges: Bool {
-        didSet { saveBool(resumeMediaAfterDeviceChanges, for: Keys.resumeMediaAfterDeviceChanges) }
+    @Published public var keepMediaPlayingDuringDeviceChanges: Bool {
+        didSet { saveBool(keepMediaPlayingDuringDeviceChanges, for: Keys.keepMediaPlayingDuringDeviceChanges) }
     }
     @Published public var publishAppInputsAsSystemDevices: Bool {
         didSet { saveBool(publishAppInputsAsSystemDevices, for: Keys.publishAppInputsAsSystemDevices) }
@@ -64,7 +64,12 @@ public final class AppSettingsStore: ObservableObject {
         demoMode = defaults.bool(forKey: Keys.demoMode)
         automaticallyCheckForUpdates = defaults.object(forKey: Keys.automaticallyCheckForUpdates) as? Bool ?? true
         protectPlaybackDuringDeviceChanges = defaults.object(forKey: Keys.protectPlaybackDuringDeviceChanges) as? Bool ?? true
-        resumeMediaAfterDeviceChanges = defaults.object(forKey: Keys.resumeMediaAfterDeviceChanges) as? Bool ?? true
+        keepMediaPlayingDuringDeviceChanges = Self.storedBool(
+            defaults: defaults,
+            key: Keys.keepMediaPlayingDuringDeviceChanges,
+            fallbackKey: Keys.resumeMediaAfterDeviceChanges,
+            defaultValue: true
+        )
         publishAppInputsAsSystemDevices = defaults.object(forKey: Keys.publishAppInputsAsSystemDevices) as? Bool ?? true
         hasCompletedOnboarding = defaults.bool(forKey: Keys.hasCompletedOnboarding)
     }
@@ -97,7 +102,7 @@ public final class AppSettingsStore: ObservableObject {
         demoMode = false
         automaticallyCheckForUpdates = true
         protectPlaybackDuringDeviceChanges = true
-        resumeMediaAfterDeviceChanges = true
+        keepMediaPlayingDuringDeviceChanges = true
         publishAppInputsAsSystemDevices = true
         hasCompletedOnboarding = false
         applyActivationPolicy()
@@ -105,6 +110,21 @@ public final class AppSettingsStore: ObservableObject {
 
     private func saveBool(_ value: Bool, for key: String) {
         defaults.set(value, forKey: key)
+    }
+
+    private static func storedBool(
+        defaults: UserDefaults,
+        key: String,
+        fallbackKey: String? = nil,
+        defaultValue: Bool
+    ) -> Bool {
+        if let value = defaults.object(forKey: key) as? Bool {
+            return value
+        }
+        if let fallbackKey, let value = defaults.object(forKey: fallbackKey) as? Bool {
+            return value
+        }
+        return defaultValue
     }
 
     enum Keys {
@@ -115,6 +135,7 @@ public final class AppSettingsStore: ObservableObject {
         static let demoMode = "AudioRouter.demoMode"
         static let automaticallyCheckForUpdates = "AudioRouter.automaticallyCheckForUpdates"
         static let protectPlaybackDuringDeviceChanges = "AudioRouter.protectPlaybackDuringDeviceChanges"
+        static let keepMediaPlayingDuringDeviceChanges = "AudioRouter.keepMediaPlayingDuringDeviceChanges"
         static let resumeMediaAfterDeviceChanges = "AudioRouter.resumeMediaAfterDeviceChanges"
         static let publishAppInputsAsSystemDevices = "AudioRouter.publishAppInputsAsSystemDevices"
         static let hasCompletedOnboarding = "AudioRouter.hasCompletedOnboarding"

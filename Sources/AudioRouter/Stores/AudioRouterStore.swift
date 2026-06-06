@@ -60,7 +60,7 @@ public final class AudioRouterStore: ObservableObject {
     private var lastDeviceVolumeCommitDates: [String: Date] = [:]
     private var pendingRefreshTask: Task<Void, Never>?
     private var pendingDeviceRefreshTask: Task<Void, Never>?
-    private var pendingMediaResumeTask: Task<Void, Never>?
+    private var pendingPlaybackKeepAliveTask: Task<Void, Never>?
     private var pendingRoutePreparationTasks: [String: Task<Void, Never>] = [:]
     private var meterPhase: Double = 0
     private var lastRefreshUsedDemoMode: Bool?
@@ -84,7 +84,7 @@ public final class AudioRouterStore: ObservableObject {
     private let deviceChangeRouteRetrySuppressionInterval: TimeInterval = 20
     private let protectedDeviceRefreshDelay: TimeInterval = 2.5
     private let protectedDeviceRefreshFollowUpDelay: TimeInterval = 6.5
-    private let mediaResumeAttemptDelays: [TimeInterval] = [0.8, 2.0, 4.5]
+    private let playbackKeepAliveAttemptDelays: [TimeInterval] = [0, 0.18, 0.42, 0.78, 1.2, 1.8, 2.7, 4, 6, 9, 13, 18, 24, 30]
 
     public init(
         deviceManager: AudioDeviceManaging = AudioDeviceService(),
@@ -391,8 +391,8 @@ public final class AudioRouterStore: ObservableObject {
         pendingRefreshTask = nil
         pendingDeviceRefreshTask?.cancel()
         pendingDeviceRefreshTask = nil
-        pendingMediaResumeTask?.cancel()
-        pendingMediaResumeTask = nil
+        pendingPlaybackKeepAliveTask?.cancel()
+        pendingPlaybackKeepAliveTask = nil
         pendingRoutePreparationTasks.values.forEach { $0.cancel() }
         pendingRoutePreparationTasks.removeAll()
         pendingDeviceDisconnectTasks.values.forEach { $0.cancel() }
@@ -424,7 +424,7 @@ public final class AudioRouterStore: ObservableObject {
             let currentOutputUIDs = Self.aliveOutputUIDs(from: refreshedDevices)
             if hadDeviceSnapshot, currentOutputUIDs != previousOutputUIDs {
                 noteDeviceTopologyIsSettling()
-                scheduleMediaResumeAfterDeviceChange()
+                schedulePlaybackKeepAliveAfterDeviceChange()
             }
             if refreshedDevices != devices {
                 devices = refreshedDevices
@@ -1613,7 +1613,7 @@ public final class AudioRouterStore: ObservableObject {
 
     private func handleObservedDeviceChange() {
         noteDeviceTopologyIsSettling()
-        scheduleMediaResumeAfterDeviceChange()
+        schedulePlaybackKeepAliveAfterDeviceChange()
         guard settings.protectPlaybackDuringDeviceChanges else {
             refresh(silent: true)
             refreshAfterDelay(interval: 1.8)
@@ -1637,24 +1637,29 @@ public final class AudioRouterStore: ObservableObject {
         }
     }
 
-    private func scheduleMediaResumeAfterDeviceChange() {
+    private func schedulePlaybackKeepAliveAfterDeviceChange() {
         guard !settings.demoMode,
-              settings.resumeMediaAfterDeviceChanges else {
+              settings.keepMediaPlayingDuringDeviceChanges else {
             return
         }
 
-        pendingMediaResumeTask?.cancel()
-        pendingMediaResumeTask = Task { @MainActor [weak self] in
+        let sourceSnapshot = audioSources
+        pendingPlaybackKeepAliveTask?.cancel()
+        pendingPlaybackKeepAliveTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            for delay in mediaResumeAttemptDelays {
-                try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            for delay in playbackKeepAliveAttemptDelays {
+                if delay > 0 {
+                    try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                }
                 guard !Task.isCancelled,
-                      settings.resumeMediaAfterDeviceChanges else {
+                      settings.keepMediaPlayingDuringDeviceChanges else {
                     return
                 }
-                playbackKeepAliveService.resumeAfterDeviceChange(sources: audioSources)
+                playbackKeepAliveService.keepPlayingDuringDeviceChange(
+                    sources: Self.mergedSourceSnapshot(sourceSnapshot, with: audioSources)
+                )
             }
-            pendingMediaResumeTask = nil
+            pendingPlaybackKeepAliveTask = nil
         }
     }
 
@@ -1699,6 +1704,15 @@ public final class AudioRouterStore: ObservableObject {
 
     private static func aliveOutputUIDs(from devices: [AudioDevice]) -> Set<String> {
         Set(devices.filter { $0.kind == .output && $0.isAlive }.map(\.uid))
+    }
+
+    private static func mergedSourceSnapshot(_ snapshot: [AudioSource], with currentSources: [AudioSource]) -> [AudioSource] {
+        var merged = snapshot
+        var seenIDs = Set(snapshot.map(\.id))
+        for source in currentSources where seenIDs.insert(source.id).inserted {
+            merged.append(source)
+        }
+        return merged
     }
 
     private func saveOutputGroups() {

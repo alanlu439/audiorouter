@@ -2,7 +2,7 @@ import AppKit
 import Foundation
 
 public final class PlaybackKeepAliveService {
-    private struct ResumeTarget: Hashable {
+    private struct KeepAliveTarget: Hashable {
         let bundleIdentifier: String
         let script: String
     }
@@ -10,15 +10,15 @@ public final class PlaybackKeepAliveService {
     private var lastAttemptDate = Date.distantPast
     private let minimumAttemptInterval: TimeInterval
 
-    public init(minimumAttemptInterval: TimeInterval = 1.4) {
+    public init(minimumAttemptInterval: TimeInterval = 0.14) {
         self.minimumAttemptInterval = minimumAttemptInterval
     }
 
-    public func resumeAfterDeviceChange(sources: [AudioSource]) {
+    public func keepPlayingDuringDeviceChange(sources: [AudioSource]) {
         let now = Date()
         guard now.timeIntervalSince(lastAttemptDate) >= minimumAttemptInterval else { return }
 
-        let targets = Self.resumeTargets(from: sources)
+        let targets = Self.keepAliveTargets(from: sources)
         guard !targets.isEmpty else { return }
 
         lastAttemptDate = now
@@ -29,15 +29,22 @@ public final class PlaybackKeepAliveService {
         }
     }
 
+    public static func keepAliveCandidateBundleIdentifiers(
+        from sources: [AudioSource],
+        requireRunning: Bool = true
+    ) -> [String] {
+        keepAliveTargets(from: sources, requireRunning: requireRunning).map(\.bundleIdentifier)
+    }
+
     public static func resumeCandidateBundleIdentifiers(
         from sources: [AudioSource],
         requireRunning: Bool = true
     ) -> [String] {
-        resumeTargets(from: sources, requireRunning: requireRunning).map(\.bundleIdentifier)
+        keepAliveCandidateBundleIdentifiers(from: sources, requireRunning: requireRunning)
     }
 
-    private static func resumeTargets(from sources: [AudioSource], requireRunning: Bool = true) -> [ResumeTarget] {
-        var targets: [ResumeTarget] = []
+    private static func keepAliveTargets(from sources: [AudioSource], requireRunning: Bool = true) -> [KeepAliveTarget] {
+        var targets: [KeepAliveTarget] = []
         var seenBundleIDs = Set<String>()
 
         for source in sources {
@@ -45,10 +52,10 @@ public final class PlaybackKeepAliveService {
                   seenBundleIDs.insert(bundleIdentifier).inserted,
                   isLikelyResumeCandidate(source),
                   !requireRunning || isRunning(bundleIdentifier: bundleIdentifier),
-                  let script = resumeScript(for: bundleIdentifier) else {
+                  let script = keepAliveScript(for: bundleIdentifier) else {
                 continue
             }
-            targets.append(ResumeTarget(bundleIdentifier: bundleIdentifier, script: script))
+            targets.append(KeepAliveTarget(bundleIdentifier: bundleIdentifier, script: script))
         }
 
         return targets
@@ -65,7 +72,7 @@ public final class PlaybackKeepAliveService {
         !NSRunningApplication.runningApplications(withBundleIdentifier: bundleIdentifier).isEmpty
     }
 
-    private static func resumeScript(for bundleIdentifier: String) -> String? {
+    private static func keepAliveScript(for bundleIdentifier: String) -> String? {
         switch bundleIdentifier {
         case "com.spotify.client":
             return #"tell application id "com.spotify.client" to play"#

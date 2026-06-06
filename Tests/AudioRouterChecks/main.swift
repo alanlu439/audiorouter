@@ -492,18 +492,24 @@ func checkPlaybackProtectionPersistence() {
 
     let settings = AppSettingsStore(defaults: defaults)
     precondition(settings.protectPlaybackDuringDeviceChanges, "Bluetooth playback protection should default on")
-    precondition(settings.resumeMediaAfterDeviceChanges, "Media auto-resume should default on")
+    precondition(settings.keepMediaPlayingDuringDeviceChanges, "Media keep-alive should default on")
     settings.protectPlaybackDuringDeviceChanges = false
-    settings.resumeMediaAfterDeviceChanges = false
+    settings.keepMediaPlayingDuringDeviceChanges = false
 
     let reloaded = AppSettingsStore(defaults: defaults)
     precondition(!reloaded.protectPlaybackDuringDeviceChanges, "Bluetooth playback protection toggle should persist")
-    precondition(!reloaded.resumeMediaAfterDeviceChanges, "Media auto-resume toggle should persist")
+    precondition(!reloaded.keepMediaPlayingDuringDeviceChanges, "Media keep-alive toggle should persist")
     reloaded.reset()
 
     let reset = AppSettingsStore(defaults: defaults)
     precondition(reset.protectPlaybackDuringDeviceChanges, "Reset should turn Bluetooth playback protection back on")
-    precondition(reset.resumeMediaAfterDeviceChanges, "Reset should turn media auto-resume back on")
+    precondition(reset.keepMediaPlayingDuringDeviceChanges, "Reset should turn media keep-alive back on")
+
+    let legacyDefaultsSuiteName = "AudioRouterChecks-\(UUID().uuidString)"
+    let legacyDefaults = UserDefaults(suiteName: legacyDefaultsSuiteName)!
+    defer { legacyDefaults.removePersistentDomain(forName: legacyDefaultsSuiteName) }
+    legacyDefaults.set(false, forKey: "AudioRouter.resumeMediaAfterDeviceChanges")
+    precondition(!AppSettingsStore(defaults: legacyDefaults).keepMediaPlayingDuringDeviceChanges, "Keep-alive should migrate the previous media resume toggle")
 }
 
 func checkPlaybackKeepAliveCandidates() {
@@ -534,11 +540,11 @@ func checkPlaybackKeepAliveCandidates() {
         )
     ]
 
-    let candidates = PlaybackKeepAliveService.resumeCandidateBundleIdentifiers(
+    let candidates = PlaybackKeepAliveService.keepAliveCandidateBundleIdentifiers(
         from: sources,
         requireRunning: false
     )
-    precondition(candidates == ["com.spotify.client", "com.apple.Music"], "Only scriptable media apps should be auto-resume candidates")
+    precondition(candidates == ["com.spotify.client", "com.apple.Music"], "Only scriptable media apps should be keep-alive candidates")
 }
 
 func checkAppInputPublishingMetadata() {

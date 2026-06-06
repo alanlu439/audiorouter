@@ -103,7 +103,7 @@ The AudioRouter name, logo, app icon, and branding assets are not licensed for c
 - Top-right user profiles with full display names, so saved setups can be separated by person.
 - First-run visual onboarding with a route setup walkthrough, permission probe, and Privacy Settings shortcut.
 - Playback-protected device-change handling that waits through Bluetooth/AirPods re-enumeration bursts before refreshing routes or marking a route missing, without forcing another system-output switch during connect or disconnect events.
-- Auto-resume for Spotify and Music after AirPods wear/remove events, using macOS Automation so supported media apps keep playing after an ear-detection pause.
+- Keep-alive playback for Spotify and Music during AirPods wear/remove events, using macOS Automation to repeatedly assert play throughout the device transition.
 - Menu bar mini mixer for quick system and app volume/mute controls.
 - Route health diagnostics showing app detection, playback activity, output availability, backend readiness, and exact failure reasons.
 - VoiceOver-friendly labels, values, hints, keyboard commands, and Reduce Motion-aware meters across the main audio controls.
@@ -275,7 +275,7 @@ If the backend panel says `Saved Only`, leave the source app playing and click `
 
 AudioRouter starts with Spotify, Apple Music, and Chrome as source apps. You can add more apps from the Routing Dashboard. Output choices are connected Bluetooth devices plus the built-in/system speaker.
 
-AudioRouter also includes `Advanced` -> `System` -> `Protect playback`, which is on by default. It debounces Bluetooth and AirPods device-change notifications before refreshing devices or retrying routes, so temporary wear/remove re-enumeration is less likely to disturb active playback. `Auto-resume media` is also on by default. After AirPods wear/remove events, AudioRouter makes a few short best-effort resume attempts for Spotify and Music so those apps keep playing when macOS sends an ear-detection pause event. macOS may ask for Automation permission the first time this runs.
+AudioRouter also includes `Advanced` -> `System` -> `Protect playback`, which is on by default. It debounces Bluetooth and AirPods device-change notifications before refreshing devices or retrying routes, so temporary wear/remove re-enumeration is less likely to disturb active playback. `Keep media playing` is also on by default. During AirPods wear/remove events, AudioRouter repeatedly asserts play for Spotify and Music for 30 seconds through the transition window so those apps keep playing when macOS sends an ear-detection pause event. macOS may ask for Automation permission the first time this runs.
 
 ## Status Badges
 
@@ -292,7 +292,7 @@ AudioRouter also includes `Advanced` -> `System` -> `Protect playback`, which is
 - If `AudioRouter Virtual Input` does not appear in mixer software, install the HAL driver with `./script/install_hal_driver.sh`, approve the administrator prompt, then reopen the mixer app.
 - If `AudioRouter Virtual Input` appears but is silent, start playback in the source app and make the route live in AudioRouter. The virtual input is fed by active live process-tap routes.
 - If the selected Bluetooth speaker is missing, connect it in macOS System Settings first.
-- If Spotify or Music pauses when you take AirPods out of your ears, keep `Advanced` -> `System` -> `Protect playback` and `Auto-resume media` enabled, then approve the macOS Automation prompt. AudioRouter cannot block the AirPods pause command itself, but it can tell supported media apps to keep playing immediately after the device-change event.
+- If Spotify or Music pauses when you take AirPods out of your ears, keep `Advanced` -> `System` -> `Protect playback` and `Keep media playing` enabled, then approve the macOS Automation prompt. AudioRouter cannot block the AirPods pause command itself, but it now continuously tells supported media apps to keep playing during the device-change window.
 - If the app still plays through the original output, remove the route with `Follow System Output`, start playback again, and reassign the output.
 - Some protected streams and device formats may not be routable through public macOS APIs.
 
