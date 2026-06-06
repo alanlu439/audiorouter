@@ -408,10 +408,6 @@ private struct StudioPatchBayPanel: View {
                     StudioChannelStrip(source: source, store: store)
                 }
 
-                StudioRouteReliabilityCenter(store: store)
-
-                StudioDeviceChangeGuardPanel(store: store)
-
                 StudioSectionMarker(
                     title: "Outputs",
                     detail: "\(store.outputDevices.count) devices, \(store.outputGroups.count) group\(store.outputGroups.count == 1 ? "" : "s")",
@@ -445,6 +441,29 @@ private struct StudioPatchBayPanel: View {
         }
         .sheet(isPresented: $isAddingApp) {
             AddRouteAppSheet(store: store)
+        }
+    }
+}
+
+struct ReliabilityView: View {
+    @ObservedObject var store: AudioRouterStore
+
+    var body: some View {
+        StudioConsoleFrame {
+            VStack(alignment: .leading, spacing: 10) {
+                ConsolePageHeader(
+                    title: "Reliability",
+                    subtitle: "Route health, test actions, permissions, and Bluetooth/AirPods protection.",
+                    systemImage: "stethoscope",
+                    tint: ConsolePalette.amber
+                ) {
+                    StatusLabel(text: store.backendReadinessTitle, status: store.backendReadinessState.visualStatus)
+                }
+
+                StudioRouteReliabilityCenter(store: store)
+                StudioDeviceChangeGuardPanel(store: store)
+            }
+            .frame(maxWidth: .infinity, alignment: .topLeading)
         }
     }
 }
