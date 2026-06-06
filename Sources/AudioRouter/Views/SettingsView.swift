@@ -244,8 +244,8 @@ private struct AdvancedSettingsView: View {
                             isOn: protectPlaybackBinding
                         )
                         ToggleRow(
-                            title: "Keep media playing",
-                            detail: "Continuously assert play for Spotify or Music for 30 seconds during AirPods and Bluetooth changes",
+                            title: "Always keep media playing",
+                            detail: "Continuously tells Spotify or Music to play while AudioRouter is running",
                             systemImage: "play.circle",
                             isOn: keepMediaPlayingBinding
                         )

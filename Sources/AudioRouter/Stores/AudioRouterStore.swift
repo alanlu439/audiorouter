@@ -62,6 +62,7 @@ public final class AudioRouterStore: ObservableObject {
     private var pendingRefreshTask: Task<Void, Never>?
     private var pendingDeviceRefreshTask: Task<Void, Never>?
     private var pendingPlaybackKeepAliveTask: Task<Void, Never>?
+    private var mediaKeepAliveWatchdogTask: Task<Void, Never>?
     private var pendingRoutePreparationTasks: [String: Task<Void, Never>] = [:]
     private var meterPhase: Double = 0
     private var lastRefreshUsedDemoMode: Bool?
@@ -85,6 +86,7 @@ public final class AudioRouterStore: ObservableObject {
     private let deviceChangeRouteRetrySuppressionInterval: TimeInterval = 20
     private let protectedDeviceRefreshDelay: TimeInterval = 2.5
     private let protectedDeviceRefreshFollowUpDelay: TimeInterval = 6.5
+    private let mediaKeepAliveWatchdogInterval: TimeInterval = 1.2
     private let playbackKeepAliveAttemptDelays: [TimeInterval] = [0, 0.18, 0.42, 0.78, 1.2, 1.8, 2.7, 4, 6, 9, 13, 18, 24, 30]
 
     public init(
@@ -364,6 +366,7 @@ public final class AudioRouterStore: ObservableObject {
         refresh()
         startDeviceObservationIfNeeded()
         updateManager.startAutomaticChecks(enabled: settings.automaticallyCheckForUpdates)
+        startMediaKeepAliveWatchdogIfNeeded()
         guard refreshTimer == nil else { return }
         refreshTimer = Timer.scheduledTimer(withTimeInterval: refreshInterval, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
@@ -396,6 +399,8 @@ public final class AudioRouterStore: ObservableObject {
         pendingDeviceRefreshTask = nil
         pendingPlaybackKeepAliveTask?.cancel()
         pendingPlaybackKeepAliveTask = nil
+        mediaKeepAliveWatchdogTask?.cancel()
+        mediaKeepAliveWatchdogTask = nil
         pendingRoutePreparationTasks.values.forEach { $0.cancel() }
         pendingRoutePreparationTasks.removeAll()
         pendingDeviceDisconnectTasks.values.forEach { $0.cancel() }
@@ -1711,12 +1716,32 @@ public final class AudioRouterStore: ObservableObject {
                       settings.keepMediaPlayingDuringDeviceChanges else {
                     return
                 }
-                playbackKeepAliveService.keepPlayingDuringDeviceChange(
+                playbackKeepAliveService.keepPlaying(
                     sources: Self.mergedSourceSnapshot(sourceSnapshot, with: audioSources)
                 )
             }
             pendingPlaybackKeepAliveTask = nil
         }
+    }
+
+    private func startMediaKeepAliveWatchdogIfNeeded() {
+        guard mediaKeepAliveWatchdogTask == nil else { return }
+
+        mediaKeepAliveWatchdogTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                guard let interval = self?.mediaKeepAliveWatchdogInterval else { return }
+                self?.runMediaKeepAliveWatchdogTick()
+                try? await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
+            }
+        }
+    }
+
+    private func runMediaKeepAliveWatchdogTick() {
+        guard !settings.demoMode,
+              settings.keepMediaPlayingDuringDeviceChanges else {
+            return
+        }
+        playbackKeepAliveService.keepPlaying(sources: audioSources)
     }
 
     private func scheduleDeviceMissingCheck(for uid: String) {

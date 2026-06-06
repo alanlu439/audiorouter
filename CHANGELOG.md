@@ -13,7 +13,7 @@
 ### Device Stability
 
 - Added a playback-protection setting that defaults on and debounces Bluetooth/AirPods device-change notifications before AudioRouter refreshes devices or retries saved routes.
-- Added a media keep-alive setting that defaults on and repeatedly tells Spotify or Music to keep playing throughout AirPods wear/remove transitions.
+- Added an always-on media keep-alive watchdog that defaults on and repeatedly tells Spotify or Music to keep playing while AudioRouter is running.
 - Extended the device-disconnect grace period while playback protection is enabled so temporary AirPods wear/remove re-enumeration does not immediately mark routes missing.
 - Kept selected output/source state stable while macOS audio topology is settling.
 

@@ -693,8 +693,8 @@ private struct StudioDeviceChangeGuardPanel: View {
                 )
 
                 guardTile(
-                    title: "Keep Playing",
-                    detail: "Assert play for Spotify and Music during AirPods changes",
+                    title: "Always Play",
+                    detail: "Keep Spotify and Music playing while AudioRouter is running",
                     systemImage: "play.circle.fill",
                     binding: keepPlayingBinding
                 )
@@ -731,7 +731,7 @@ private struct StudioDeviceChangeGuardPanel: View {
 
     private var guardDetail: String {
         if store.settings.protectPlaybackDuringDeviceChanges && store.settings.keepMediaPlayingDuringDeviceChanges {
-            return "AirPods/Bluetooth protection active"
+            return "Route protection and media watchdog active"
         }
         return "Some protection is off"
     }

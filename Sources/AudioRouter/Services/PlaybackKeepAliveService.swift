@@ -14,7 +14,7 @@ public final class PlaybackKeepAliveService {
         self.minimumAttemptInterval = minimumAttemptInterval
     }
 
-    public func keepPlayingDuringDeviceChange(sources: [AudioSource]) {
+    public func keepPlaying(sources: [AudioSource]) {
         let now = Date()
         guard now.timeIntervalSince(lastAttemptDate) >= minimumAttemptInterval else { return }
 
@@ -27,6 +27,10 @@ public final class PlaybackKeepAliveService {
                 Self.runAppleScript(target.script)
             }
         }
+    }
+
+    public func keepPlayingDuringDeviceChange(sources: [AudioSource]) {
+        keepPlaying(sources: sources)
     }
 
     public static func keepAliveCandidateBundleIdentifiers(
