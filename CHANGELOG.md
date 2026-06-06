@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Routing Workflow
+
+- Added a Route Reliability Center that summarizes route health across every source app, with refresh, permission probe, retry, and route test actions.
+- Added route and output test tones so users can preview individual speakers, assigned app routes, and Group Play destinations.
+- Added a Device Change Guard panel for Bluetooth/AirPods route protection and keep-playing controls.
+- Expanded Group Play controls with group test, retry, and per-speaker volume controls.
+- Tightened the menu bar popover into a Quick Router with source/output selection, route status, gain, mute, and test controls.
+
 ### Device Stability
 
 - Added a playback-protection setting that defaults on and debounces Bluetooth/AirPods device-change notifications before AudioRouter refreshes devices or retries saved routes.

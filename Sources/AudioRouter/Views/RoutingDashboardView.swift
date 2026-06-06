@@ -408,6 +408,10 @@ private struct StudioPatchBayPanel: View {
                     StudioChannelStrip(source: source, store: store)
                 }
 
+                StudioRouteReliabilityCenter(store: store)
+
+                StudioDeviceChangeGuardPanel(store: store)
+
                 StudioSectionMarker(
                     title: "Outputs",
                     detail: "\(store.outputDevices.count) devices, \(store.outputGroups.count) group\(store.outputGroups.count == 1 ? "" : "s")",
@@ -490,6 +494,277 @@ private struct StudioPatchBayActions: View {
             RoundedRectangle(cornerRadius: 6, style: .continuous)
                 .stroke(StudioPalette.stroke, lineWidth: 1)
         }
+    }
+}
+
+private struct StudioRouteReliabilityCenter: View {
+    @ObservedObject var store: AudioRouterStore
+
+    private var routeRows: [AudioSource] {
+        store.audioSources
+    }
+
+    private var warningCount: Int {
+        routeRows.filter { store.routeStatusIsWarning(for: $0) || store.routeDiagnostic(for: $0) != nil }.count
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            StudioSectionMarker(
+                title: "Reliability Center",
+                detail: warningCount == 0 ? "All routes ready" : "\(warningCount) route\(warningCount == 1 ? "" : "s") need attention",
+                tint: warningCount == 0 ? StudioPalette.green : StudioPalette.amber
+            )
+
+            VStack(spacing: 7) {
+                HStack(spacing: 8) {
+                    Label("Route checks", systemImage: "stethoscope")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+
+                    Spacer()
+
+                    Button {
+                        store.refresh()
+                    } label: {
+                        Label("Refresh", systemImage: "arrow.clockwise")
+                    }
+
+                    Button {
+                        store.probeProcessTapPermission()
+                    } label: {
+                        Label("Check Permission", systemImage: "checkmark.shield")
+                    }
+                }
+                .controlSize(.small)
+
+                if routeRows.isEmpty {
+                    reliabilityEmptyState
+                } else {
+                    ForEach(routeRows) { source in
+                        StudioReliabilityRow(source: source, store: store)
+                    }
+                }
+            }
+            .padding(.horizontal, 11)
+            .padding(.vertical, 9)
+            .background(StudioPalette.inset.opacity(0.62), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .stroke(StudioPalette.stroke, lineWidth: 1)
+            }
+        }
+    }
+
+    private var reliabilityEmptyState: some View {
+        Text("Add a source app to start route checks.")
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 4)
+    }
+}
+
+private struct StudioReliabilityRow: View {
+    let source: AudioSource
+    @ObservedObject var store: AudioRouterStore
+
+    private var status: RouteVisualStatus {
+        store.statusStyle(for: source)
+    }
+
+    private var diagnosticText: String {
+        store.routeDiagnostic(for: source) ?? "Route is ready for \(store.routeOutputName(for: source))."
+    }
+
+    private var healthItems: [RouteHealthItem] {
+        store.routeHealthItems(for: source)
+    }
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 9) {
+            AppSourceIcon(source: source)
+                .frame(width: 24, height: 24)
+
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 7) {
+                    Text(source.appName)
+                        .font(.caption.weight(.bold))
+                        .lineLimit(1)
+                    StudioLEDLabel(text: store.routeStatus(for: source), status: status)
+                }
+                Text(diagnosticText)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 8)
+
+            compactHealthSummary
+
+            Button {
+                store.testRoute(for: source)
+            } label: {
+                Image(systemName: "speaker.wave.2.fill")
+            }
+            .buttonStyle(.borderless)
+            .help("Play a test tone through \(store.routeOutputName(for: source))")
+            .accessibilityLabel("Test \(source.appName) route")
+
+            if canRetry {
+                Button {
+                    store.retrySourceRoute(source)
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                }
+                .buttonStyle(.borderless)
+                .help("Retry \(source.appName) route")
+                .accessibilityLabel("Retry \(source.appName) route")
+            }
+        }
+        .padding(.horizontal, 9)
+        .padding(.vertical, 7)
+        .background(StudioPalette.strip.opacity(0.72), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .overlay(alignment: .leading) {
+            Rectangle()
+                .fill(status.foreground)
+                .frame(width: 3)
+                .clipShape(RoundedRectangle(cornerRadius: 2, style: .continuous))
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .stroke(status.foreground.opacity(store.routeStatusIsWarning(for: source) ? 0.36 : 0.16), lineWidth: 1)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("\(source.appName), \(store.routeStatus(for: source)), \(diagnosticText)")
+    }
+
+    private var compactHealthSummary: some View {
+        HStack(spacing: 5) {
+            ForEach(healthItems.prefix(4)) { item in
+                StudioLED(color: item.state.visualStatus.foreground)
+                    .help("\(item.title): \(item.detail)")
+                    .accessibilityLabel("\(item.title), \(item.state.badgeTitle)")
+            }
+        }
+    }
+
+    private var canRetry: Bool {
+        let route = store.route(for: source)
+        return route.routeMode == .customOutput && route.status != .active
+    }
+}
+
+private struct StudioDeviceChangeGuardPanel: View {
+    @ObservedObject var store: AudioRouterStore
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            StudioSectionMarker(
+                title: "Device Change Guard",
+                detail: guardDetail,
+                tint: StudioPalette.blue
+            )
+
+            HStack(alignment: .center, spacing: 9) {
+                guardTile(
+                    title: "Protect Routes",
+                    detail: "Delay route cleanup while Bluetooth devices re-enumerate",
+                    systemImage: "earbuds",
+                    binding: protectPlaybackBinding
+                )
+
+                guardTile(
+                    title: "Keep Playing",
+                    detail: "Assert play for Spotify and Music during AirPods changes",
+                    systemImage: "play.circle.fill",
+                    binding: keepPlayingBinding
+                )
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("QUICK ACTIONS")
+                        .font(.system(size: 8, weight: .heavy, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                    HStack(spacing: 7) {
+                        Button {
+                            store.refresh()
+                        } label: {
+                            Label("Refresh", systemImage: "arrow.clockwise")
+                        }
+                        Button {
+                            store.probeProcessTapPermission()
+                        } label: {
+                            Label("Probe", systemImage: "waveform.badge.magnifyingglass")
+                        }
+                    }
+                    .controlSize(.small)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(StudioPalette.inset.opacity(0.62), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .stroke(StudioPalette.stroke, lineWidth: 1)
+                }
+            }
+        }
+    }
+
+    private var guardDetail: String {
+        if store.settings.protectPlaybackDuringDeviceChanges && store.settings.keepMediaPlayingDuringDeviceChanges {
+            return "AirPods/Bluetooth protection active"
+        }
+        return "Some protection is off"
+    }
+
+    private func guardTile(
+        title: String,
+        detail: String,
+        systemImage: String,
+        binding: Binding<Bool>
+    ) -> some View {
+        Toggle(isOn: binding) {
+            HStack(spacing: 8) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(binding.wrappedValue ? StudioPalette.green : StudioPalette.amber)
+                    .frame(width: 22, height: 22)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.caption.weight(.bold))
+                    Text(detail)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+            }
+        }
+        .toggleStyle(.switch)
+        .controlSize(.small)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(StudioPalette.inset.opacity(0.62), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .stroke(StudioPalette.stroke, lineWidth: 1)
+        }
+    }
+
+    private var protectPlaybackBinding: Binding<Bool> {
+        Binding(
+            get: { store.settings.protectPlaybackDuringDeviceChanges },
+            set: { store.settings.protectPlaybackDuringDeviceChanges = $0 }
+        )
+    }
+
+    private var keepPlayingBinding: Binding<Bool> {
+        Binding(
+            get: { store.settings.keepMediaPlayingDuringDeviceChanges },
+            set: { store.settings.keepMediaPlayingDuringDeviceChanges = $0 }
+        )
     }
 }
 
@@ -1892,6 +2167,16 @@ private struct StudioChannelStrip: View {
             .accessibilityLabel(source.isMuted ? "Unmute \(source.appName)" : "Mute \(source.appName)")
             .accessibilityHint(store.supportsPerAppMute ? "Toggles mute for this source" : "Per-app mute requires an audio backend")
 
+            Button {
+                store.testRoute(for: source)
+            } label: {
+                Image(systemName: "speaker.wave.2.fill")
+            }
+            .buttonStyle(.borderless)
+            .foregroundStyle(StudioPalette.amber)
+            .help("Play a test tone through \(store.routeOutputName(for: source))")
+            .accessibilityLabel("Test \(source.appName) route")
+
             InlineVolumeSlider(
                 value: source.volume,
                 isEnabled: store.supportsPerAppVolume,
@@ -2016,7 +2301,7 @@ private struct StudioOutputStrip: View {
             .help(device.canSetVolume ? "Set \(device.name) output volume" : "Volume is not supported by this output.")
 
             outputActions
-                .frame(width: 160, alignment: .leading)
+                .frame(width: 190, alignment: .leading)
 
             routedSources
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -2080,6 +2365,16 @@ private struct StudioOutputStrip: View {
 
     private var outputActions: some View {
         HStack(spacing: 6) {
+            Button {
+                store.testOutput(device)
+            } label: {
+                Image(systemName: "speaker.wave.2.fill")
+            }
+            .buttonStyle(.borderless)
+            .foregroundStyle(StudioPalette.amber)
+            .help("Play a test tone on \(device.name)")
+            .accessibilityLabel("Test \(device.name)")
+
             Button {
                 store.selectOutputDevice(device)
                 store.setDeviceMuted(device, isMuted: !(device.isMuted ?? false))
@@ -2145,7 +2440,7 @@ private struct StudioOutputGroupStrip: View {
         .buttonStyle(.plain)
         .popover(isPresented: $isControlsPresented, arrowEdge: .trailing) {
             groupControlsPopover
-                .frame(width: 520)
+                .frame(width: 620)
         }
         .dropDestination(for: String.self) { sourceIDs, _ in
             guard let sourceID = sourceIDs.first,
@@ -2272,6 +2567,22 @@ private struct StudioOutputGroupStrip: View {
 
                 Spacer()
 
+                Button {
+                    store.testOutputGroup(group)
+                } label: {
+                    Label("Test Group", systemImage: "speaker.wave.3.fill")
+                }
+                .controlSize(.small)
+                .help("Play a test tone through each speaker in \(group.name)")
+
+                Button {
+                    store.retryRoutesUsingGroup(group)
+                } label: {
+                    Label("Retry", systemImage: "arrow.clockwise")
+                }
+                .controlSize(.small)
+                .help("Retry routes assigned to \(group.name)")
+
                 Button(role: .destructive) {
                     isControlsPresented = false
                     store.deleteOutputGroup(group)
@@ -2281,6 +2592,18 @@ private struct StudioOutputGroupStrip: View {
                 .controlSize(.small)
                 .help("Delete group")
                 .accessibilityLabel("Delete \(group.name)")
+            }
+
+            if !connectedOutputs.isEmpty {
+                VStack(alignment: .leading, spacing: 7) {
+                    Text("PER-SPEAKER LEVEL")
+                        .font(.system(size: 8, weight: .heavy, design: .monospaced))
+                        .foregroundStyle(.secondary)
+
+                    ForEach(connectedOutputs) { device in
+                        groupDeviceMixerRow(device)
+                    }
+                }
             }
         }
         .padding(14)
@@ -2481,6 +2804,50 @@ private struct StudioOutputGroupStrip: View {
         .accessibilityLabel("\(isIncluded ? "Remove" : "Add") \(device.name) \(isIncluded ? "from" : "to") \(group.name)")
     }
 
+    private func groupDeviceMixerRow(_ device: AudioDevice) -> some View {
+        HStack(spacing: 8) {
+            DeviceIcon(device: device)
+                .frame(width: 24, height: 24)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(device.name)
+                    .font(.caption.weight(.bold))
+                    .lineLimit(1)
+                Text(device.typeDescription)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            InlineVolumeSlider(
+                value: group.perDeviceVolumes[device.uid] ?? device.volume,
+                isEnabled: device.canSetVolume,
+                systemImage: "slider.horizontal.3",
+                accent: StudioPalette.amber,
+                accessibilityLabel: "\(device.name) group volume",
+                accessibilityHint: device.canSetVolume ? "Adjusts this speaker in \(group.name)" : "Volume is not supported by this output",
+                onChange: { store.setOutputGroupVolume(group, deviceUID: device.uid, volume: $0) }
+            )
+            .frame(minWidth: 160, maxWidth: .infinity)
+
+            Button {
+                store.testOutput(device)
+            } label: {
+                Image(systemName: "speaker.wave.2.fill")
+            }
+            .buttonStyle(.borderless)
+            .foregroundStyle(StudioPalette.amber)
+            .help("Test \(device.name)")
+            .accessibilityLabel("Test \(device.name)")
+        }
+        .padding(.horizontal, 9)
+        .padding(.vertical, 7)
+        .background(StudioPalette.inset.opacity(0.58), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .stroke(StudioPalette.stroke, lineWidth: 1)
+        }
+    }
+
 }
 
 private struct StudioRouteCable: View {
@@ -2630,6 +2997,12 @@ private struct StudioRouteInspector: View {
             StudioRouteHealthGrid(items: store.routeHealthItems(for: source))
 
             HStack(spacing: 8) {
+                Button {
+                    store.testRoute(for: source)
+                } label: {
+                    Label("Test Route", systemImage: "speaker.wave.2.fill")
+                }
+                .accessibilityHint("Plays a short test tone through \(store.routeOutputName(for: source))")
                 Button {
                     store.resetSourceToSystemOutput(source)
                 } label: {

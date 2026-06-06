@@ -50,6 +50,7 @@ public final class AudioRouterStore: ObservableObject {
     private let processAudioMonitor: ProcessAudioMonitor
     private let appInputPublisher: AppInputPublishing
     private let playbackKeepAliveService: PlaybackKeepAliveService
+    private let outputTestToneService: OutputTestToneService
     private var refreshTimer: Timer?
     private var meterTimer: Timer?
     private var deviceObservation: DevicePropertyObservation?
@@ -98,6 +99,7 @@ public final class AudioRouterStore: ObservableObject {
         processAudioMonitor: ProcessAudioMonitor = ProcessAudioMonitor(),
         appInputPublisher: AppInputPublishing = AppInputDevicePublisher(),
         playbackKeepAliveService: PlaybackKeepAliveService = PlaybackKeepAliveService(),
+        outputTestToneService: OutputTestToneService = OutputTestToneService(),
         outputGroupsURL: URL = try! AppSupport.fileURL(named: "output-groups.json"),
         appSourcesURL: URL = try! AppSupport.fileURL(named: "audio-sources.json"),
         hiddenDefaultSourcesURL: URL = try! AppSupport.fileURL(named: "hidden-default-sources.json"),
@@ -115,6 +117,7 @@ public final class AudioRouterStore: ObservableObject {
         self.processAudioMonitor = processAudioMonitor
         self.appInputPublisher = appInputPublisher
         self.playbackKeepAliveService = playbackKeepAliveService
+        self.outputTestToneService = outputTestToneService
         self.outputGroupsURL = outputGroupsURL
         self.appSourcesURL = appSourcesURL
         self.hiddenDefaultSourcesURL = hiddenDefaultSourcesURL
@@ -397,6 +400,7 @@ public final class AudioRouterStore: ObservableObject {
         pendingRoutePreparationTasks.removeAll()
         pendingDeviceDisconnectTasks.values.forEach { $0.cancel() }
         pendingDeviceDisconnectTasks.removeAll()
+        outputTestToneService.stopAll()
         appInputPublisher.stopAll()
         publishedAppInputDevices = []
         deviceObservation?.cancel()
@@ -1093,6 +1097,58 @@ public final class AudioRouterStore: ObservableObject {
             audioRoutingManager.retryOutputGroup(sourceID: source.id, outputDevices: groupOutputs)
         }
         configureMeterTimer()
+    }
+
+    public func testOutput(_ device: AudioDevice) {
+        selectedOutputDeviceID = device.uid
+        do {
+            try outputTestToneService.playTestTone(deviceUID: device.uid)
+            showUnsupportedNote("Playing a test tone on \(device.name).")
+        } catch {
+            showUnsupportedNote("Could not play a test tone on \(device.name): \(error.localizedDescription)")
+        }
+    }
+
+    public func testOutputGroup(_ group: OutputDeviceGroup) {
+        let outputs = outputDevices(for: group)
+        guard !outputs.isEmpty else {
+            showUnsupportedNote("\(group.name) has no connected speakers to test.")
+            return
+        }
+
+        for (index, device) in outputs.enumerated() {
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(nanoseconds: UInt64(Double(index) * 0.18 * 1_000_000_000))
+                self?.testOutput(device)
+            }
+        }
+        showUnsupportedNote("Testing \(outputs.count) speaker\(outputs.count == 1 ? "" : "s") in \(group.name).")
+    }
+
+    public func testRoute(for source: AudioSource) {
+        selectedSourceID = source.id
+        let route = route(for: source)
+        if route.routeMode == .followSystemOutput {
+            if let output = currentOutput {
+                testOutput(output)
+            } else {
+                showUnsupportedNote("No system output is available for \(source.appName).")
+            }
+            return
+        }
+
+        guard let outputID = route.outputDeviceID else {
+            showUnsupportedNote("\(source.appName) does not have an assigned output to test.")
+            return
+        }
+
+        if let group = outputGroups.first(where: { $0.routeTargetID == outputID }) {
+            testOutputGroup(group)
+        } else if let output = outputDevices.first(where: { $0.uid == outputID }) {
+            testOutput(output)
+        } else {
+            showUnsupportedNote("\(source.appName)'s assigned output is missing.")
+        }
     }
 
     public func routedSources(to device: AudioDevice) -> [AudioSource] {

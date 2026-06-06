@@ -103,9 +103,9 @@ public struct MenuBarPopoverView: View {
             AudioRouterLogo(size: 36)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("Routing")
+                Text("Quick Router")
                     .font(.title3.weight(.bold))
-                Text(store.routeSummaryText)
+                Text("Pick app, output, gain, mute")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -533,6 +533,40 @@ private struct MenuRouteRow: View {
                 .help("Follow system output")
                 .accessibilityLabel("Set \(source.appName) to follow system output")
             }
+
+            HStack(spacing: 8) {
+                Button {
+                    store.setSourceMuted(source: source, isMuted: !source.isMuted)
+                } label: {
+                    Image(systemName: source.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                }
+                .buttonStyle(.borderless)
+                .foregroundStyle(source.isMuted ? .red : .green)
+                .disabled(!store.supportsPerAppMute)
+                .help(store.supportsPerAppMute ? "Mute \(source.appName)" : "Per-app mute requires an audio backend")
+
+                InlineVolumeSlider(
+                    value: source.volume,
+                    isEnabled: store.supportsPerAppVolume,
+                    systemImage: "slider.horizontal.3",
+                    range: 0...1.5,
+                    accent: .orange,
+                    accessibilityLabel: "\(source.appName) gain",
+                    accessibilityHint: store.supportsPerAppVolume ? "Adjust route volume" : "Per-app gain requires an audio backend",
+                    onChange: { store.setSourceVolume(source: source, volume: $0) }
+                )
+                .frame(minWidth: 156, maxWidth: .infinity)
+
+                Button {
+                    store.testRoute(for: source)
+                } label: {
+                    Image(systemName: "speaker.wave.2.fill")
+                }
+                .buttonStyle(.borderless)
+                .foregroundStyle(.orange)
+                .help("Test \(source.appName) route")
+                .accessibilityLabel("Test \(source.appName) route")
+            }
         }
         .padding(10)
         .background(
@@ -636,6 +670,16 @@ private struct MenuDestinationRow: View {
                 .padding(.vertical, 4)
                 .background(.teal.opacity(0.12), in: Capsule())
                 .accessibilityLabel("\(assignedSources.count) assigned apps")
+
+            Button {
+                store.testOutput(device)
+            } label: {
+                Image(systemName: "speaker.wave.2.fill")
+            }
+            .buttonStyle(.borderless)
+            .foregroundStyle(.orange)
+            .help("Test \(device.name)")
+            .accessibilityLabel("Test \(device.name)")
         }
         .padding(10)
         .background(Color.white.opacity(0.045), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
@@ -679,7 +723,23 @@ private struct MenuOutputGroupRow: View {
 
             Spacer(minLength: 8)
 
-            StatusLabel(text: "Backend", status: .requiresBackend)
+            Button {
+                store.testOutputGroup(group)
+            } label: {
+                Image(systemName: "speaker.wave.3.fill")
+            }
+            .buttonStyle(.borderless)
+            .foregroundStyle(.orange)
+            .help("Test \(group.name)")
+            .accessibilityLabel("Test \(group.name)")
+
+            Text("\(store.outputDevices(for: group).count)")
+                .font(.caption.monospacedDigit().weight(.bold))
+                .foregroundStyle(.orange)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(.orange.opacity(0.12), in: Capsule())
+                .accessibilityLabel("\(store.outputDevices(for: group).count) group speakers")
         }
         .padding(10)
         .background(Color.white.opacity(0.045), in: RoundedRectangle(cornerRadius: 10, style: .continuous))

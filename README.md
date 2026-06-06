@@ -94,6 +94,10 @@ The AudioRouter name, logo, app icon, and branding assets are not licensed for c
 - Experimental app-as-input publishing: configured route apps can appear in macOS and mixer software as selectable inputs such as `AudioRouter Spotify Input` when Core Audio exposes that app's process tap.
 - Experimental HAL driver: `AudioRouterHAL.driver` publishes a real stereo macOS input named `AudioRouter Virtual Input`, and AudioRouter can feed active live process-tap routes into it through a shared-memory bridge.
 - Experimental group play: route one app to an output group so the captured source is rendered to multiple connected speakers through separate `AudioQueue` outputs.
+- Route Reliability Center with route health, exact failure reasons, permission probe, retry, and route test actions in one place.
+- Output and route test tones for previewing individual speakers, app route assignments, and Group Play destinations.
+- Device Change Guard panel for AirPods/Bluetooth protection and keep-playing controls.
+- Expanded Group Play controls with source assignment, group test, retry, and per-speaker level controls.
 - Per-route volume, mute, and live meters while an experimental process-tap route is active.
 - Live 10-band EQ processing for AudioRouter process-tap routes, with dynamic slider updates and a saved Custom preset.
 - Smoother fader-style volume controls with clean 1% steps, visible percent readouts, and selected-track keyboard gain control with `Command =` and `Command -`.
@@ -104,7 +108,7 @@ The AudioRouter name, logo, app icon, and branding assets are not licensed for c
 - First-run visual onboarding with a route setup walkthrough, permission probe, and Privacy Settings shortcut.
 - Playback-protected device-change handling that waits through Bluetooth/AirPods re-enumeration bursts before refreshing routes or marking a route missing, without forcing another system-output switch during connect or disconnect events.
 - Keep-alive playback for Spotify and Music during AirPods wear/remove events, using macOS Automation to repeatedly assert play throughout the device transition.
-- Menu bar mini mixer for quick system and app volume/mute controls.
+- Menu bar Quick Router for app-to-output assignment, route status, per-app gain, mute, and test controls.
 - Route health diagnostics showing app detection, playback activity, output availability, backend readiness, and exact failure reasons.
 - VoiceOver-friendly labels, values, hints, keyboard commands, and Reduce Motion-aware meters across the main audio controls.
 - Built-in GitHub release update checking with a persistent latest-download link.
