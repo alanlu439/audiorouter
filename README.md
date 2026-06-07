@@ -107,7 +107,7 @@ The AudioRouter name, logo, app icon, and branding assets are not licensed for c
 - Top-right user profiles with full display names, so saved setups can be separated by person.
 - First-run visual onboarding with a route setup walkthrough, permission probe, and Privacy Settings shortcut.
 - Playback-protected device-change handling that waits through Bluetooth/AirPods re-enumeration bursts before refreshing routes or marking a route missing, without forcing another system-output switch during connect or disconnect events.
-- Always-on keep-alive playback for Spotify and Music, using macOS Automation to reassert play while AudioRouter is running.
+- Always-on keep-alive playback for Spotify and Music, using macOS Automation to reassert play while AudioRouter is running, plus an immediate Spotify pause listener for AirPods ear-detection pauses.
 - Menu bar Quick Router with source selection, output target chips, selected-route gain/mute/retry/test controls, and a compact route list.
 - Route health diagnostics showing app detection, playback activity, output availability, backend readiness, and exact failure reasons.
 - VoiceOver-friendly labels, values, hints, keyboard commands, and Reduce Motion-aware meters across the main audio controls.
@@ -279,7 +279,7 @@ If the backend panel says `Saved Only`, leave the source app playing and click `
 
 AudioRouter starts with Spotify, Apple Music, and Chrome as source apps. You can add more apps from the Routing Dashboard. Output choices are connected Bluetooth devices plus the built-in/system speaker.
 
-AudioRouter also includes `Advanced` -> `System` -> `Protect playback`, which is on by default. It debounces Bluetooth and AirPods device-change notifications before refreshing devices or retrying routes, so temporary wear/remove re-enumeration is less likely to disturb active playback. `Always keep media playing` is also on by default. While AudioRouter is running, it periodically tells Spotify and Music to keep playing so those apps recover when macOS sends an AirPods ear-detection pause event. macOS may ask for Automation permission the first time this runs.
+AudioRouter also includes `Advanced` -> `System` -> `Protect playback`, which is on by default. It debounces Bluetooth and AirPods device-change notifications before refreshing devices or retrying routes, so temporary wear/remove re-enumeration is less likely to disturb active playback. `Always keep media playing` is also on by default. While AudioRouter is running, it periodically tells Spotify and Music to keep playing, and it listens for Spotify playback-state pause notifications so Spotify can resume faster when macOS sends an AirPods ear-detection pause event. macOS may ask for Automation permission the first time this runs.
 
 ## Status Badges
 
@@ -296,7 +296,7 @@ AudioRouter also includes `Advanced` -> `System` -> `Protect playback`, which is
 - If `AudioRouter Virtual Input` does not appear in mixer software, install the HAL driver with `./script/install_hal_driver.sh`, approve the administrator prompt, then reopen the mixer app.
 - If `AudioRouter Virtual Input` appears but is silent, start playback in the source app and make the route live in AudioRouter. The virtual input is fed by active live process-tap routes.
 - If the selected Bluetooth speaker is missing, connect it in macOS System Settings first.
-- If Spotify or Music pauses when you take AirPods out of your ears, keep `Advanced` -> `System` -> `Protect playback` and `Always keep media playing` enabled, then approve the macOS Automation prompt. AudioRouter cannot block the AirPods pause command itself, but it now continuously tells supported media apps to keep playing while AudioRouter is open.
+- If Spotify or Music pauses when you take AirPods out of your ears, keep `Advanced` -> `System` -> `Protect playback` and `Always keep media playing` enabled, then approve the macOS Automation prompt. AudioRouter cannot block the AirPods pause command itself; it resumes supported media apps after the pause. For zero pause from AirPods sensors, turn off Automatic Ear Detection in macOS Bluetooth settings for your AirPods.
 - If the app still plays through the original output, remove the route with `Follow System Output`, start playback again, and reassign the output.
 - Some protected streams and device formats may not be routable through public macOS APIs.
 

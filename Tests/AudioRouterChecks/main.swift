@@ -545,6 +545,14 @@ func checkPlaybackKeepAliveCandidates() {
         requireRunning: false
     )
     precondition(candidates == ["com.spotify.client", "com.apple.Music"], "Only scriptable media apps should be keep-alive candidates")
+    precondition(
+        PlaybackKeepAliveService.isSpotifyPausedPlaybackState(userInfo: ["Player State": "Paused"]),
+        "Spotify paused notifications should trigger immediate keep-alive"
+    )
+    precondition(
+        !PlaybackKeepAliveService.isSpotifyPausedPlaybackState(userInfo: ["Player State": "Playing"]),
+        "Spotify playing notifications should not trigger keep-alive bursts"
+    )
 }
 
 func checkAppInputPublishingMetadata() {

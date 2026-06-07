@@ -366,6 +366,7 @@ public final class AudioRouterStore: ObservableObject {
         refresh()
         startDeviceObservationIfNeeded()
         updateManager.startAutomaticChecks(enabled: settings.automaticallyCheckForUpdates)
+        startImmediatePlaybackObserversIfNeeded()
         startMediaKeepAliveWatchdogIfNeeded()
         guard refreshTimer == nil else { return }
         refreshTimer = Timer.scheduledTimer(withTimeInterval: refreshInterval, repeats: true) { [weak self] _ in
@@ -401,6 +402,7 @@ public final class AudioRouterStore: ObservableObject {
         pendingPlaybackKeepAliveTask = nil
         mediaKeepAliveWatchdogTask?.cancel()
         mediaKeepAliveWatchdogTask = nil
+        playbackKeepAliveService.stopImmediatePlaybackObservers()
         pendingRoutePreparationTasks.values.forEach { $0.cancel() }
         pendingRoutePreparationTasks.removeAll()
         pendingDeviceDisconnectTasks.values.forEach { $0.cancel() }
@@ -1734,6 +1736,18 @@ public final class AudioRouterStore: ObservableObject {
                 try? await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
             }
         }
+    }
+
+    private func startImmediatePlaybackObserversIfNeeded() {
+        playbackKeepAliveService.startImmediatePlaybackObservers(
+            sourcesProvider: { [weak self] in
+                self?.audioSources ?? []
+            },
+            isEnabled: { [weak self] in
+                guard let self else { return false }
+                return !self.settings.demoMode && self.settings.keepMediaPlayingDuringDeviceChanges
+            }
+        )
     }
 
     private func runMediaKeepAliveWatchdogTick() {
