@@ -8,7 +8,7 @@
 - Added route and output test tones so users can preview individual speakers, assigned app routes, and Group Play destinations.
 - Added Device Change Guard to `Advanced` -> `Reliability` for Bluetooth/AirPods route protection and keep-playing controls.
 - Expanded Group Play controls with group test, retry, and per-speaker volume controls.
-- Tightened the menu bar popover into a Quick Router with source/output selection, route status, gain, mute, and test controls.
+- Redesigned the menu bar popover into a faster two-panel Quick Router with source selection, output target chips, selected-route gain/mute/retry/test controls, and a compact route list.
 
 ### Device Stability
 

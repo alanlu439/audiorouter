@@ -108,7 +108,7 @@ The AudioRouter name, logo, app icon, and branding assets are not licensed for c
 - First-run visual onboarding with a route setup walkthrough, permission probe, and Privacy Settings shortcut.
 - Playback-protected device-change handling that waits through Bluetooth/AirPods re-enumeration bursts before refreshing routes or marking a route missing, without forcing another system-output switch during connect or disconnect events.
 - Always-on keep-alive playback for Spotify and Music, using macOS Automation to reassert play while AudioRouter is running.
-- Menu bar Quick Router for app-to-output assignment, route status, per-app gain, mute, and test controls.
+- Menu bar Quick Router with source selection, output target chips, selected-route gain/mute/retry/test controls, and a compact route list.
 - Route health diagnostics showing app detection, playback activity, output availability, backend readiness, and exact failure reasons.
 - VoiceOver-friendly labels, values, hints, keyboard commands, and Reduce Motion-aware meters across the main audio controls.
 - Built-in GitHub release update checking with a persistent latest-download link.

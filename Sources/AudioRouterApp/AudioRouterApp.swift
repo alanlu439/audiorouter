@@ -27,7 +27,7 @@ struct AudioRouterApplication: App {
 
         MenuBarExtra {
             MenuBarPopoverView(store: store)
-                .frame(width: 430, height: 620)
+                .frame(width: 420, height: 560)
                 .onAppear {
                     store.start()
                 }
