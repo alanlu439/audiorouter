@@ -142,10 +142,7 @@ button {
   position: absolute;
   inset: 0;
   z-index: -3;
-  background:
-    linear-gradient(115deg, transparent 0 48%, rgba(102, 213, 203, 0.16) 49% 50%, transparent 51% 100%),
-    linear-gradient(150deg, transparent 0 62%, rgba(243, 179, 95, 0.10) 63% 64%, transparent 65% 100%),
-    linear-gradient(135deg, rgba(7, 9, 13, 0.94), rgba(7, 9, 13, 0.68) 48%, rgba(7, 9, 13, 0.92));
+  background: linear-gradient(135deg, rgba(7, 9, 13, 0.96), rgba(7, 9, 13, 0.78) 48%, rgba(7, 9, 13, 0.94));
 }
 
 .hero::after {
@@ -233,9 +230,7 @@ button {
   pointer-events: none;
   border-radius: inherit;
   background: linear-gradient(120deg, transparent 4%, rgba(102, 213, 203, 0.34) 18%, transparent 32%, transparent 68%, rgba(243, 179, 95, 0.22) 82%, transparent 96%);
-  opacity: 0.46;
-  transform: translateX(-70%);
-  animation: consoleSweep 7.5s ease-in-out infinite;
+  opacity: 0.18;
 }
 
 .console-window > * {
@@ -327,9 +322,7 @@ button {
   height: 2px;
   border-radius: 999px;
   background: linear-gradient(90deg, transparent, var(--amber), var(--teal), transparent);
-  opacity: 0.82;
-  transform: translateX(-70%);
-  animation: signalSweep 2.8s ease-in-out infinite;
+  opacity: 0.38;
 }
 
 .route-source,
@@ -465,15 +458,6 @@ button {
   animation: faderBreathe 3.6s ease-in-out infinite;
 }
 
-.fader span::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.46), transparent);
-  transform: translateX(-100%);
-  animation: faderSheen 2.6s ease-in-out infinite;
-}
-
 .hero-copy {
   grid-column: 1;
   grid-row: 1;
@@ -552,8 +536,12 @@ button {
   position: absolute;
   inset: 0;
   background: linear-gradient(110deg, transparent 15%, rgba(255, 255, 255, 0.42), transparent 38%);
-  transform: translateX(-120%);
-  animation: ctaSheen 4.4s ease-in-out infinite;
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+
+.primary-action:hover::after {
+  opacity: 1;
 }
 
 .primary-action:hover,
@@ -606,25 +594,7 @@ button {
   top: 0;
   height: 2px;
   background: linear-gradient(90deg, transparent, var(--teal), transparent);
-  transform: translateX(-100%);
-  animation: signalCardSweep 5s ease-in-out infinite;
-  animation-delay: calc(var(--signal-index, 0) * 180ms);
-}
-
-.signal-strip div:nth-child(1) {
-  --signal-index: 0;
-}
-
-.signal-strip div:nth-child(2) {
-  --signal-index: 1;
-}
-
-.signal-strip div:nth-child(3) {
-  --signal-index: 2;
-}
-
-.signal-strip div:nth-child(4) {
-  --signal-index: 3;
+  opacity: 0.54;
 }
 
 .signal-strip strong,
@@ -793,16 +763,7 @@ button {
   width: 50%;
   border-radius: inherit;
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.82), transparent);
-  transform: translateX(-120%);
-  animation: patchSignalFlow 1.8s ease-in-out infinite;
-}
-
-.patch-lines span:nth-child(2)::after {
-  animation-delay: 180ms;
-}
-
-.patch-lines span:nth-child(3)::after {
-  animation-delay: 360ms;
+  opacity: 0;
 }
 
 .motion-ready .reveal {
@@ -931,22 +892,6 @@ button {
   }
 }
 
-@keyframes consoleSweep {
-  0%,
-  48% {
-    transform: translateX(-80%);
-    opacity: 0;
-  }
-  58% {
-    opacity: 0.50;
-  }
-  78%,
-  100% {
-    transform: translateX(80%);
-    opacity: 0;
-  }
-}
-
 @keyframes livePulse {
   0% {
     box-shadow: 0 0 0 0 rgba(88, 229, 125, 0.32);
@@ -956,21 +901,6 @@ button {
   }
   100% {
     box-shadow: 0 0 0 0 rgba(88, 229, 125, 0);
-  }
-}
-
-@keyframes signalSweep {
-  0% {
-    transform: translateX(-115%);
-    opacity: 0;
-  }
-  18%,
-  70% {
-    opacity: 0.88;
-  }
-  100% {
-    transform: translateX(115%);
-    opacity: 0;
   }
 }
 
@@ -1003,50 +933,6 @@ button {
   }
   50% {
     filter: saturate(1.28) brightness(1.08);
-  }
-}
-
-@keyframes faderSheen {
-  0%,
-  52% {
-    transform: translateX(-120%);
-  }
-  100% {
-    transform: translateX(160%);
-  }
-}
-
-@keyframes ctaSheen {
-  0%,
-  58% {
-    transform: translateX(-120%);
-  }
-  100% {
-    transform: translateX(120%);
-  }
-}
-
-@keyframes signalCardSweep {
-  0%,
-  54% {
-    transform: translateX(-100%);
-    opacity: 0;
-  }
-  64% {
-    opacity: 1;
-  }
-  100% {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-}
-
-@keyframes patchSignalFlow {
-  0% {
-    transform: translateX(-130%);
-  }
-  100% {
-    transform: translateX(260%);
   }
 }
 
