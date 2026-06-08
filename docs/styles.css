@@ -33,6 +33,19 @@ body {
   min-width: 320px;
 }
 
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -10;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 58px 58px;
+  opacity: 0.28;
+}
+
 a {
   color: inherit;
   text-decoration: none;
@@ -68,6 +81,12 @@ button {
 .brand img {
   border-radius: 8px;
   box-shadow: 0 0 0 1px rgba(102, 213, 203, 0.34);
+  transition: transform 220ms ease, box-shadow 220ms ease;
+}
+
+.brand:hover img {
+  transform: translateY(-1px) scale(1.04);
+  box-shadow: 0 0 0 1px rgba(102, 213, 203, 0.68), 0 10px 24px rgba(102, 213, 203, 0.18);
 }
 
 .nav-links {
@@ -81,6 +100,28 @@ button {
 
 .nav-links a:hover {
   color: var(--text);
+}
+
+.nav-links a {
+  position: relative;
+}
+
+.nav-links a::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -8px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--teal);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 220ms ease;
+}
+
+.nav-links a:hover::after {
+  transform: scaleX(1);
 }
 
 .hero {
@@ -98,8 +139,20 @@ button {
   inset: 0;
   z-index: -3;
   background:
-    radial-gradient(circle at 74% 24%, rgba(102, 213, 203, 0.20), transparent 34%),
+    linear-gradient(115deg, transparent 0 48%, rgba(102, 213, 203, 0.16) 49% 50%, transparent 51% 100%),
+    linear-gradient(150deg, transparent 0 62%, rgba(243, 179, 95, 0.10) 63% 64%, transparent 65% 100%),
     linear-gradient(135deg, rgba(7, 9, 13, 0.94), rgba(7, 9, 13, 0.68) 48%, rgba(7, 9, 13, 0.92));
+}
+
+.hero::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 46%;
+  z-index: -2;
+  background:
+    linear-gradient(180deg, transparent, rgba(7, 9, 13, 0.92)),
+    repeating-linear-gradient(90deg, transparent 0 54px, rgba(102, 213, 203, 0.055) 54px 55px, transparent 55px 108px);
 }
 
 .hero-stage {
@@ -109,6 +162,7 @@ button {
   height: min(520px, 60svh);
   z-index: -2;
   opacity: 0.92;
+  transform-style: preserve-3d;
 }
 
 .menu-bar,
@@ -128,6 +182,7 @@ button {
   padding: 0 14px;
   border-radius: 12px 12px 0 0;
   margin-left: auto;
+  animation: menuSlideIn 720ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
 .menu-bar span {
@@ -156,9 +211,29 @@ button {
 }
 
 .console-window {
+  position: relative;
+  overflow: hidden;
   border-radius: 20px;
   padding: 20px;
   transform: rotate(-1.2deg);
+  animation: consoleFloat 7s ease-in-out infinite;
+}
+
+.console-window::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(120deg, transparent 4%, rgba(102, 213, 203, 0.34) 18%, transparent 32%, transparent 68%, rgba(243, 179, 95, 0.22) 82%, transparent 96%);
+  opacity: 0.46;
+  transform: translateX(-70%);
+  animation: consoleSweep 7.5s ease-in-out infinite;
+}
+
+.console-window > * {
+  position: relative;
+  z-index: 1;
 }
 
 .console-title,
@@ -219,7 +294,14 @@ button {
   background: rgba(88, 229, 125, 0.10);
 }
 
+.live-pill {
+  box-shadow: 0 0 0 0 rgba(88, 229, 125, 0.32);
+  animation: livePulse 2.2s ease-out infinite;
+}
+
 .route-board {
+  position: relative;
+  overflow: hidden;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 42px minmax(0, 1fr);
   gap: 12px;
@@ -227,6 +309,20 @@ button {
   margin-top: 14px;
   border-radius: 16px;
   padding: 14px;
+}
+
+.route-board::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 30%;
+  width: 40%;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, var(--amber), var(--teal), transparent);
+  opacity: 0.82;
+  transform: translateX(-70%);
+  animation: signalSweep 2.8s ease-in-out infinite;
 }
 
 .route-source,
@@ -239,10 +335,22 @@ button {
   padding: 12px;
   background: rgba(7, 9, 13, 0.48);
   border: 1px solid var(--line-soft);
+  transition: transform 220ms ease, border-color 220ms ease, background 220ms ease, box-shadow 220ms ease;
 }
 
 .route-source.active {
   border-color: rgba(102, 213, 203, 0.42);
+  box-shadow: 0 0 32px rgba(102, 213, 203, 0.10);
+}
+
+.route-source:hover,
+.route-output:hover,
+.feature-card:hover,
+.truth-card:hover,
+.download-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(102, 213, 203, 0.28);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.22);
 }
 
 .route-source img {
@@ -269,6 +377,20 @@ button {
   font-size: 11px;
   font-weight: 900;
   text-align: center;
+  position: relative;
+  z-index: 1;
+}
+
+.route-arrow span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: rgba(7, 9, 13, 0.72);
+  border: 1px solid rgba(243, 179, 95, 0.28);
+  animation: routeArrowPulse 2.8s ease-in-out infinite;
 }
 
 .meter {
@@ -287,6 +409,7 @@ button {
   background: linear-gradient(var(--teal), var(--amber));
   opacity: 0.42;
   transform-origin: bottom;
+  transition: transform 110ms linear, opacity 110ms linear;
 }
 
 .speaker-icon {
@@ -296,6 +419,7 @@ button {
   background: var(--teal);
   border-radius: 10px;
   font-weight: 900;
+  animation: speakerPulse 3.4s ease-in-out infinite;
 }
 
 .fader-row {
@@ -317,6 +441,7 @@ button {
 }
 
 .fader {
+  position: relative;
   height: 9px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.10);
@@ -324,11 +449,22 @@ button {
 }
 
 .fader span {
+  position: relative;
   display: block;
   width: 72%;
   height: 100%;
   border-radius: inherit;
   background: var(--amber);
+  animation: faderBreathe 3.6s ease-in-out infinite;
+}
+
+.fader span::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.46), transparent);
+  transform: translateX(-100%);
+  animation: faderSheen 2.6s ease-in-out infinite;
 }
 
 .hero-copy {
@@ -375,12 +511,35 @@ button {
   color: #07100f;
   background: var(--teal);
   box-shadow: 0 12px 32px rgba(102, 213, 203, 0.24);
+  position: relative;
+  overflow: hidden;
 }
 
 .secondary-action {
   color: var(--text);
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.055);
+}
+
+.primary-action::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 15%, rgba(255, 255, 255, 0.42), transparent 38%);
+  transform: translateX(-120%);
+  animation: ctaSheen 4.4s ease-in-out infinite;
+}
+
+.primary-action:hover,
+.secondary-action:hover {
+  transform: translateY(-2px);
+}
+
+.primary-action,
+.secondary-action,
+.patch-source,
+.patch-output {
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
 }
 
 .wide {
@@ -407,8 +566,39 @@ button {
 }
 
 .signal-strip div {
+  position: relative;
   padding: 18px;
   background: rgba(17, 21, 27, 0.94);
+  overflow: hidden;
+}
+
+.signal-strip div::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--teal), transparent);
+  transform: translateX(-100%);
+  animation: signalCardSweep 5s ease-in-out infinite;
+  animation-delay: calc(var(--signal-index, 0) * 180ms);
+}
+
+.signal-strip div:nth-child(1) {
+  --signal-index: 0;
+}
+
+.signal-strip div:nth-child(2) {
+  --signal-index: 1;
+}
+
+.signal-strip div:nth-child(3) {
+  --signal-index: 2;
+}
+
+.signal-strip div:nth-child(4) {
+  --signal-index: 3;
 }
 
 .signal-strip strong,
@@ -464,6 +654,7 @@ button {
 .download-card {
   border-radius: var(--radius);
   padding: 22px;
+  transition: transform 220ms ease, border-color 220ms ease, box-shadow 220ms ease, background 220ms ease;
 }
 
 .feature-card {
@@ -539,6 +730,7 @@ button {
 .patch-output.active {
   border-color: rgba(102, 213, 203, 0.62);
   background: rgba(102, 213, 203, 0.10);
+  box-shadow: inset 3px 0 0 var(--teal), 0 0 34px rgba(102, 213, 203, 0.10);
 }
 
 .patch-source span,
@@ -560,10 +752,53 @@ button {
 }
 
 .patch-lines span {
+  position: relative;
+  overflow: hidden;
   display: block;
   height: 3px;
   border-radius: 999px;
   background: linear-gradient(90deg, var(--amber), var(--teal));
+}
+
+.patch-lines span::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 50%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.82), transparent);
+  transform: translateX(-120%);
+  animation: patchSignalFlow 1.8s ease-in-out infinite;
+}
+
+.patch-lines span:nth-child(2)::after {
+  animation-delay: 180ms;
+}
+
+.patch-lines span:nth-child(3)::after {
+  animation-delay: 360ms;
+}
+
+.motion-ready .reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 640ms ease, transform 640ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.motion-ready .reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.motion-ready .feature-card.reveal,
+.motion-ready .truth-card.reveal {
+  transition-delay: calc(var(--reveal-index, 0) * 70ms);
+}
+
+.motion-ready .feature-card.reveal.is-visible:hover,
+.motion-ready .truth-card.reveal.is-visible:hover,
+.motion-ready .download-card.reveal.is-visible:hover {
+  transform: translateY(-3px);
 }
 
 .patch-lines span:nth-child(2) {
@@ -649,6 +884,146 @@ button {
   line-height: 1.5;
 }
 
+@keyframes menuSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes consoleFloat {
+  0%,
+  100% {
+    transform: rotate(-1.2deg) translate3d(0, 0, 0);
+  }
+  50% {
+    transform: rotate(-0.4deg) translate3d(0, -10px, 0);
+  }
+}
+
+@keyframes consoleSweep {
+  0%,
+  48% {
+    transform: translateX(-80%);
+    opacity: 0;
+  }
+  58% {
+    opacity: 0.50;
+  }
+  78%,
+  100% {
+    transform: translateX(80%);
+    opacity: 0;
+  }
+}
+
+@keyframes livePulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(88, 229, 125, 0.32);
+  }
+  70% {
+    box-shadow: 0 0 0 12px rgba(88, 229, 125, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(88, 229, 125, 0);
+  }
+}
+
+@keyframes signalSweep {
+  0% {
+    transform: translateX(-115%);
+    opacity: 0;
+  }
+  18%,
+  70% {
+    opacity: 0.88;
+  }
+  100% {
+    transform: translateX(115%);
+    opacity: 0;
+  }
+}
+
+@keyframes routeArrowPulse {
+  0%,
+  100% {
+    transform: scale(1);
+    color: var(--amber);
+  }
+  50% {
+    transform: scale(1.08);
+    color: var(--teal);
+  }
+}
+
+@keyframes speakerPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(102, 213, 203, 0.26);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(102, 213, 203, 0);
+  }
+}
+
+@keyframes faderBreathe {
+  0%,
+  100% {
+    filter: saturate(1);
+  }
+  50% {
+    filter: saturate(1.28) brightness(1.08);
+  }
+}
+
+@keyframes faderSheen {
+  0%,
+  52% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(160%);
+  }
+}
+
+@keyframes ctaSheen {
+  0%,
+  58% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(120%);
+  }
+}
+
+@keyframes signalCardSweep {
+  0%,
+  54% {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  64% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+@keyframes patchSignalFlow {
+  0% {
+    transform: translateX(-130%);
+  }
+  100% {
+    transform: translateX(260%);
+  }
+}
+
 @media (max-width: 900px) {
   .nav-links {
     display: none;
@@ -668,6 +1043,7 @@ button {
 
   .console-window {
     transform: none;
+    animation-name: mobileConsoleFloat;
   }
 
   .hero-copy {
@@ -691,6 +1067,16 @@ button {
 
   .site-footer {
     flex-direction: column;
+  }
+}
+
+@keyframes mobileConsoleFloat {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -6px, 0);
   }
 }
 
@@ -723,5 +1109,10 @@ button {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+
+  .motion-ready .reveal {
+    opacity: 1;
+    transform: none;
   }
 }

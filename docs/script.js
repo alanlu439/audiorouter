@@ -1,15 +1,19 @@
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+let activeRouteIndex = 0;
 
 function updateMeters() {
   if (reduceMotion) return;
 
   document.querySelectorAll("[data-meter] i").forEach((bar, index) => {
-    const base = 0.38 + index * 0.06;
-    const movement = Math.sin(Date.now() / 280 + index * 0.9) * 0.28;
-    const level = Math.max(0.22, Math.min(1, base + movement + Math.random() * 0.10));
+    const base = 0.34 + index * 0.065;
+    const movement = Math.sin(performance.now() / 260 + index * 0.82) * 0.28;
+    const pulse = Math.sin(performance.now() / 720) * 0.08;
+    const level = Math.max(0.22, Math.min(1, base + movement + pulse));
     bar.style.transform = `scaleY(${level})`;
     bar.style.opacity = `${0.36 + level * 0.55}`;
   });
+
+  requestAnimationFrame(updateMeters);
 }
 
 function wirePatchConsole() {
@@ -21,17 +25,60 @@ function wirePatchConsole() {
     chrome: 2
   };
 
-  sources.forEach((button) => {
+  function activateRoute(button) {
+    sources.forEach((source) => source.classList.remove("active"));
+    outputs.forEach((output) => output.classList.remove("active"));
+    button.classList.add("active");
+    const output = outputs[routes[button.dataset.route] ?? 0];
+    output?.classList.add("active");
+    activeRouteIndex = Array.from(sources).indexOf(button);
+  }
+
+  sources.forEach((button, index) => {
     button.addEventListener("click", () => {
-      sources.forEach((source) => source.classList.remove("active"));
-      outputs.forEach((output) => output.classList.remove("active"));
-      button.classList.add("active");
-      const output = outputs[routes[button.dataset.route] ?? 0];
-      output?.classList.add("active");
+      activeRouteIndex = index;
+      activateRoute(button);
     });
   });
+
+  if (!reduceMotion && sources.length > 1) {
+    setInterval(() => {
+      const hovered = document.querySelector(".patch-console:hover");
+      if (hovered) return;
+      activeRouteIndex = (activeRouteIndex + 1) % sources.length;
+      activateRoute(sources[activeRouteIndex]);
+    }, 3600);
+  }
+}
+
+function wireRevealMotion() {
+  const revealTargets = document.querySelectorAll(
+    ".hero-copy, .signal-strip, .section-heading, .feature-card, .patch-console, .truth-card, .download-card"
+  );
+
+  revealTargets.forEach((target, index) => {
+    target.classList.add("reveal");
+    target.style.setProperty("--reveal-index", `${index % 6}`);
+  });
+
+  if (reduceMotion || !("IntersectionObserver" in window)) {
+    revealTargets.forEach((target) => target.classList.add("is-visible"));
+    return;
+  }
+
+  document.body.classList.add("motion-ready");
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add("is-visible");
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.16, rootMargin: "0px 0px -8% 0px" });
+
+  revealTargets.forEach((target) => observer.observe(target));
 }
 
 wirePatchConsole();
+wireRevealMotion();
 updateMeters();
-setInterval(updateMeters, 140);
