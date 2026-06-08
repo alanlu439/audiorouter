@@ -127,6 +127,10 @@ button {
 .hero {
   position: relative;
   overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(0, 0.98fr) minmax(420px, 0.92fr);
+  align-items: center;
+  gap: clamp(30px, 5vw, 72px);
   min-height: calc(100svh - 116px);
   padding: clamp(72px, 11vw, 122px) clamp(18px, 5vw, 72px) clamp(60px, 10vw, 96px);
   border-bottom: 1px solid var(--line-soft);
@@ -156,12 +160,14 @@ button {
 }
 
 .hero-stage {
-  position: absolute;
-  inset: 72px clamp(12px, 4vw, 58px) auto auto;
-  width: min(620px, 52vw);
-  height: min(520px, 60svh);
-  z-index: -2;
-  opacity: 0.92;
+  grid-column: 2;
+  grid-row: 1;
+  position: relative;
+  width: min(100%, 590px);
+  height: auto;
+  z-index: 2;
+  justify-self: end;
+  opacity: 0.96;
   transform-style: preserve-3d;
 }
 
@@ -213,9 +219,10 @@ button {
 .console-window {
   position: relative;
   overflow: hidden;
+  width: 100%;
   border-radius: 20px;
   padding: 20px;
-  transform: rotate(-1.2deg);
+  transform: rotate(-0.7deg);
   animation: consoleFloat 7s ease-in-out infinite;
 }
 
@@ -468,16 +475,34 @@ button {
 }
 
 .hero-copy {
+  grid-column: 1;
+  grid-row: 1;
   max-width: 620px;
   position: relative;
   z-index: 2;
+  min-width: 0;
+  isolation: isolate;
+}
+
+.hero-copy::before {
+  content: "";
+  position: absolute;
+  inset: -26px -40px -28px -24px;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: 30px;
+  background: radial-gradient(ellipse at 28% 46%, rgba(7, 9, 13, 0.82), rgba(7, 9, 13, 0.42) 52%, transparent 78%);
 }
 
 .hero h1 {
   margin: 8px 0 0;
-  font-size: clamp(64px, 12vw, 126px);
-  line-height: 0.88;
+  color: var(--text);
+  font-size: clamp(58px, 8.2vw, 108px);
+  font-weight: 900;
+  line-height: 0.92;
   letter-spacing: 0;
+  max-width: 9ch;
+  text-shadow: 0 18px 48px rgba(0, 0, 0, 0.52);
 }
 
 .hero-lede {
@@ -487,6 +512,7 @@ button {
   font-size: clamp(19px, 2.5vw, 28px);
   line-height: 1.25;
   font-weight: 650;
+  text-shadow: 0 12px 34px rgba(0, 0, 0, 0.46);
 }
 
 .hero-actions {
@@ -1024,20 +1050,26 @@ button {
   }
 }
 
-@media (max-width: 900px) {
-  .nav-links {
-    display: none;
-  }
-
+@media (max-width: 1080px) {
   .hero {
+    grid-template-columns: 1fr;
     padding-top: 54px;
   }
 
+  .hero-copy {
+    grid-column: 1;
+    grid-row: 1;
+    max-width: 100%;
+  }
+
   .hero-stage {
+    grid-column: 1;
+    grid-row: 2;
     position: relative;
     inset: auto;
     width: 100%;
     height: auto;
+    justify-self: stretch;
     margin: 34px 0 0;
   }
 
@@ -1045,9 +1077,11 @@ button {
     transform: none;
     animation-name: mobileConsoleFloat;
   }
+}
 
-  .hero-copy {
-    max-width: 100%;
+@media (max-width: 900px) {
+  .nav-links {
+    display: none;
   }
 
   .signal-strip,
