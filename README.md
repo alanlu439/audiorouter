@@ -2,6 +2,14 @@
 
 AudioRouter is a native SwiftUI macOS menu-bar app for visual audio control. It manages real Core Audio devices, attempts live app-to-output routing through public process taps on supported macOS versions, and keeps unsupported routing features clearly labeled instead of pretending they are live.
 
+## Website
+
+AudioRouter has a GitHub Pages website at:
+
+[https://alanlu439.github.io/audiorouter/](https://alanlu439.github.io/audiorouter/)
+
+The site source lives in `docs/` and is deployed by `.github/workflows/pages.yml`. If the page is not live yet, open the repository's GitHub `Settings` -> `Pages` screen and set the build and deployment source to `GitHub Actions`.
+
 ## Download
 
 Download the latest stable build from GitHub Releases:
