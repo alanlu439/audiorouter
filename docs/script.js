@@ -51,34 +51,5 @@ function wirePatchConsole() {
   }
 }
 
-function wireRevealMotion() {
-  const revealTargets = document.querySelectorAll(
-    ".hero-copy, .signal-strip, .section-heading, .feature-card, .patch-console, .truth-card, .download-card"
-  );
-
-  revealTargets.forEach((target, index) => {
-    target.classList.add("reveal");
-    target.style.setProperty("--reveal-index", `${index % 6}`);
-  });
-
-  if (reduceMotion || !("IntersectionObserver" in window)) {
-    revealTargets.forEach((target) => target.classList.add("is-visible"));
-    return;
-  }
-
-  document.body.classList.add("motion-ready");
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach((entry) => {
-      if (entry.isIntersecting) {
-        entry.target.classList.add("is-visible");
-        observer.unobserve(entry.target);
-      }
-    });
-  }, { threshold: 0.16, rootMargin: "0px 0px -8% 0px" });
-
-  revealTargets.forEach((target) => observer.observe(target));
-}
-
 wirePatchConsole();
-wireRevealMotion();
 updateMeters();

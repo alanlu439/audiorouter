@@ -6,9 +6,9 @@
   <title>AudioRouter | Visual audio routing for macOS</title>
   <meta name="description" content="AudioRouter is a native macOS menu bar utility for visual audio routing, device control, per-route gain, EQ, Group Play, and reliability diagnostics.">
   <meta property="og:title" content="AudioRouter">
-  <meta property="og:description" content="A visual macOS audio control center for route apps, speakers, gain, EQ, and reliability diagnostics.">
+  <meta property="og:description" content="A friendly visual macOS audio control center for route apps, speakers, gain, EQ, and reliability diagnostics.">
   <meta property="og:image" content="assets/audiorouter-icon.png">
-  <meta name="theme-color" content="#090b0f">
+  <meta name="theme-color" content="#ffffff">
   <link rel="icon" href="assets/audiorouter-icon.png">
   <link rel="apple-touch-icon" href="assets/audiorouter-icon.png">
   <link rel="stylesheet" href="styles.css">
@@ -16,12 +16,13 @@
 <body>
   <header class="site-header">
     <a class="brand" href="#top" aria-label="AudioRouter home">
-      <img src="assets/audiorouter-icon.png" alt="" width="34" height="34">
+      <img src="assets/audiorouter-icon.png" alt="" width="36" height="36">
       <span>AudioRouter</span>
     </a>
     <nav class="nav-links" aria-label="Primary navigation">
       <a href="#features">Features</a>
       <a href="#routing">Routing</a>
+      <a href="#truth">Compatibility</a>
       <a href="#download">Download</a>
       <a href="https://github.com/alanlu439/audiorouter">GitHub</a>
     </nav>
@@ -29,7 +30,21 @@
 
   <main id="top">
     <section class="hero" aria-labelledby="hero-title">
-      <div class="hero-stage" aria-hidden="true">
+      <div class="hero-copy">
+        <h1 id="hero-title">Audio routing that feels <span>effortless</span></h1>
+        <p class="hero-lede">Route apps to speakers, adjust gain, create Group Play setups, and keep device changes understandable from one friendly macOS control center.</p>
+        <div class="hero-actions">
+          <a class="primary-action" href="https://github.com/alanlu439/audiorouter/releases/latest/download/AudioRouter-macOS.zip">Download AudioRouter</a>
+          <a class="secondary-action" href="https://github.com/alanlu439/audiorouter">View GitHub</a>
+        </div>
+        <div class="trust-row" aria-label="Product trust points">
+          <span>Native macOS</span>
+          <span>Public APIs</span>
+          <span>Clear limitations</span>
+        </div>
+      </div>
+
+      <div class="hero-stage" aria-label="AudioRouter routing preview">
         <div class="menu-bar">
           <span></span>
           <span></span>
@@ -39,10 +54,10 @@
         <div class="console-window">
           <div class="console-title">
             <div>
-              <p>Quick Router</p>
-              <h2>Spotify to Group Play</h2>
+              <p>Routes</p>
+              <h2>Input apps</h2>
             </div>
-            <span class="live-pill">LIVE</span>
+            <span class="live-pill">Live</span>
           </div>
           <div class="route-board">
             <div class="route-source active">
@@ -51,16 +66,43 @@
                 <strong>Spotify</strong>
                 <small>44.1k source</small>
               </div>
-              <div class="meter" data-meter>
-                <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+              <div class="route-arrow"><span>to</span></div>
+              <div class="route-output">
+                <span class="speaker-icon">AU</span>
+                <div>
+                  <strong>AirPods Pro</strong>
+                  <small>25%</small>
+                </div>
               </div>
             </div>
-            <div class="route-arrow"><span>to</span></div>
-            <div class="route-output">
-              <span class="speaker-icon">AU</span>
+            <div class="route-source">
+              <span class="app-dot music">♪</span>
               <div>
-                <strong>Group Play 1</strong>
-                <small>2 speakers ready</small>
+                <strong>Apple Music</strong>
+                <small>48k source</small>
+              </div>
+              <div class="route-arrow"><span>to</span></div>
+              <div class="route-output">
+                <span class="speaker-icon orange">MB</span>
+                <div>
+                  <strong>MacBook Speakers</strong>
+                  <small>System</small>
+                </div>
+              </div>
+            </div>
+            <div class="route-source">
+              <span class="app-dot chrome">C</span>
+              <div>
+                <strong>Chrome</strong>
+                <small>saved route</small>
+              </div>
+              <div class="route-arrow"><span>to</span></div>
+              <div class="route-output">
+                <span class="speaker-icon purple">GP</span>
+                <div>
+                  <strong>Group Play 1</strong>
+                  <small>2 speakers</small>
+                </div>
               </div>
             </div>
           </div>
@@ -73,77 +115,56 @@
           </div>
         </div>
       </div>
-
-      <div class="hero-copy">
-        <p class="eyebrow">Native macOS menu bar audio control</p>
-        <h1 id="hero-title">AudioRouter</h1>
-        <p class="hero-lede">Route apps, speakers, gain, EQ, Group Play, and reliability diagnostics from one visual macOS control center.</p>
-        <div class="hero-actions">
-          <a class="primary-action" href="https://github.com/alanlu439/audiorouter/releases/latest/download/AudioRouter-macOS.zip">Download ZIP</a>
-          <a class="secondary-action" href="https://github.com/alanlu439/audiorouter">View Source</a>
-        </div>
-        <p class="hero-note">macOS 14.2 or newer. Public Core Audio APIs. Experimental app routing is clearly labeled when a backend is required.</p>
-      </div>
     </section>
 
     <section class="signal-strip" aria-label="Product highlights">
-      <div><strong>Menu Bar</strong><span>Quick Router</span></div>
+      <div><strong>Menu Bar</strong><span>Fast access</span></div>
       <div><strong>Core Audio</strong><span>Real devices</span></div>
-      <div><strong>Process Taps</strong><span>Experimental live routes</span></div>
+      <div><strong>Process Taps</strong><span>Live attempts</span></div>
       <div><strong>Group Play</strong><span>Multi-speaker targets</span></div>
     </section>
 
     <section id="features" class="section feature-grid" aria-labelledby="features-title">
       <div class="section-heading">
-        <p class="eyebrow">Built for fast control</p>
-        <h2 id="features-title">A visual routing desk for your Mac.</h2>
+        <h2 id="features-title">Everything you need to steer Mac audio.</h2>
+        <p>AudioRouter makes audio sources, outputs, and saved routes visible so you can make changes without digging through system panels.</p>
       </div>
 
-      <article class="feature-card">
-        <span class="feature-icon">01</span>
-        <h3>Quick Router</h3>
-        <p>Pick a source app, choose an output target, adjust gain, mute, retry, and test routes from the menu bar.</p>
+      <article class="feature-card teal">
+        <span class="feature-icon">AU</span>
+        <h3>Menu bar control</h3>
+        <p>Open a compact router, pick an app, choose an output, and adjust gain from one quick surface.</p>
       </article>
-      <article class="feature-card">
-        <span class="feature-icon">02</span>
-        <h3>Real Device Control</h3>
-        <p>Lists connected Bluetooth, built-in, USB, HDMI, AirPlay, and aggregate devices with default output switching.</p>
+      <article class="feature-card lavender">
+        <span class="feature-icon">CA</span>
+        <h3>Core Audio devices</h3>
+        <p>See connected Bluetooth, built-in, USB, HDMI, AirPlay, and aggregate devices with clear status.</p>
       </article>
-      <article class="feature-card">
-        <span class="feature-icon">03</span>
-        <h3>Live Route Attempts</h3>
-        <p>Uses public Core Audio process taps where macOS exposes them, with saved routes when the backend cannot go live.</p>
+      <article class="feature-card peach">
+        <span class="feature-icon">PT</span>
+        <h3>Process taps</h3>
+        <p>Use modern macOS audio capture where available, with honest labels when a route needs more backend work.</p>
       </article>
-      <article class="feature-card">
-        <span class="feature-icon">04</span>
-        <h3>Reliability Center</h3>
-        <p>Shows route health, permission state, output readiness, app detection, retry actions, and exact failure reasons.</p>
-      </article>
-      <article class="feature-card">
-        <span class="feature-icon">05</span>
-        <h3>EQ And Gain</h3>
-        <p>10-band EQ, saved presets, 1% gain steps, and selected-route shortcuts with Command = and Command -.</p>
-      </article>
-      <article class="feature-card">
-        <span class="feature-icon">06</span>
+      <article class="feature-card gold">
+        <span class="feature-icon">GP</span>
         <h3>Group Play</h3>
-        <p>Create visual output groups, test speakers, set per-speaker volume, and route one app to multiple outputs where supported.</p>
+        <p>Create visual speaker groups, test outputs, and save preferred multi-speaker destinations.</p>
       </article>
     </section>
 
-    <section id="routing" class="section patch-section" aria-labelledby="routing-title">
+    <section id="routing" class="section routing-section" aria-labelledby="routing-title">
       <div class="section-heading">
-        <p class="eyebrow">Source app to output device</p>
-        <h2 id="routing-title">Routing that stays honest.</h2>
-        <p>AudioRouter shows what is live, what is saved, and what requires a deeper audio backend. No fake success states.</p>
+        <h2 id="routing-title">Powerful routing, visual and simple.</h2>
+        <p>Drag, click, or select a source app and connect it to a device or group. The route map stays readable at a glance.</p>
       </div>
 
       <div class="patch-console">
         <div class="patch-column">
-          <h3>Sources</h3>
-          <button class="patch-source active" data-route="spotify"><span>Spotify</span><small>44.1k</small></button>
-          <button class="patch-source" data-route="music"><span>Apple Music</span><small>48k</small></button>
-          <button class="patch-source" data-route="chrome"><span>Chrome</span><small>Pending</small></button>
+          <h3>Input apps</h3>
+          <button class="patch-source active" data-route="spotify"><span>Spotify</span><small>Running</small></button>
+          <button class="patch-source" data-route="music"><span>Apple Music</span><small>Ready</small></button>
+          <button class="patch-source" data-route="chrome"><span>Chrome</span><small>Running</small></button>
+          <button class="patch-source add" data-route="add"><span>Add App</span><small>Customize source list</small></button>
         </div>
         <div class="patch-lines" aria-hidden="true">
           <span></span>
@@ -152,25 +173,25 @@
         </div>
         <div class="patch-column">
           <h3>Outputs</h3>
-          <div class="patch-output active">AirPods Pro</div>
-          <div class="patch-output">MacBook Pro Speakers</div>
-          <div class="patch-output">Group Play 1</div>
+          <div class="patch-output active">AirPods Pro <small>25%</small></div>
+          <div class="patch-output">MacBook Speakers <small>System</small></div>
+          <div class="patch-output">Group Play 1 <small>2 speakers</small></div>
+          <div class="patch-output add">New Group Play <small>Bundle speakers</small></div>
         </div>
       </div>
     </section>
 
-    <section class="section truth-grid" aria-labelledby="truth-title">
+    <section id="truth" class="section truth-grid" aria-labelledby="truth-title">
       <div class="section-heading">
-        <p class="eyebrow">Public API first</p>
-        <h2 id="truth-title">What works now, and what is experimental.</h2>
+        <h2 id="truth-title">Built for what macOS allows.</h2>
+        <p>AudioRouter is clear about what is live today, what is experimental, and what requires a deeper audio backend.</p>
       </div>
       <div class="truth-card live">
-        <h3>Live today</h3>
+        <h3>Works now</h3>
         <ul>
           <li>Real Core Audio device discovery</li>
           <li>Default input and output switching</li>
           <li>System volume, mute, and balance where supported</li>
-          <li>Running route-app detection</li>
           <li>Saved route preferences and setup profiles</li>
         </ul>
       </div>
@@ -181,16 +202,19 @@
           <li>Group Play fan-out through multiple output renderers</li>
           <li>Live per-route meters and 10-band EQ</li>
           <li>HAL virtual input driver for mixer software</li>
-          <li>Spotify keep-playing recovery for AirPods pauses</li>
         </ul>
+      </div>
+      <div class="truth-card roadmap">
+        <h3>Always improving</h3>
+        <p>The app keeps unsupported states visible instead of pretending everything is active. Each release tightens routing reliability and setup flow.</p>
+        <a href="https://github.com/alanlu439/audiorouter/releases">View releases</a>
       </div>
     </section>
 
     <section id="download" class="section download-section" aria-labelledby="download-title">
       <div>
-        <p class="eyebrow">Download and run</p>
-        <h2 id="download-title">Get the latest AudioRouter build.</h2>
-        <p>The public build is distributed as a ZIP from GitHub Releases. It includes the app and a download manual.</p>
+        <h2 id="download-title">Ready to take control of your audio?</h2>
+        <p>Download the latest public ZIP from GitHub Releases. The package includes the app and a simple run manual.</p>
       </div>
       <div class="download-card">
         <a class="primary-action wide" href="https://github.com/alanlu439/audiorouter/releases/latest/download/AudioRouter-macOS.zip">Download AudioRouter</a>
