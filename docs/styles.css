@@ -418,11 +418,41 @@ button {
 }
 
 .app-dot {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   color: #ffffff;
   font-weight: 950;
+  overflow: hidden;
+}
+
+.app-dot.spotify {
+  background: #1ed760;
+}
+
+.app-dot.spotify span {
+  position: absolute;
+  left: 22%;
+  right: 17%;
+  height: 9%;
+  border-radius: 999px;
+  background: #062c1a;
+  transform: rotate(8deg);
+}
+
+.app-dot.spotify span:nth-child(1) {
+  top: 31%;
+}
+
+.app-dot.spotify span:nth-child(2) {
+  top: 45%;
+  right: 21%;
+}
+
+.app-dot.spotify span:nth-child(3) {
+  top: 59%;
+  right: 28%;
 }
 
 .app-dot.music {
@@ -430,7 +460,28 @@ button {
 }
 
 .app-dot.chrome {
+  color: transparent;
   background: conic-gradient(#4385f5, #34a853, #fbbc05, #ea4335, #4385f5);
+}
+
+.app-dot.chrome::before,
+.app-dot.chrome::after {
+  content: "";
+  position: absolute;
+  border-radius: 999px;
+}
+
+.app-dot.chrome::before {
+  width: 50%;
+  height: 50%;
+  background: #ffffff;
+}
+
+.app-dot.chrome::after {
+  width: 30%;
+  height: 30%;
+  background: #4385f5;
+  box-shadow: 0 0 0 1px rgba(8, 39, 51, 0.08);
 }
 
 .route-source strong,

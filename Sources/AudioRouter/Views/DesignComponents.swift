@@ -374,8 +374,8 @@ struct AppSourceIcon: View {
 
     var body: some View {
         Group {
-            if let path = iconPath {
-                Image(nsImage: NSWorkspace.shared.icon(forFile: path))
+            if let image = AppIconResolver.icon(for: source) {
+                Image(nsImage: image)
                     .resizable()
                     .scaledToFit()
             } else {
@@ -387,17 +387,6 @@ struct AppSourceIcon: View {
         .frame(width: 30, height: 30)
         .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
         .accessibilityHidden(true)
-    }
-
-    private var iconPath: String? {
-        if let icon = source.icon, !icon.isEmpty {
-            return icon
-        }
-        if let bundleIdentifier = source.bundleIdentifier,
-           let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier) {
-            return url.path
-        }
-        return nil
     }
 }
 

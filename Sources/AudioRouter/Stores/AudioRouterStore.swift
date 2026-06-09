@@ -816,7 +816,7 @@ public final class AudioRouterStore: ObservableObject {
                 displayName: source.appName,
                 bundleIdentifier: bundleIdentifier,
                 matchName: source.appName,
-                iconPath: source.icon
+                iconPath: resolvedAppIconPath(bundleIdentifier: bundleIdentifier, fallbackPath: source.icon)
             )
         )
     }
@@ -2083,7 +2083,7 @@ public final class AudioRouterStore: ObservableObject {
                 bundleIdentifier: spec.bundleIdentifier,
                 processID: detectedSource?.processID ?? 0,
                 audioObjectID: detectedSource?.audioObjectID,
-                icon: spec.iconPath ?? detectedSource?.icon,
+                icon: focusedIconPath(for: spec, detectedSource: detectedSource),
                 isRunning: detectedSource?.isRunning ?? false,
                 isProducingAudio: detectedSource?.isProducingAudio ?? false,
                 lastActiveTime: detectedSource?.lastActiveTime ?? .distantPast,
@@ -2205,7 +2205,7 @@ public final class AudioRouterStore: ObservableObject {
                 appName: spec.displayName,
                 bundleIdentifier: spec.bundleIdentifier,
                 processID: Int32(abs(spec.bundleIdentifier.hashValue % 9000) + 100),
-                icon: spec.iconPath,
+                icon: focusedIconPath(for: spec, detectedSource: nil),
                 isProducingAudio: true,
                 lastActiveTime: Date().addingTimeInterval(-3),
                 currentLevel: 0.7,
@@ -2276,6 +2276,18 @@ public final class AudioRouterStore: ObservableObject {
         FocusedSourceSpec(displayName: "Apple Music", bundleIdentifier: "com.apple.Music", matchName: "music", iconPath: "/System/Applications/Music.app"),
         FocusedSourceSpec(displayName: "Chrome", bundleIdentifier: "com.google.Chrome", matchName: "chrome", iconPath: "/Applications/Google Chrome.app")
     ]
+
+    private func focusedIconPath(for spec: FocusedSourceSpec, detectedSource: AudioSource?) -> String? {
+        resolvedAppIconPath(bundleIdentifier: spec.bundleIdentifier, fallbackPath: detectedSource?.icon)
+            ?? resolvedAppIconPath(bundleIdentifier: spec.bundleIdentifier, fallbackPath: spec.iconPath)
+            ?? detectedSource?.icon
+            ?? spec.iconPath
+    }
+
+    private func resolvedAppIconPath(bundleIdentifier: String?, fallbackPath: String?) -> String? {
+        AppIconResolver.applicationPath(bundleIdentifier: bundleIdentifier, fallbackPath: fallbackPath)
+            ?? fallbackPath
+    }
 
     private func refreshAfterDelay(interval: TimeInterval = 0.35) {
         pendingRefreshTask?.cancel()
