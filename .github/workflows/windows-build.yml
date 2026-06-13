@@ -1,0 +1,42 @@
+name: Windows Build
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "windows/**"
+      - "shared/contracts/**"
+      - ".github/workflows/windows-build.yml"
+  pull_request:
+    paths:
+      - "windows/**"
+      - "shared/contracts/**"
+      - ".github/workflows/windows-build.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build AudioRouter.Windows
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Restore NuGet packages
+        shell: pwsh
+        run: nuget restore windows\AudioRouter.Windows\AudioRouter.Windows.sln
+
+      - name: Build
+        shell: pwsh
+        run: msbuild windows\AudioRouter.Windows\AudioRouter.Windows.sln /m /p:Configuration=Release /p:Platform=x64 /p:AppxBundle=Never
+
+      - name: Upload Windows build output
+        uses: actions/upload-artifact@v4
+        with:
+          name: AudioRouter-Windows-build
+          path: windows/AudioRouter.Windows/x64/Release/**
+          if-no-files-found: warn

@@ -2,6 +2,8 @@
 
 This file is included with the AudioRouter download ZIP.
 
+This guide currently applies to the macOS public ZIP. A Windows implementation has been scaffolded in `windows/AudioRouter.Windows`, but there is not a public Windows download yet.
+
 ## Install
 
 1. Open `AudioRouter-macOS.zip`.

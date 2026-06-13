@@ -10,11 +10,53 @@ AudioRouter has a GitHub Pages website at:
 
 The site source lives in `docs/` and is deployed by `.github/workflows/pages.yml`. If the page is not live yet, open the repository's GitHub `Settings` -> `Pages` screen and set the build and deployment source to `GitHub Actions`.
 
+## Windows Compatibility
+
+AudioRouter now includes the start of a sibling Windows implementation at:
+
+```text
+windows/AudioRouter.Windows
+```
+
+The Windows app is not a SwiftUI/Core Audio port. It is a native Windows 11 path using WinUI 3, Windows App SDK, and a C++/WinRT backend so it can talk directly to Windows Core Audio APIs.
+
+What the Windows scaffold includes:
+
+- WinUI 3 dashboard shell with tray-icon support.
+- MMDevice endpoint discovery for input and output devices.
+- Endpoint volume and mute through `IAudioEndpointVolume`.
+- Audio session discovery through `IAudioSessionManager2`.
+- Per-session volume and mute through `ISimpleAudioVolume`.
+- Capability flags for process-loopback capture and driver-required routing.
+- Shared JSON contract documentation in `shared/contracts/`.
+- Windows GitHub Actions build workflow in `.github/workflows/windows-build.yml`.
+
+What is still future Windows work:
+
+- A finished process-loopback route renderer.
+- Production-grade app-to-device routing.
+- App-as-input virtual devices.
+- Signed Windows driver/service distribution.
+- Public Windows release ZIP or MSIX packaging.
+
+Build on Windows:
+
+```powershell
+msbuild .\windows\AudioRouter.Windows\AudioRouter.Windows.sln /restore /p:Configuration=Release /p:Platform=x64
+```
+
+Windows requirements:
+
+- Windows 11
+- Visual Studio 2022 with Desktop development with C++
+- Windows App SDK support
+- Windows 10/11 SDK
+
 ## Download
 
 Download the latest stable build from GitHub Releases:
 
-[Download AudioRouter ZIP](https://github.com/alanlu439/audiorouter/releases/latest/download/AudioRouter-macOS.zip)
+[Download AudioRouter macOS ZIP](https://github.com/alanlu439/audiorouter/releases/latest/download/AudioRouter-macOS.zip)
 
 After downloading:
 
@@ -27,6 +69,8 @@ After downloading:
 The current public ZIP is not Apple-notarized yet. On first launch, macOS can show a verification warning. Use the Control-click/right-click `Open` flow above, or open `System Settings` -> `Privacy & Security` -> `Open Anyway` if macOS still blocks it. Keep Gatekeeper enabled.
 
 Local development bundles in `dist/AudioRouter.app` are also ad-hoc signed for testing and can trigger the same first-launch warning.
+
+There is no public Windows release download yet. The Windows implementation is now scaffolded for development and CI, and release packaging should be added after the Windows build is validated on a Windows machine.
 
 ## How To Run AudioRouter
 

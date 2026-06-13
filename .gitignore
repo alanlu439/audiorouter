@@ -4,3 +4,12 @@ dist/
 DerivedData/
 *.xcuserdata/
 probe-write.txt
+.vs/
+windows/**/Debug/
+windows/**/Release/
+windows/**/x64/
+windows/**/Generated Files/
+windows/**/packages/
+windows/**/*.user
+windows/**/*.VC.db
+windows/**/*.opendb

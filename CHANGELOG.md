@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Windows Compatibility
+
+- Added a sibling `windows/AudioRouter.Windows` WinUI 3/C++ project scaffold for a future Windows 11 version of AudioRouter.
+- Added Windows Core Audio backend seams for MMDevice endpoint discovery, endpoint volume/mute, audio session discovery, per-session volume/mute, and process-loopback routing capability checks.
+- Added shared JSON contract documentation so macOS and Windows can preserve compatible routes, profiles, EQ settings, shortcuts, and output groups.
+- Added a Windows GitHub Actions build workflow that restores NuGet packages and builds the Windows solution on a Windows runner.
+
 ### Routing Workflow
 
 - Added `Advanced` -> `Reliability` with a Route Reliability Center that summarizes route health across every source app, with refresh, permission probe, retry, and route test actions.

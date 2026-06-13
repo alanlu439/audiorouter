@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alanlu439.github.io/audiorouter/schemas/audio-router-settings.schema.json",
+  "title": "AudioRouter Shared Settings",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "profiles"],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "activeProfileID": {
+      "type": "string"
+    },
+    "profiles": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/profile"
+      }
+    },
+    "routes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/route"
+      }
+    },
+    "outputGroups": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/outputGroup"
+      }
+    },
+    "eq": {
+      "$ref": "#/$defs/eqState"
+    },
+    "shortcuts": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/shortcut"
+      }
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "$defs": {
+    "profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "displayName"],
+      "properties": {
+        "id": { "type": "string" },
+        "displayName": { "type": "string" }
+      }
+    },
+    "route": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourceAppID", "routeMode", "volume", "isMuted"],
+      "properties": {
+        "sourceAppID": { "type": "string" },
+        "outputDeviceID": { "type": ["string", "null"] },
+        "volume": { "type": "number", "minimum": 0, "maximum": 2 },
+        "isMuted": { "type": "boolean" },
+        "routeMode": {
+          "type": "string",
+          "enum": ["followSystemOutput", "customOutput", "unsupported"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "savedOnly", "simulated", "requiresBackend", "deviceMissing"]
+        }
+      }
+    },
+    "outputGroup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "deviceIDs"],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "deviceIDs": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "perDeviceVolumes": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 2
+          }
+        }
+      }
+    },
+    "eqState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["selectedPreset", "bands", "customBands"],
+      "properties": {
+        "selectedPreset": {
+          "type": "string",
+          "enum": ["Flat", "Bass Boost", "Vocal", "Podcast", "Movie", "Music", "Custom"]
+        },
+        "bands": {
+          "type": "array",
+          "minItems": 10,
+          "maxItems": 10,
+          "items": { "type": "number", "minimum": -12, "maximum": 12 }
+        },
+        "customBands": {
+          "type": "array",
+          "minItems": 10,
+          "maxItems": 10,
+          "items": { "type": "number", "minimum": -12, "maximum": 12 }
+        }
+      }
+    },
+    "shortcut": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action", "accelerator"],
+      "properties": {
+        "action": { "type": "string" },
+        "accelerator": { "type": "string" },
+        "isGlobal": { "type": "boolean" }
+      }
+    }
+  }
+}
