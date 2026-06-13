@@ -28,7 +28,7 @@ jobs:
 
       - name: Restore NuGet packages
         shell: pwsh
-        run: nuget restore windows\AudioRouter.Windows\AudioRouter.Windows.sln
+        run: msbuild windows\AudioRouter.Windows\AudioRouter.Windows.sln /t:Restore /p:Configuration=Release /p:Platform=x64
 
       - name: Build
         shell: pwsh
