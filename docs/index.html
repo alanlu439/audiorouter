@@ -26,9 +26,9 @@
       <strong>Menu</strong>
     </button>
     <nav id="primary-nav" class="nav-links" aria-label="Primary navigation">
+      <a href="#platforms">Platforms</a>
       <a href="#features">Features</a>
       <a href="#routing">Routing</a>
-      <a href="#windows">Windows</a>
       <a href="#truth">Compatibility</a>
       <a href="#download">Download</a>
       <a href="assets/AudioRouter-User-Manual.pdf">Manual</a>
@@ -138,6 +138,51 @@
       <div><strong>Windows</strong><span>Compatibility path</span></div>
     </section>
 
+    <section id="platforms" class="section platform-section" aria-labelledby="platforms-title">
+      <div class="section-heading compact">
+        <h2 id="platforms-title">Two platforms, two very different stages.</h2>
+        <p>macOS is the current downloadable product. Windows is a native compatibility track being built and tested separately.</p>
+      </div>
+
+      <div class="platform-grid">
+        <article class="platform-card platform-card-mac">
+          <div class="platform-card-header">
+            <span class="platform-mark"></span>
+            <span class="platform-status live">Available now</span>
+          </div>
+          <div>
+            <p class="platform-kicker">macOS app</p>
+            <h3>AudioRouter for Mac</h3>
+            <p>Native menu-bar routing, real Core Audio device control, Group Play, EQ, saved setups, and the PDF user manual in the download ZIP.</p>
+          </div>
+          <ul class="platform-list">
+            <li>Ships as <code>AudioRouter-macOS.zip</code></li>
+            <li>Uses public Core Audio APIs</li>
+            <li>Experimental process-tap routing</li>
+          </ul>
+          <a class="platform-action" href="https://github.com/alanlu439/audiorouter/releases/latest/download/AudioRouter-macOS.zip">Download Mac ZIP</a>
+        </article>
+
+        <article class="platform-card platform-card-win">
+          <div class="platform-card-header">
+            <span class="platform-mark">Win</span>
+            <span class="platform-status build">In development</span>
+          </div>
+          <div>
+            <p class="platform-kicker">Windows 11 path</p>
+            <h3>AudioRouter for Windows</h3>
+            <p>A sibling native Windows app is being built with WinUI 3 and a Windows Core Audio backend before any public Windows package is released.</p>
+          </div>
+          <ul class="platform-list">
+            <li>No public Windows download yet</li>
+            <li>MMDevice and audio sessions scaffolded</li>
+            <li>VM build checks before release</li>
+          </ul>
+          <a class="platform-action ghost" href="#windows">See Windows roadmap</a>
+        </article>
+      </div>
+    </section>
+
     <section id="features" class="section feature-grid" aria-labelledby="features-title">
       <div class="section-heading">
         <h2 id="features-title">Everything you need to steer Mac audio.</h2>
@@ -232,8 +277,8 @@
 
     <section id="windows" class="section windows-section" aria-labelledby="windows-title">
       <div class="section-heading">
-        <h2 id="windows-title">Windows compatibility is underway.</h2>
-        <p>AudioRouter now has a native Windows 11 path in the repository. The backend is being tested on Windows virtual machines before any public Windows download is published.</p>
+        <h2 id="windows-title">Windows is a separate build track.</h2>
+        <p>The Windows version is not a SwiftUI port. It has its own WinUI 3 shell, C++/WinRT backend, and release gate before a Windows ZIP or MSIX appears here.</p>
       </div>
       <div class="windows-grid">
         <article class="windows-card">
