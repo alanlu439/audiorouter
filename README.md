@@ -62,7 +62,7 @@ After downloading:
 
 1. Open `AudioRouter-macOS.zip`.
 2. Open the extracted `AudioRouter-macOS` folder.
-3. Read `DOWNLOAD_AND_USE.md` for install, first-run, routing, and shortcut instructions.
+3. Read `AudioRouter-User-Manual.pdf` or `DOWNLOAD_AND_USE.md` for install, first-run, routing, and shortcut instructions.
 4. Move `AudioRouter.app` to `/Applications`.
 5. Control-click or right-click `AudioRouter.app`, choose `Open`, then confirm.
 
@@ -79,7 +79,7 @@ There is no public Windows release download yet. The Windows implementation is n
 1. Download `AudioRouter-macOS.zip` from the latest GitHub Release.
 2. Open the ZIP.
 3. Open the extracted `AudioRouter-macOS` folder.
-4. Read `DOWNLOAD_AND_USE.md`.
+4. Read `AudioRouter-User-Manual.pdf` for the guided walkthrough or `DOWNLOAD_AND_USE.md` for quick install notes.
 5. Move `AudioRouter.app` to `/Applications`.
 6. Control-click or right-click `AudioRouter.app`.
 7. Choose `Open`, then confirm.
@@ -274,7 +274,7 @@ To intentionally publish the current unnotarized ZIP, use:
 ALLOW_UNNOTARIZED_PUBLIC_ZIP=1 ./script/package_release.sh
 ```
 
-That creates `dist/AudioRouter-macOS.zip` and includes `DOWNLOAD_AND_USE.md` with the first-launch Control-click/Open instructions. Users can run it, but macOS can show an Apple verification warning because the app is not notarized yet.
+That creates `dist/AudioRouter-macOS.zip` and includes `AudioRouter-User-Manual.pdf`, `DOWNLOAD_AND_USE.md`, and `DRIVER_INSTALL.md` with the first-launch Control-click/Open instructions. Users can run it, but macOS can show an Apple verification warning because the app is not notarized yet.
 
 For a local-only test image that is expected to be blocked after download, use:
 
@@ -284,7 +284,7 @@ LOCAL_TEST_ZIP=1 ./script/package_release.sh
 
 That creates `dist/AudioRouter-macOS-local-untrusted.zip`. Do not upload that file to GitHub Releases. The updater and README download link use only `AudioRouter-macOS.zip`.
 
-Each release ZIP extracts to an `AudioRouter-macOS` folder containing `AudioRouter.app` and `DOWNLOAD_AND_USE.md` so users have install and first-run instructions directly inside the download.
+Each release ZIP extracts to an `AudioRouter-macOS` folder containing `AudioRouter.app`, `AudioRouter-User-Manual.pdf`, `DOWNLOAD_AND_USE.md`, `DRIVER_INSTALL.md`, and driver helper scripts so users have install and first-run instructions directly inside the download.
 
 ## Build From Source
 

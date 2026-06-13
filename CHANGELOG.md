@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Website And Download Guide
+
+- Updated the GitHub Pages site with a more interactive route demo, mobile navigation, a Windows compatibility section, and direct links to the user manual.
+- Added `USER_MANUAL.md` plus a generated `AudioRouter-User-Manual.pdf` for the website and release ZIP.
+- Updated release packaging so future macOS ZIP downloads include the PDF manual alongside the app, quick install guide, driver notes, and driver scripts.
+
 ### Windows Compatibility
 
 - Added a sibling `windows/AudioRouter.Windows` WinUI 3/C++ project scaffold for a future Windows 11 version of AudioRouter.

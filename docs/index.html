@@ -19,11 +19,19 @@
       <img src="assets/audiorouter-icon.png" alt="" width="36" height="36">
       <span>AudioRouter</span>
     </a>
-    <nav class="nav-links" aria-label="Primary navigation">
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-nav">
+      <span></span>
+      <span></span>
+      <span></span>
+      <strong>Menu</strong>
+    </button>
+    <nav id="primary-nav" class="nav-links" aria-label="Primary navigation">
       <a href="#features">Features</a>
       <a href="#routing">Routing</a>
+      <a href="#windows">Windows</a>
       <a href="#truth">Compatibility</a>
       <a href="#download">Download</a>
+      <a href="assets/AudioRouter-User-Manual.pdf">Manual</a>
       <a href="https://github.com/alanlu439/audiorouter">GitHub</a>
     </nav>
   </header>
@@ -35,6 +43,7 @@
         <p class="hero-lede">Route apps to speakers, adjust gain, create Group Play setups, and keep device changes understandable from one friendly macOS control center.</p>
         <div class="hero-actions">
           <a class="primary-action" href="https://github.com/alanlu439/audiorouter/releases/latest/download/AudioRouter-macOS.zip">Download AudioRouter</a>
+          <a class="secondary-action" href="assets/AudioRouter-User-Manual.pdf">Read Manual</a>
           <a class="secondary-action" href="https://github.com/alanlu439/audiorouter">View GitHub</a>
         </div>
         <div class="trust-row" aria-label="Product trust points">
@@ -126,6 +135,7 @@
       <div><strong>Core Audio</strong><span>Real devices</span></div>
       <div><strong>Process Taps</strong><span>Live attempts</span></div>
       <div><strong>Group Play</strong><span>Multi-speaker targets</span></div>
+      <div><strong>Windows</strong><span>Compatibility path</span></div>
     </section>
 
     <section id="features" class="section feature-grid" aria-labelledby="features-title">
@@ -183,6 +193,65 @@
           <div class="patch-output add">New Group Play <small>Bundle speakers</small></div>
         </div>
       </div>
+
+      <div class="route-lab" aria-label="Interactive route setup demo">
+        <div class="route-lab-copy">
+          <h3>Try the route flow</h3>
+          <p>Pick a source, choose where it should play, then tune the route gain. The demo mirrors the app's simple source-to-output setup.</p>
+        </div>
+        <div class="route-controls">
+          <label>
+            Source app
+            <select id="route-source-select">
+              <option value="Spotify">Spotify</option>
+              <option value="Apple Music">Apple Music</option>
+              <option value="Chrome">Chrome</option>
+              <option value="Custom App">Custom App</option>
+            </select>
+          </label>
+          <label>
+            Output
+            <select id="route-output-select">
+              <option value="AirPods Pro">AirPods Pro</option>
+              <option value="MacBook Speakers">MacBook Speakers</option>
+              <option value="Group Play 1">Group Play 1</option>
+              <option value="Follow System Output">Follow System Output</option>
+            </select>
+          </label>
+          <label class="gain-control">
+            Gain
+            <input id="route-gain" type="range" min="0" max="120" value="100">
+          </label>
+        </div>
+        <div class="route-result" aria-live="polite">
+          <span>Selected route</span>
+          <strong id="route-result-text">Spotify to AirPods Pro at 100%</strong>
+        </div>
+      </div>
+    </section>
+
+    <section id="windows" class="section windows-section" aria-labelledby="windows-title">
+      <div class="section-heading">
+        <h2 id="windows-title">Windows compatibility is underway.</h2>
+        <p>AudioRouter now has a native Windows 11 path in the repository. The backend is being tested on Windows virtual machines before any public Windows download is published.</p>
+      </div>
+      <div class="windows-grid">
+        <article class="windows-card">
+          <span>01</span>
+          <h3>Windows Core Audio backend</h3>
+          <p>MMDevice endpoint discovery, endpoint volume and mute, session discovery, and per-session volume controls are separated from the macOS app.</p>
+        </article>
+        <article class="windows-card">
+          <span>02</span>
+          <h3>VM smoke testing</h3>
+          <p>A Windows runner compiles and runs a backend smoke test so audio-device code is validated on a real Windows environment.</p>
+        </article>
+        <article class="windows-card muted">
+          <span>03</span>
+          <h3>No Windows download yet</h3>
+          <p>The Windows UI shell is still a scaffold. A Windows ZIP or MSIX will be released only after the VM build and app shell are green.</p>
+        </article>
+      </div>
     </section>
 
     <section id="truth" class="section truth-grid" aria-labelledby="truth-title">
@@ -218,12 +287,13 @@
     <section id="download" class="section download-section" aria-labelledby="download-title">
       <div>
         <h2 id="download-title">Ready to take control of your audio?</h2>
-        <p>Download the latest public ZIP from GitHub Releases. The package includes the app and a simple run manual.</p>
+        <p>Download the latest public ZIP from GitHub Releases. The package includes the app, install notes, driver notes, and a PDF user manual.</p>
       </div>
       <div class="download-card">
         <a class="primary-action wide" href="https://github.com/alanlu439/audiorouter/releases/latest/download/AudioRouter-macOS.zip">Download AudioRouter</a>
+        <a class="manual-link" href="assets/AudioRouter-User-Manual.pdf">Preview the PDF user manual</a>
         <ol>
-          <li>Open the ZIP and read <code>DOWNLOAD_AND_USE.md</code>.</li>
+          <li>Open the ZIP and read <code>AudioRouter-User-Manual.pdf</code>.</li>
           <li>Move <code>AudioRouter.app</code> to Applications.</li>
           <li>Control-click the app and choose Open.</li>
           <li>Approve macOS audio and automation prompts when needed.</li>

@@ -1,6 +1,6 @@
 # AudioRouter Download And Use Guide
 
-This file is included with the AudioRouter download ZIP.
+This file is included with the AudioRouter download ZIP. The ZIP also includes `AudioRouter-User-Manual.pdf` for a more visual, printable guide.
 
 This guide currently applies to the macOS public ZIP. A Windows implementation has been scaffolded in `windows/AudioRouter.Windows`, but there is not a public Windows download yet.
 
@@ -8,11 +8,12 @@ This guide currently applies to the macOS public ZIP. A Windows implementation h
 
 1. Open `AudioRouter-macOS.zip`.
 2. Open the extracted folder.
-3. Move `AudioRouter.app` to `/Applications`.
-4. Control-click or right-click `AudioRouter.app`.
-5. Choose `Open`.
-6. Click `Open` again when macOS asks whether you want to open it.
-7. If macOS asks for System Audio Recording permission, approve AudioRouter.
+3. Open `AudioRouter-User-Manual.pdf` if you want the guided walkthrough.
+4. Move `AudioRouter.app` to `/Applications`.
+5. Control-click or right-click `AudioRouter.app`.
+6. Choose `Open`.
+7. Click `Open` again when macOS asks whether you want to open it.
+8. If macOS asks for System Audio Recording permission, approve AudioRouter.
 
 AudioRouter's current public ZIP is not Apple-notarized yet. That means double-clicking the app the first time can show an Apple verification warning. Use the Control-click/right-click `Open` flow above for the first launch. Do not disable Gatekeeper.
 
