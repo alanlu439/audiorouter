@@ -14,6 +14,7 @@ This scaffold implements the first Windows compatibility layer:
 - Per-session volume and mute via `ISimpleAudioVolume`.
 - Honest capability flags for unsupported routing features.
 - Shared JSON contract documentation for settings, routes, EQ, profiles, and shortcuts.
+- A backend smoke executable in `windows/AudioRouter.Windows.BackendSmoke` that compiles and runs the Windows Core Audio layer on GitHub's Windows VM.
 
 ## What Is Not Claimed Yet
 
@@ -34,6 +35,13 @@ Build:
 
 ```powershell
 msbuild .\AudioRouter.Windows.sln /restore /p:Configuration=Release /p:Platform=x64
+```
+
+Backend smoke test:
+
+```powershell
+msbuild ..\AudioRouter.Windows.BackendSmoke\AudioRouter.Windows.BackendSmoke.vcxproj /p:Configuration=Release /p:Platform=x64
+..\AudioRouter.Windows.BackendSmoke\x64\Release\AudioRouter.Windows.BackendSmoke.exe
 ```
 
 The macOS SwiftPM app remains the production app today. This Windows project is a sibling implementation path and should be built on Windows runners or a Windows development machine.

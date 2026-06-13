@@ -30,13 +30,24 @@ jobs:
         shell: pwsh
         run: msbuild windows\AudioRouter.Windows\AudioRouter.Windows.sln /t:Restore /p:Configuration=Release /p:Platform=x64 /p:TargetFramework=uap10.0 /p:TargetFrameworks=uap10.0
 
-      - name: Build
+      - name: Build backend smoke executable
         shell: pwsh
+        run: msbuild windows\AudioRouter.Windows.BackendSmoke\AudioRouter.Windows.BackendSmoke.vcxproj /m /p:Configuration=Release /p:Platform=x64
+
+      - name: Run backend smoke executable
+        shell: pwsh
+        run: windows\AudioRouter.Windows.BackendSmoke\x64\Release\AudioRouter.Windows.BackendSmoke.exe
+
+      - name: Build WinUI shell scaffold
+        shell: pwsh
+        continue-on-error: true
         run: msbuild windows\AudioRouter.Windows\AudioRouter.Windows.sln /m /p:Configuration=Release /p:Platform=x64 /p:TargetFramework=uap10.0 /p:TargetFrameworks=uap10.0 /p:AppxBundle=Never
 
       - name: Upload Windows build output
         uses: actions/upload-artifact@v4
         with:
           name: AudioRouter-Windows-build
-          path: windows/AudioRouter.Windows/x64/Release/**
+          path: |
+            windows/AudioRouter.Windows.BackendSmoke/x64/Release/**
+            windows/AudioRouter.Windows/x64/Release/**
           if-no-files-found: warn

@@ -1,8 +1,16 @@
 #pragma once
 
+#include <winrt/Microsoft.UI.Xaml.h>
+#include <winrt/Microsoft.UI.Xaml.Controls.h>
+#include <winrt/Microsoft.UI.Xaml.Controls.Primitives.h>
+#include <winrt/Microsoft.UI.Xaml.Input.h>
+
 #include "Audio/WindowsRoutingBackend.h"
 #include "MainWindow.xaml.g.h"
 #include "Shell/TrayIconController.h"
+
+namespace muxcp = winrt::Microsoft::UI::Xaml::Controls::Primitives;
+namespace muxc = winrt::Microsoft::UI::Xaml::Controls;
 
 namespace winrt::AudioRouterWindows::implementation {
 

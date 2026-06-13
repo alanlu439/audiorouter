@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{A8B67267-D0C6-43B6-8B6B-7F59BB43C15D}</ProjectGuid>
+    <ProjectName>AudioRouter.Windows.BackendSmoke</ProjectName>
+    <RootNamespace>AudioRouterWindowsBackendSmoke</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)'=='Debug'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Release'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <AdditionalIncludeDirectories>..\AudioRouter.Windows;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>/permissive- %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <AdditionalDependencies>ole32.lib;shell32.lib;propsys.lib;uuid.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="SmokeMain.cpp" />
+    <ClCompile Include="..\AudioRouter.Windows\Audio\ProcessLoopbackCapture.cpp" />
+    <ClCompile Include="..\AudioRouter.Windows\Audio\WindowsAudioDeviceService.cpp" />
+    <ClCompile Include="..\AudioRouter.Windows\Audio\WindowsAudioSessionService.cpp" />
+    <ClCompile Include="..\AudioRouter.Windows\Audio\WindowsRoutingBackend.cpp" />
+    <ClCompile Include="..\AudioRouter.Windows\Services\SettingsStore.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\AudioRouter.Windows\Audio\ComHelpers.h" />
+    <ClInclude Include="..\AudioRouter.Windows\Audio\ProcessLoopbackCapture.h" />
+    <ClInclude Include="..\AudioRouter.Windows\Audio\WindowsAudioDeviceService.h" />
+    <ClInclude Include="..\AudioRouter.Windows\Audio\WindowsAudioSessionService.h" />
+    <ClInclude Include="..\AudioRouter.Windows\Audio\WindowsRoutingBackend.h" />
+    <ClInclude Include="..\AudioRouter.Windows\Models\AudioContracts.h" />
+    <ClInclude Include="..\AudioRouter.Windows\Services\SettingsStore.h" />
+    <ClInclude Include="..\AudioRouter.Windows\pch.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

@@ -1,5 +1,8 @@
 #pragma once
 
+#include <winrt/Microsoft.UI.Xaml.h>
+#include <winrt/Windows.ApplicationModel.Activation.h>
+
 #include "App.xaml.g.h"
 
 namespace winrt::AudioRouterWindows::implementation {
