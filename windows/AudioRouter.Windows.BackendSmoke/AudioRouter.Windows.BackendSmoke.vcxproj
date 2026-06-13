@@ -49,6 +49,7 @@
     <ClCompile Include="..\AudioRouter.Windows\Audio\ProcessLoopbackCapture.cpp" />
     <ClCompile Include="..\AudioRouter.Windows\Audio\WindowsAudioDeviceService.cpp" />
     <ClCompile Include="..\AudioRouter.Windows\Audio\WindowsAudioSessionService.cpp" />
+    <ClCompile Include="..\AudioRouter.Windows\Audio\WindowsPropertyKeys.cpp" />
     <ClCompile Include="..\AudioRouter.Windows\Audio\WindowsRoutingBackend.cpp" />
     <ClCompile Include="..\AudioRouter.Windows\Services\SettingsStore.cpp" />
   </ItemGroup>

@@ -81,6 +81,7 @@
     <ClCompile Include="MainWindow.xaml.cpp" />
     <ClCompile Include="Audio\WindowsAudioDeviceService.cpp" />
     <ClCompile Include="Audio\WindowsAudioSessionService.cpp" />
+    <ClCompile Include="Audio\WindowsPropertyKeys.cpp" />
     <ClCompile Include="Audio\WindowsRoutingBackend.cpp" />
     <ClCompile Include="Audio\ProcessLoopbackCapture.cpp" />
     <ClCompile Include="Services\SettingsStore.cpp" />
