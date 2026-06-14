@@ -942,6 +942,515 @@ button {
   font-weight: 760;
 }
 
+.mac-page-hero {
+  grid-template-columns: minmax(0, 0.88fr) minmax(440px, 1fr);
+}
+
+.mac-page-hero::before {
+  content: "";
+  position: absolute;
+  right: clamp(20px, 4vw, 60px);
+  bottom: 20px;
+  width: min(44vw, 520px);
+  height: min(44vw, 520px);
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(24, 214, 194, 0.24), transparent 68%);
+  filter: blur(8px);
+  pointer-events: none;
+}
+
+.mac-product-card {
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+  border: 1px solid rgba(24, 214, 194, 0.28);
+  border-radius: 38px;
+  padding: 18px;
+  background:
+    linear-gradient(140deg, rgba(255, 255, 255, 0.92), rgba(232, 255, 251, 0.76)),
+    radial-gradient(circle at 92% 8%, rgba(255, 180, 78, 0.26), transparent 32%);
+  box-shadow: 0 34px 86px rgba(8, 39, 51, 0.16);
+}
+
+.mac-product-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(8, 39, 51, 0.06) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(8, 39, 51, 0.05) 1px, transparent 1px);
+  background-size: 44px 44px;
+  opacity: 0.28;
+  pointer-events: none;
+}
+
+.mac-product-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.mac-window-chrome {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  border-radius: 22px;
+  padding: 0 14px;
+  color: var(--ink-soft);
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(8, 39, 51, 0.10);
+}
+
+.mac-window-chrome div {
+  display: flex;
+  gap: 7px;
+}
+
+.mac-window-chrome span {
+  width: 11px;
+  height: 11px;
+  border-radius: 999px;
+}
+
+.mac-window-chrome span:nth-child(1) {
+  background: #ff6b6b;
+}
+
+.mac-window-chrome span:nth-child(2) {
+  background: #f4b63f;
+}
+
+.mac-window-chrome span:nth-child(3) {
+  background: #40c463;
+}
+
+.mac-window-chrome strong {
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.mac-window-chrome em {
+  margin-left: auto;
+  border-radius: 999px;
+  padding: 5px 9px;
+  color: #06594f;
+  background: rgba(24, 214, 194, 0.16);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.mac-preview-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 20px;
+  border-radius: 28px;
+  padding: 22px;
+  color: var(--navy);
+  background: #ffffff;
+  border: 1px solid rgba(8, 39, 51, 0.10);
+}
+
+.mac-preview-header small,
+.mac-live-card small {
+  color: var(--teal-dark);
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.mac-preview-header h2 {
+  margin: 5px 0 0;
+  font-size: clamp(30px, 4vw, 48px);
+  line-height: 0.95;
+  letter-spacing: -0.045em;
+}
+
+.mac-route-stack {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.mac-route-card {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) minmax(86px, auto) 86px;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  border-radius: 22px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(8, 39, 51, 0.10);
+}
+
+.mac-route-card.live {
+  border-color: rgba(24, 214, 194, 0.40);
+  box-shadow: inset 5px 0 0 var(--teal), 0 18px 36px rgba(24, 214, 194, 0.12);
+}
+
+.mac-route-card.group {
+  background: rgba(8, 52, 71, 0.08);
+}
+
+.mac-route-card strong,
+.mac-route-card small,
+.mac-route-card b {
+  display: block;
+}
+
+.mac-route-card strong {
+  color: var(--ink);
+  line-height: 1.1;
+}
+
+.mac-route-card small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.mac-route-card b {
+  justify-self: end;
+  color: var(--navy);
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.mac-route-card [data-meter] {
+  display: flex;
+  align-items: end;
+  justify-content: end;
+  gap: 5px;
+  height: 30px;
+}
+
+.mac-route-card [data-meter] span {
+  width: 7px;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--teal), var(--signal));
+  transform-origin: bottom;
+}
+
+.mac-shortcut-strip {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 10px;
+  align-items: center;
+  margin-top: 14px;
+  border-radius: 20px;
+  padding: 14px 16px;
+  color: var(--ink-soft);
+  background: #fff8e3;
+  border: 1px solid rgba(255, 180, 78, 0.34);
+  font-weight: 800;
+}
+
+.mac-shortcut-strip strong {
+  border-radius: 10px;
+  padding: 7px 11px;
+  color: var(--navy);
+  background: #ffffff;
+  box-shadow: inset 0 0 0 1px rgba(8, 39, 51, 0.10);
+}
+
+.mac-shortcut-strip small {
+  color: var(--teal-dark);
+  font-weight: 950;
+}
+
+.mac-feature-deck {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.72fr);
+  gap: 18px;
+}
+
+.mac-feature-deck .section-heading {
+  grid-column: 1 / -1;
+}
+
+.mac-feature-list {
+  display: grid;
+  gap: 12px;
+}
+
+.mac-feature-row {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  padding: 20px;
+  background: #ffffff;
+  box-shadow: 0 12px 30px rgba(8, 39, 51, 0.06);
+}
+
+.mac-feature-row span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 50px;
+  height: 50px;
+  border-radius: 16px;
+  color: #ffffff;
+  background: var(--navy);
+  font-weight: 950;
+}
+
+.mac-feature-row h3,
+.mac-live-card h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: clamp(22px, 2.4vw, 30px);
+  line-height: 1.05;
+  letter-spacing: -0.035em;
+}
+
+.mac-feature-row p,
+.mac-live-card p {
+  margin: 9px 0 0;
+  color: var(--muted);
+  line-height: 1.55;
+  font-weight: 650;
+}
+
+.mac-live-card {
+  align-self: stretch;
+  border: 1px solid rgba(24, 214, 194, 0.32);
+  border-radius: 30px;
+  padding: clamp(24px, 4vw, 34px);
+  background:
+    radial-gradient(circle at 88% 6%, rgba(24, 214, 194, 0.28), transparent 34%),
+    linear-gradient(145deg, #ffffff, #e9fffb);
+  box-shadow: var(--shadow);
+}
+
+.mac-live-card h3 {
+  margin-top: 18px;
+  font-size: clamp(30px, 4vw, 48px);
+}
+
+.mac-live-card .platform-action {
+  margin-top: 22px;
+}
+
+.windows-page {
+  color: #f6fbff;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(24, 214, 194, 0.14), transparent 30%),
+    radial-gradient(circle at 92% 8%, rgba(70, 140, 255, 0.22), transparent 34%),
+    linear-gradient(180deg, #07111f 0, #0f1b30 44%, #08111d 100%);
+}
+
+.windows-page .page-hero h1,
+.windows-page .page-hero p,
+.windows-page .section-heading h2,
+.windows-page .section-heading p {
+  color: #f6fbff;
+}
+
+.windows-page .secondary-action {
+  color: #f6fbff;
+  background: transparent;
+  border-color: rgba(246, 251, 255, 0.66);
+}
+
+.windows-page .secondary-action:hover {
+  color: #07111f;
+  background: #f6fbff;
+}
+
+.windows-page-hero {
+  grid-template-columns: minmax(0, 0.94fr) minmax(420px, 0.96fr);
+}
+
+.windows-blueprint-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(132, 216, 255, 0.24);
+  border-radius: 38px;
+  padding: clamp(22px, 4vw, 34px);
+  color: #f6fbff;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.07) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+    radial-gradient(circle at 88% 8%, rgba(132, 216, 255, 0.24), transparent 34%),
+    rgba(255, 255, 255, 0.07);
+  background-size: 34px 34px, 34px 34px, auto, auto;
+  box-shadow: 0 28px 74px rgba(0, 0, 0, 0.26);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.blueprint-top {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.blueprint-top small {
+  color: #84d8ff;
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.blueprint-top h2 {
+  margin: 5px 0 0;
+  color: #f6fbff;
+  font-size: clamp(28px, 3.8vw, 44px);
+  line-height: 0.98;
+  letter-spacing: -0.04em;
+}
+
+.blueprint-flow {
+  display: grid;
+  grid-template-columns: auto 1fr auto 1fr auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  margin-top: 30px;
+}
+
+.blueprint-flow span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  border-radius: 14px;
+  padding: 0 13px;
+  color: #dff7ff;
+  background: rgba(132, 216, 255, 0.11);
+  border: 1px solid rgba(132, 216, 255, 0.22);
+  font-size: 12px;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.blueprint-flow i {
+  display: block;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #84d8ff, var(--teal));
+}
+
+.blueprint-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.blueprint-grid span {
+  min-height: 68px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  padding: 16px;
+  color: rgba(246, 251, 255, 0.82);
+  background: rgba(255, 255, 255, 0.07);
+  font-weight: 850;
+}
+
+.windows-blueprint-card p {
+  margin: 22px 0 0;
+  color: rgba(246, 251, 255, 0.72);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.windows-lab-section {
+  max-width: 1240px;
+  padding-top: clamp(36px, 6vw, 78px);
+}
+
+.windows-lab-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 24px;
+  align-items: end;
+  margin-bottom: 18px;
+}
+
+.windows-lab-header h2 {
+  max-width: 860px;
+  margin: 0;
+  color: #f6fbff;
+  font-size: clamp(34px, 5vw, 66px);
+  line-height: 0.96;
+  letter-spacing: -0.045em;
+}
+
+.windows-lab-header p {
+  max-width: 720px;
+  color: rgba(246, 251, 255, 0.68);
+  font-size: 18px;
+  line-height: 1.5;
+  font-weight: 680;
+}
+
+.windows-lab-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.windows-lab-grid article {
+  min-height: 280px;
+  border: 1px solid rgba(132, 216, 255, 0.18);
+  border-radius: 30px;
+  padding: 26px;
+  color: #f6fbff;
+  background:
+    radial-gradient(circle at 92% 8%, rgba(132, 216, 255, 0.16), transparent 36%),
+    rgba(255, 255, 255, 0.07);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.20);
+}
+
+.windows-lab-grid span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  border-radius: 999px;
+  padding: 0 11px;
+  color: #84d8ff;
+  background: rgba(132, 216, 255, 0.11);
+  border: 1px solid rgba(132, 216, 255, 0.22);
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.windows-lab-grid h3 {
+  margin: 24px 0 0;
+  color: #f6fbff;
+  font-size: clamp(24px, 2.7vw, 34px);
+  line-height: 1.02;
+  letter-spacing: -0.04em;
+}
+
+.windows-lab-grid p {
+  color: rgba(246, 251, 255, 0.72);
+  line-height: 1.5;
+  font-weight: 680;
+}
+
+.windows-page + .site-footer {
+  color: rgba(246, 251, 255, 0.64);
+  background: #07111f;
+  border-top: 1px solid rgba(255, 255, 255, 0.10);
+}
+
+.windows-page + .site-footer strong {
+  color: #f6fbff;
+}
+
 .platform-section {
   max-width: 1240px;
   padding-top: clamp(72px, 9vw, 112px);
@@ -1906,7 +2415,10 @@ button {
   }
 
   .page-hero,
-  .page-split {
+  .page-split,
+  .mac-page-hero,
+  .windows-page-hero,
+  .mac-feature-deck {
     grid-template-columns: 1fr;
   }
 
@@ -1920,6 +2432,12 @@ button {
 
   .platform-card {
     min-height: 430px;
+  }
+
+  .mac-product-card,
+  .windows-blueprint-card,
+  .mac-live-card {
+    max-width: 760px;
   }
 
   .signal-strip {
@@ -2024,6 +2542,19 @@ button {
 
   .page-hero-panel {
     border-radius: 28px;
+  }
+
+  .windows-lab-header {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .windows-lab-header .platform-action {
+    justify-self: start;
+  }
+
+  .windows-lab-grid {
+    grid-template-columns: 1fr;
   }
 
   .platform-card {
@@ -2228,6 +2759,54 @@ button {
 
   .page-hero p {
     font-size: 17px;
+  }
+
+  .mac-product-card,
+  .windows-blueprint-card,
+  .mac-live-card {
+    border-radius: 24px;
+    padding: 14px;
+  }
+
+  .mac-preview-header {
+    border-radius: 18px;
+    padding: 14px;
+  }
+
+  .mac-preview-header .platform-mark {
+    min-width: 48px;
+    height: 48px;
+    border-radius: 16px;
+  }
+
+  .mac-route-card {
+    grid-template-columns: 34px minmax(0, 1fr);
+    border-radius: 18px;
+  }
+
+  .mac-route-card b,
+  .mac-route-card [data-meter] {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .mac-shortcut-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .mac-feature-row {
+    grid-template-columns: 1fr;
+  }
+
+  .blueprint-flow,
+  .blueprint-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .blueprint-flow i {
+    width: 3px;
+    height: 22px;
+    justify-self: center;
   }
 
   .patch-source,

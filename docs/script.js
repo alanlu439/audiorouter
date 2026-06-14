@@ -28,7 +28,7 @@ function wireMobileNavigation() {
 function updateMeters() {
   if (reduceMotion) return;
 
-  document.querySelectorAll("[data-meter] i").forEach((bar, index) => {
+  document.querySelectorAll("[data-meter] span").forEach((bar, index) => {
     const base = 0.34 + index * 0.065;
     const movement = Math.sin(performance.now() / 260 + index * 0.82) * 0.28;
     const pulse = Math.sin(performance.now() / 720) * 0.08;

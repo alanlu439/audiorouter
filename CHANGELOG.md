@@ -11,6 +11,7 @@
 - Removed the extra interactive route-flow demo card from the website Routing section.
 - Expanded the website's Windows area into a detailed roadmap with implementation phases, experimental driver path notes, and pre-release gates.
 - Converted the GitHub Pages site into a multi-page product site with separate Home, Mac, Windows roadmap, Compatibility, and Download/Manual pages.
+- Redesigned the Mac and Windows website pages so Mac feels like a polished available-now app page while Windows feels like a darker engineering roadmap.
 
 ### Windows Compatibility
 

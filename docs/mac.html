@@ -47,38 +47,101 @@
           <a class="secondary-action" href="assets/AudioRouter-User-Manual.pdf">Read Manual</a>
         </div>
       </div>
-      <div class="page-hero-panel" aria-label="Mac app summary">
-        <span class="platform-mark">AU</span>
-        <h2>Current public build</h2>
-        <p>The macOS app is the production focus today. It uses public Core Audio APIs first, then labels experimental process-tap routing honestly when a deeper backend is required.</p>
+      <div class="mac-product-card" aria-label="AudioRouter Mac app preview">
+        <div class="mac-window-chrome">
+          <div aria-hidden="true">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          <strong>AudioRouter</strong>
+          <em>Live</em>
+        </div>
+        <div class="mac-preview-header">
+          <span class="platform-mark">AU</span>
+          <div>
+            <small>Menu bar router</small>
+            <h2>Fast source control</h2>
+          </div>
+        </div>
+        <div class="mac-route-stack">
+          <div class="mac-route-card live">
+            <span class="app-dot spotify" aria-hidden="true"><span></span><span></span><span></span></span>
+            <div>
+              <strong>Spotify</strong>
+              <small>44.1k source</small>
+            </div>
+            <b>AirPods Pro</b>
+            <i data-meter><span></span><span></span><span></span><span></span><span></span></i>
+          </div>
+          <div class="mac-route-card">
+            <span class="app-dot music" aria-hidden="true">♪</span>
+            <div>
+              <strong>Music</strong>
+              <small>48k source</small>
+            </div>
+            <b>MacBook</b>
+            <i data-meter><span></span><span></span><span></span><span></span><span></span></i>
+          </div>
+          <div class="mac-route-card group">
+            <span class="speaker-icon group">GP</span>
+            <div>
+              <strong>Group Play 1</strong>
+              <small>2 speakers ready</small>
+            </div>
+            <b>Saved</b>
+            <i data-meter><span></span><span></span><span></span><span></span><span></span></i>
+          </div>
+        </div>
+        <div class="mac-shortcut-strip">
+          <span>Click a route</span>
+          <strong>Cmd-=</strong>
+          <small>+1% gain</small>
+        </div>
       </div>
     </section>
 
-    <section class="section page-card-grid" aria-labelledby="mac-works-title">
+    <section class="section mac-feature-deck" aria-labelledby="mac-works-title">
       <div class="section-heading">
         <h2 id="mac-works-title">What works today on macOS.</h2>
         <p>These are the features AudioRouter can provide with public macOS APIs and the current experimental route engine.</p>
       </div>
-      <article class="page-card">
-        <span>Devices</span>
-        <h3>Real input and output discovery</h3>
-        <p>List connected Bluetooth, built-in, USB, HDMI, AirPlay, aggregate, and virtual devices with sample rate and support flags.</p>
-      </article>
-      <article class="page-card">
-        <span>Controls</span>
-        <h3>System output and input control</h3>
-        <p>Switch default devices and adjust volume, mute, and balance when the selected hardware exposes those controls.</p>
-      </article>
-      <article class="page-card">
-        <span>Routes</span>
-        <h3>Source-to-output workflow</h3>
-        <p>Choose Spotify, Music, Chrome, or user-added apps, then assign outputs, route gain, setup profiles, and retry behavior visually.</p>
-      </article>
-      <article class="page-card">
-        <span>Studio</span>
-        <h3>Group Play and EQ surfaces</h3>
-        <p>Create speaker groups, tune per-route gain, save EQ presets, and see when a route is live, saved only, or backend-required.</p>
-      </article>
+      <div class="mac-feature-list">
+        <article class="mac-feature-row">
+          <span>01</span>
+          <div>
+            <h3>Real input and output discovery</h3>
+            <p>List connected Bluetooth, built-in, USB, HDMI, AirPlay, aggregate, and virtual devices with sample rate and support flags.</p>
+          </div>
+        </article>
+        <article class="mac-feature-row">
+          <span>02</span>
+          <div>
+            <h3>System output and input control</h3>
+            <p>Switch default devices and adjust volume, mute, and balance when the selected hardware exposes those controls.</p>
+          </div>
+        </article>
+        <article class="mac-feature-row">
+          <span>03</span>
+          <div>
+            <h3>Source-to-output workflow</h3>
+            <p>Choose Spotify, Music, Chrome, or user-added apps, then assign outputs, route gain, setup profiles, and retry behavior visually.</p>
+          </div>
+        </article>
+        <article class="mac-feature-row">
+          <span>04</span>
+          <div>
+            <h3>Group Play and EQ surfaces</h3>
+            <p>Create speaker groups, tune per-route gain, save EQ presets, and see when a route is live, saved only, or backend-required.</p>
+          </div>
+        </article>
+      </div>
+      <aside class="mac-live-card">
+        <small>Current track</small>
+        <h3>Available now, with honest route states.</h3>
+        <p>The Mac app is the production focus. It uses public Core Audio APIs first, then labels experimental process-tap routing clearly when a deeper backend is required.</p>
+        <a class="platform-action" href="download.html">Get the Mac build</a>
+      </aside>
     </section>
 
     <section class="section page-split" aria-labelledby="mac-flow-title">

@@ -47,10 +47,57 @@
           <a class="secondary-action" href="compatibility.html">Compare limits</a>
         </div>
       </div>
-      <div class="page-hero-panel dark-panel">
-        <span class="platform-mark">Win</span>
-        <h2>No public Windows ZIP yet</h2>
-        <p>The first Windows release must pass VM and hardware checks before it appears on the Download page.</p>
+      <div class="windows-blueprint-card" aria-label="Windows architecture preview">
+        <div class="blueprint-top">
+          <span class="platform-mark">Win</span>
+          <div>
+            <small>Native build track</small>
+            <h2>WinUI shell + C++ audio core</h2>
+          </div>
+        </div>
+        <div class="blueprint-flow">
+          <span>Tray</span>
+          <i></i>
+          <span>Sessions</span>
+          <i></i>
+          <span>Endpoints</span>
+          <i></i>
+          <span>Routing</span>
+        </div>
+        <div class="blueprint-grid">
+          <span>MMDevice</span>
+          <span>WASAPI</span>
+          <span>Process loopback</span>
+          <span>Future driver</span>
+        </div>
+        <p>The first public Windows package appears only after real devices, sessions, volume controls, and unsupported states pass release gates.</p>
+      </div>
+    </section>
+
+    <section class="section windows-lab-section" aria-labelledby="windows-lab-title">
+      <div class="windows-lab-header">
+        <div>
+          <h2 id="windows-lab-title">Windows work is tracked like an engineering lab.</h2>
+          <p>Each layer has a public-API MVP, an experimental routing path, and a driver-backed production path.</p>
+        </div>
+        <a class="platform-action ghost" href="compatibility.html">Compatibility notes</a>
+      </div>
+      <div class="windows-lab-grid">
+        <article>
+          <span>Layer 1</span>
+          <h3>Public Windows controls</h3>
+          <p>Real endpoint list, endpoint volume and mute, audio sessions, per-session gain, and selected-source shortcuts.</p>
+        </article>
+        <article>
+          <span>Layer 2</span>
+          <h3>Experimental app routing</h3>
+          <p>Process-loopback capture, render-to-endpoint experiments, source sample-rate display, and duplicate-playback control.</p>
+        </article>
+        <article>
+          <span>Layer 3</span>
+          <h3>Production backend</h3>
+          <p>Signed virtual endpoint driver or service for reliable app-as-input devices, group sync, and lower-latency fan-out.</p>
+        </article>
       </div>
     </section>
 
