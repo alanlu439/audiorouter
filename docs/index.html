@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>AudioRouter | Visual audio routing for macOS</title>
-  <meta name="description" content="AudioRouter is a native macOS menu bar utility for visual audio routing, device control, per-route gain, EQ, Group Play, and reliability diagnostics.">
+  <title>AudioRouter | Visual audio routing for Mac and Windows</title>
+  <meta name="description" content="AudioRouter is a visual audio routing product site with Mac downloads, Windows roadmap, compatibility notes, and a complete user manual.">
   <meta property="og:title" content="AudioRouter">
-  <meta property="og:description" content="A friendly visual macOS audio control center for route apps, speakers, gain, EQ, and reliability diagnostics.">
+  <meta property="og:description" content="A friendly visual audio routing product site for Mac downloads, Windows roadmap, compatibility notes, and user guides.">
   <meta property="og:image" content="assets/audiorouter-icon.png">
   <meta name="theme-color" content="#e8fffb">
   <link rel="icon" href="assets/audiorouter-icon.png">
@@ -15,7 +15,7 @@
 </head>
 <body>
   <header class="site-header">
-    <a class="brand" href="#top" aria-label="AudioRouter home">
+    <a class="brand" href="index.html" aria-label="AudioRouter home">
       <img src="assets/audiorouter-icon.png" alt="" width="36" height="36">
       <span>AudioRouter</span>
     </a>
@@ -26,12 +26,11 @@
       <strong>Menu</strong>
     </button>
     <nav id="primary-nav" class="nav-links" aria-label="Primary navigation">
-      <a href="#platforms">Platforms</a>
-      <a href="#windows">Windows</a>
-      <a href="#features">Features</a>
-      <a href="#routing">Routing</a>
-      <a href="#truth">Compatibility</a>
-      <a href="#download">Download</a>
+      <a href="index.html" aria-current="page">Home</a>
+      <a href="mac.html">Mac</a>
+      <a href="windows.html">Windows</a>
+      <a href="compatibility.html">Compatibility</a>
+      <a href="download.html">Download</a>
       <a href="assets/AudioRouter-User-Manual.pdf">Manual</a>
       <a href="https://github.com/alanlu439/audiorouter">GitHub</a>
     </nav>
@@ -43,7 +42,7 @@
         <h1 id="hero-title">Audio routing that feels <span>effortless</span></h1>
         <p class="hero-lede">Route apps to speakers, adjust gain, create Group Play setups, and keep device changes understandable from one friendly macOS control center.</p>
         <div class="hero-actions">
-          <a class="primary-action" href="https://github.com/alanlu439/audiorouter/releases/latest/download/AudioRouter-macOS.zip">Download AudioRouter</a>
+          <a class="primary-action" href="download.html">Download AudioRouter</a>
           <a class="secondary-action" href="assets/AudioRouter-User-Manual.pdf">Read Manual</a>
           <a class="secondary-action" href="https://github.com/alanlu439/audiorouter">View GitHub</a>
         </div>
@@ -161,7 +160,7 @@
             <li>Uses public Core Audio APIs</li>
             <li>Experimental process-tap routing</li>
           </ul>
-          <a class="platform-action" href="https://github.com/alanlu439/audiorouter/releases/latest/download/AudioRouter-macOS.zip">Download Mac ZIP</a>
+          <a class="platform-action" href="mac.html">Explore Mac app</a>
         </article>
 
         <article class="platform-card platform-card-win">
@@ -179,7 +178,7 @@
             <li>MMDevice and audio sessions scaffolded</li>
             <li>VM build checks before release</li>
           </ul>
-          <a class="platform-action ghost" href="#windows">See Windows roadmap</a>
+          <a class="platform-action ghost" href="windows.html">See Windows roadmap</a>
         </article>
       </div>
     </section>
@@ -241,160 +240,31 @@
       </div>
     </section>
 
-    <section id="windows" class="section windows-section" aria-labelledby="windows-title">
+    <section class="section page-card-grid next-pages" aria-labelledby="next-pages-title">
       <div class="section-heading">
-        <h2 id="windows-title">Windows is a separate build track.</h2>
-        <p>The Windows version is not a SwiftUI port. It has its own WinUI 3 shell, C++/WinRT backend, and release gates before a Windows ZIP or MSIX appears here.</p>
+        <h2 id="next-pages-title">Go deeper by platform or task.</h2>
+        <p>The site is now split into focused pages so users can find the app, roadmap, limits, and manual without scrolling through everything at once.</p>
       </div>
-
-      <div class="windows-roadmap-summary">
-        <div>
-          <span class="windows-eyebrow">Roadmap status</span>
-          <h3>Build the public controls first, then graduate routing into a real Windows audio backend.</h3>
-        </div>
-        <p>The first Windows release should be useful even before driver-level routing exists: list devices, control endpoint volume, show audio sessions, and make unsupported routing states honest.</p>
-      </div>
-
-      <div class="windows-roadmap">
-        <article class="windows-card complete">
-          <div class="windows-card-top">
-            <span>01</span>
-            <strong>Scaffolded</strong>
-          </div>
-          <h3>Native Windows foundation</h3>
-          <p>Create a sibling Windows app instead of trying to port SwiftUI and Core Audio directly.</p>
-          <ul>
-            <li>WinUI 3 dashboard shell</li>
-            <li>C++/WinRT audio backend boundary</li>
-            <li>Shared route/setup JSON contracts</li>
-          </ul>
-        </article>
-        <article class="windows-card complete">
-          <div class="windows-card-top">
-            <span>02</span>
-            <strong>Scaffolded</strong>
-          </div>
-          <h3>Public audio controls</h3>
-          <p>Use supported Windows Core Audio APIs for the controls that can work reliably right away.</p>
-          <ul>
-            <li>MMDevice endpoint discovery</li>
-            <li>Endpoint volume and mute</li>
-            <li>Audio session list and per-session gain</li>
-          </ul>
-        </article>
-        <article class="windows-card active">
-          <div class="windows-card-top">
-            <span>03</span>
-            <strong>Next</strong>
-          </div>
-          <h3>Tray app and quick router</h3>
-          <p>Match the Mac menu-bar workflow with a Windows tray flyout and a full dashboard window.</p>
-          <ul>
-            <li>Tray quick routes</li>
-            <li>Real process icons</li>
-            <li>Selected-source volume shortcuts</li>
-          </ul>
-        </article>
-        <article class="windows-card active">
-          <div class="windows-card-top">
-            <span>04</span>
-            <strong>Next</strong>
-          </div>
-          <h3>VM and hardware QA</h3>
-          <p>Prove the app on Windows 11 before a public package is linked from the website.</p>
-          <ul>
-            <li>Windows 11 VM smoke tests</li>
-            <li>Bluetooth, USB, HDMI, virtual outputs</li>
-            <li>Spotify, Chrome, Zoom, and system sessions</li>
-          </ul>
-        </article>
-        <article class="windows-card future">
-          <div class="windows-card-top">
-            <span>05</span>
-            <strong>Experimental</strong>
-          </div>
-          <h3>Process-loopback routing</h3>
-          <p>Investigate app capture and render-to-device routing with Windows process loopback where supported.</p>
-          <ul>
-            <li>Capture selected process audio</li>
-            <li>Render to a chosen endpoint</li>
-            <li>Show Live, Saved, or Requires Driver honestly</li>
-          </ul>
-        </article>
-        <article class="windows-card future">
-          <div class="windows-card-top">
-            <span>06</span>
-            <strong>Driver path</strong>
-          </div>
-          <h3>Production routing backend</h3>
-          <p>Reliable SoundSource-style routing on Windows may need a service or signed virtual audio endpoint driver.</p>
-          <ul>
-            <li>Signed driver or service installer</li>
-            <li>App-as-input devices for mixers</li>
-            <li>Group Play sync and latency controls</li>
-          </ul>
-        </article>
-      </div>
-
-      <div class="windows-release-gates" aria-label="Windows release gates">
-        <h3>Before the first Windows download</h3>
-        <div>
-          <span>Build passes on Windows runner</span>
-          <span>Tray and dashboard open cleanly</span>
-          <span>Real devices and sessions appear</span>
-          <span>Volume and mute work where supported</span>
-          <span>Unsupported routing is labeled clearly</span>
-          <span>ZIP or MSIX install path is documented</span>
-        </div>
-      </div>
-    </section>
-
-    <section id="truth" class="section truth-grid" aria-labelledby="truth-title">
-      <div class="section-heading">
-        <h2 id="truth-title">Built for what macOS allows.</h2>
-        <p>AudioRouter is clear about what is live today, what is experimental, and what requires a deeper audio backend.</p>
-      </div>
-      <div class="truth-card live">
-        <h3>Works now</h3>
-        <ul>
-          <li>Real Core Audio device discovery</li>
-          <li>Default input and output switching</li>
-          <li>System volume, mute, and balance where supported</li>
-          <li>Saved route preferences and setup profiles</li>
-        </ul>
-      </div>
-      <div class="truth-card experimental">
-        <h3>Experimental</h3>
-        <ul>
-          <li>Per-app process-tap routing on macOS 14.2+</li>
-          <li>Group Play fan-out through multiple output renderers</li>
-          <li>Live per-route meters and 10-band EQ</li>
-          <li>HAL virtual input driver for mixer software</li>
-        </ul>
-      </div>
-      <div class="truth-card roadmap">
-        <h3>Always improving</h3>
-        <p>The app keeps unsupported states visible instead of pretending everything is active. Each release tightens routing reliability and setup flow.</p>
-        <a href="https://github.com/alanlu439/audiorouter/releases">View releases</a>
-      </div>
-    </section>
-
-    <section id="download" class="section download-section" aria-labelledby="download-title">
-      <div>
-        <h2 id="download-title">Ready to take control of your audio?</h2>
-        <p>Download the latest public ZIP from GitHub Releases. The package includes the app, install notes, driver notes, and a PDF user manual.</p>
-      </div>
-      <div class="download-card">
-        <a class="primary-action wide" href="https://github.com/alanlu439/audiorouter/releases/latest/download/AudioRouter-macOS.zip">Download AudioRouter</a>
-        <a class="manual-link" href="assets/AudioRouter-User-Manual.pdf">Preview the PDF user manual</a>
-        <ol>
-          <li>Open the ZIP and read <code>AudioRouter-User-Manual.pdf</code>.</li>
-          <li>Move <code>AudioRouter.app</code> to Applications.</li>
-          <li>Control-click the app and choose Open.</li>
-          <li>Approve macOS audio and automation prompts when needed.</li>
-        </ol>
-        <p class="safety-note">The current public ZIP may be unnotarized. Keep Gatekeeper enabled and use the documented Control-click Open flow.</p>
-      </div>
+      <a class="page-card" href="mac.html">
+        <span>Mac</span>
+        <h3>Download and use the current app</h3>
+        <p>See the menu-bar workflow, live Core Audio controls, experimental routes, and install path.</p>
+      </a>
+      <a class="page-card" href="windows.html">
+        <span>Windows</span>
+        <h3>Read the native Windows roadmap</h3>
+        <p>Track WinUI 3, MMDevice, audio sessions, process-loopback routing, and driver gates.</p>
+      </a>
+      <a class="page-card" href="compatibility.html">
+        <span>Truth</span>
+        <h3>Know what works and what needs a backend</h3>
+        <p>Compare live public-API controls against experimental and driver-required routing features.</p>
+      </a>
+      <a class="page-card" href="download.html">
+        <span>Manual</span>
+        <h3>Download the ZIP and PDF guide</h3>
+        <p>Get the current macOS package, first-run instructions, Gatekeeper notes, and user manual.</p>
+      </a>
     </section>
   </main>
 

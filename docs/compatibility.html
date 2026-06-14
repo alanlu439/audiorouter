@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AudioRouter Compatibility | What works and what requires a backend</title>
+  <meta name="description" content="AudioRouter compatibility notes for macOS and Windows, including live public-API controls, experimental routes, and features requiring a dedicated audio backend.">
+  <meta property="og:title" content="AudioRouter compatibility">
+  <meta property="og:description" content="A clear guide to what AudioRouter can do now and what requires a future audio backend.">
+  <meta property="og:image" content="assets/audiorouter-icon.png">
+  <meta name="theme-color" content="#e8fffb">
+  <link rel="icon" href="assets/audiorouter-icon.png">
+  <link rel="apple-touch-icon" href="assets/audiorouter-icon.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="index.html" aria-label="AudioRouter home">
+      <img src="assets/audiorouter-icon.png" alt="" width="36" height="36">
+      <span>AudioRouter</span>
+    </a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-nav">
+      <span></span>
+      <span></span>
+      <span></span>
+      <strong>Menu</strong>
+    </button>
+    <nav id="primary-nav" class="nav-links" aria-label="Primary navigation">
+      <a href="index.html">Home</a>
+      <a href="mac.html">Mac</a>
+      <a href="windows.html">Windows</a>
+      <a href="compatibility.html" aria-current="page">Compatibility</a>
+      <a href="download.html">Download</a>
+      <a href="assets/AudioRouter-User-Manual.pdf">Manual</a>
+      <a href="https://github.com/alanlu439/audiorouter">GitHub</a>
+    </nav>
+  </header>
+
+  <main id="top" class="page-main">
+    <section class="page-hero" aria-labelledby="compat-title">
+      <div>
+        <p class="page-kicker">Compatibility</p>
+        <h1 id="compat-title">Clear labels for real audio limits.</h1>
+        <p>AudioRouter separates working public-API controls from experimental routing and driver-required features so users can trust what the app is telling them.</p>
+        <div class="hero-actions">
+          <a class="primary-action" href="mac.html">Mac features</a>
+          <a class="secondary-action" href="windows.html">Windows roadmap</a>
+        </div>
+      </div>
+      <div class="page-hero-panel">
+        <h2>Truthful route states</h2>
+        <p>Working, Live, Saved Only, Experimental, Requires Backend, Unsupported, and Device Missing are treated as product states, not hidden errors.</p>
+      </div>
+    </section>
+
+    <section class="section truth-grid" aria-labelledby="truth-title">
+      <div class="section-heading">
+        <h2 id="truth-title">Built for what public APIs allow.</h2>
+        <p>The current Mac app is useful now, but true app-to-any-output routing across all sources is a deeper audio-backend problem.</p>
+      </div>
+      <div class="truth-card live">
+        <h3>Works now</h3>
+        <ul>
+          <li>Real Core Audio device discovery</li>
+          <li>Default input and output switching</li>
+          <li>System volume, mute, and balance where supported</li>
+          <li>Saved route preferences, setups, profiles, and user-added apps</li>
+        </ul>
+      </div>
+      <div class="truth-card experimental">
+        <h3>Experimental</h3>
+        <ul>
+          <li>Per-app process-tap routing on macOS 14.2+</li>
+          <li>Group Play fan-out through multiple output renderers</li>
+          <li>Live per-route meters and 10-band EQ on routed audio</li>
+          <li>HAL virtual input bridge for mixer software</li>
+        </ul>
+      </div>
+      <div class="truth-card roadmap">
+        <h3>Requires backend</h3>
+        <p>Reliable SoundSource-style routing for every app, app-as-input devices, and tightly synced multi-speaker playback may require a signed driver, virtual audio device, or service.</p>
+        <a href="windows.html">Read the backend roadmap</a>
+      </div>
+    </section>
+
+    <section class="section page-card-grid" aria-labelledby="status-title">
+      <div class="section-heading">
+        <h2 id="status-title">What each status means.</h2>
+        <p>AudioRouter is designed to keep limited features visible without making the app feel broken.</p>
+      </div>
+      <article class="page-card">
+        <span>Working</span>
+        <h3>The backend confirms it can act</h3>
+        <p>Examples include supported system volume, default device changes, saved setups, and source gain state.</p>
+      </article>
+      <article class="page-card">
+        <span>Saved Only</span>
+        <h3>The route is stored for retry</h3>
+        <p>The selected source or output is not currently routeable, so AudioRouter preserves the preference and retries later.</p>
+      </article>
+      <article class="page-card">
+        <span>Experimental</span>
+        <h3>The route is attempted live</h3>
+        <p>Process taps and fan-out routes may work for some apps and device formats, then fall back cleanly when macOS blocks them.</p>
+      </article>
+      <article class="page-card">
+        <span>Requires Backend</span>
+        <h3>A future driver or service is needed</h3>
+        <p>AudioRouter can show and save the workflow today, but cannot promise complete routing until the backend exists.</p>
+      </article>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div>
+      <strong>AUDIOROUTER</strong>
+      <span>Compatibility and limits</span>
+    </div>
+    <p>Source-available for noncommercial use with attribution. Commercial use requires written permission.</p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>

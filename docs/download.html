@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Download AudioRouter | App, manual, and install guide</title>
+  <meta name="description" content="Download the latest AudioRouter macOS ZIP, open the PDF user manual, and follow first-run instructions for unnotarized builds.">
+  <meta property="og:title" content="Download AudioRouter">
+  <meta property="og:description" content="Get the current macOS ZIP package and PDF user manual for AudioRouter.">
+  <meta property="og:image" content="assets/audiorouter-icon.png">
+  <meta name="theme-color" content="#e8fffb">
+  <link rel="icon" href="assets/audiorouter-icon.png">
+  <link rel="apple-touch-icon" href="assets/audiorouter-icon.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="index.html" aria-label="AudioRouter home">
+      <img src="assets/audiorouter-icon.png" alt="" width="36" height="36">
+      <span>AudioRouter</span>
+    </a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-nav">
+      <span></span>
+      <span></span>
+      <span></span>
+      <strong>Menu</strong>
+    </button>
+    <nav id="primary-nav" class="nav-links" aria-label="Primary navigation">
+      <a href="index.html">Home</a>
+      <a href="mac.html">Mac</a>
+      <a href="windows.html">Windows</a>
+      <a href="compatibility.html">Compatibility</a>
+      <a href="download.html" aria-current="page">Download</a>
+      <a href="assets/AudioRouter-User-Manual.pdf">Manual</a>
+      <a href="https://github.com/alanlu439/audiorouter">GitHub</a>
+    </nav>
+  </header>
+
+  <main id="top" class="page-main">
+    <section class="page-hero download-page-hero" aria-labelledby="download-title">
+      <div>
+        <p class="page-kicker">Download</p>
+        <h1 id="download-title">Get AudioRouter and the manual.</h1>
+        <p>The public Mac build ships as a ZIP. The same package includes the app, install notes, driver notes, and a PDF user manual.</p>
+        <div class="hero-actions">
+          <a class="primary-action" href="https://github.com/alanlu439/audiorouter/releases/latest/download/AudioRouter-macOS.zip">Download Mac ZIP</a>
+          <a class="secondary-action" href="assets/AudioRouter-User-Manual.pdf">Open PDF Manual</a>
+        </div>
+      </div>
+      <div class="page-hero-panel">
+        <h2>Latest public package</h2>
+        <p><code>AudioRouter-macOS.zip</code> is the current downloadable package. Windows downloads will appear here after the native Windows build is release-ready.</p>
+      </div>
+    </section>
+
+    <section class="section download-section" aria-labelledby="install-title">
+      <div>
+        <h2 id="install-title">Run the app safely.</h2>
+        <p>The current package may be unnotarized, so macOS can show a verification warning. Use the manual flow below and keep Gatekeeper enabled.</p>
+      </div>
+      <div class="download-card">
+        <a class="primary-action wide" href="https://github.com/alanlu439/audiorouter/releases/latest/download/AudioRouter-macOS.zip">Download AudioRouter-macOS.zip</a>
+        <a class="manual-link" href="assets/AudioRouter-User-Manual.pdf">Preview the PDF user manual</a>
+        <ol>
+          <li>Open the ZIP and read <code>AudioRouter-User-Manual.pdf</code>.</li>
+          <li>Move <code>AudioRouter.app</code> to Applications.</li>
+          <li>Control-click <code>AudioRouter.app</code> and choose Open.</li>
+          <li>Approve macOS audio capture and automation prompts when needed.</li>
+        </ol>
+        <p class="safety-note">If you need a fully notarized installer, wait for a future Developer ID release. Do not disable SIP or Gatekeeper.</p>
+      </div>
+    </section>
+
+    <section class="section page-card-grid" aria-labelledby="download-pages-title">
+      <div class="section-heading">
+        <h2 id="download-pages-title">Before you install.</h2>
+        <p>Use these pages if you want to understand what the app can do before running it.</p>
+      </div>
+      <a class="page-card" href="mac.html">
+        <span>Mac</span>
+        <h3>Feature overview</h3>
+        <p>See current macOS features, the routing workflow, shortcuts, Group Play, and EQ status.</p>
+      </a>
+      <a class="page-card" href="compatibility.html">
+        <span>Limits</span>
+        <h3>Compatibility guide</h3>
+        <p>Learn which controls are live, which routes are experimental, and which features need a deeper backend.</p>
+      </a>
+      <a class="page-card" href="windows.html">
+        <span>Windows</span>
+        <h3>Roadmap</h3>
+        <p>Follow the Windows 11 native app plan and release gates before a Windows download is published.</p>
+      </a>
+      <a class="page-card" href="https://github.com/alanlu439/audiorouter/releases">
+        <span>Releases</span>
+        <h3>GitHub release notes</h3>
+        <p>Read the published changelog and download earlier packages if you need a specific version.</p>
+      </a>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div>
+      <strong>AUDIOROUTER</strong>
+      <span>Download and manual</span>
+    </div>
+    <p>Source-available for noncommercial use with attribution. Commercial use requires written permission.</p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>

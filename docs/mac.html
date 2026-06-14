@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AudioRouter for Mac | Download and features</title>
+  <meta name="description" content="Download AudioRouter for macOS and learn what works today: Core Audio devices, system volume, source routes, Group Play, EQ, and setup profiles.">
+  <meta property="og:title" content="AudioRouter for Mac">
+  <meta property="og:description" content="Native macOS menu-bar audio routing with real device controls and honest experimental routing labels.">
+  <meta property="og:image" content="assets/audiorouter-icon.png">
+  <meta name="theme-color" content="#e8fffb">
+  <link rel="icon" href="assets/audiorouter-icon.png">
+  <link rel="apple-touch-icon" href="assets/audiorouter-icon.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="index.html" aria-label="AudioRouter home">
+      <img src="assets/audiorouter-icon.png" alt="" width="36" height="36">
+      <span>AudioRouter</span>
+    </a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-nav">
+      <span></span>
+      <span></span>
+      <span></span>
+      <strong>Menu</strong>
+    </button>
+    <nav id="primary-nav" class="nav-links" aria-label="Primary navigation">
+      <a href="index.html">Home</a>
+      <a href="mac.html" aria-current="page">Mac</a>
+      <a href="windows.html">Windows</a>
+      <a href="compatibility.html">Compatibility</a>
+      <a href="download.html">Download</a>
+      <a href="assets/AudioRouter-User-Manual.pdf">Manual</a>
+      <a href="https://github.com/alanlu439/audiorouter">GitHub</a>
+    </nav>
+  </header>
+
+  <main id="top" class="page-main">
+    <section class="page-hero mac-page-hero" aria-labelledby="mac-title">
+      <div>
+        <p class="page-kicker">Available now</p>
+        <h1 id="mac-title">AudioRouter for Mac</h1>
+        <p>Use AudioRouter as a visual macOS audio control center for app sources, output devices, Group Play targets, route gain, EQ, setups, and reliability tools.</p>
+        <div class="hero-actions">
+          <a class="primary-action" href="download.html">Download Mac ZIP</a>
+          <a class="secondary-action" href="assets/AudioRouter-User-Manual.pdf">Read Manual</a>
+        </div>
+      </div>
+      <div class="page-hero-panel" aria-label="Mac app summary">
+        <span class="platform-mark">AU</span>
+        <h2>Current public build</h2>
+        <p>The macOS app is the production focus today. It uses public Core Audio APIs first, then labels experimental process-tap routing honestly when a deeper backend is required.</p>
+      </div>
+    </section>
+
+    <section class="section page-card-grid" aria-labelledby="mac-works-title">
+      <div class="section-heading">
+        <h2 id="mac-works-title">What works today on macOS.</h2>
+        <p>These are the features AudioRouter can provide with public macOS APIs and the current experimental route engine.</p>
+      </div>
+      <article class="page-card">
+        <span>Devices</span>
+        <h3>Real input and output discovery</h3>
+        <p>List connected Bluetooth, built-in, USB, HDMI, AirPlay, aggregate, and virtual devices with sample rate and support flags.</p>
+      </article>
+      <article class="page-card">
+        <span>Controls</span>
+        <h3>System output and input control</h3>
+        <p>Switch default devices and adjust volume, mute, and balance when the selected hardware exposes those controls.</p>
+      </article>
+      <article class="page-card">
+        <span>Routes</span>
+        <h3>Source-to-output workflow</h3>
+        <p>Choose Spotify, Music, Chrome, or user-added apps, then assign outputs, route gain, setup profiles, and retry behavior visually.</p>
+      </article>
+      <article class="page-card">
+        <span>Studio</span>
+        <h3>Group Play and EQ surfaces</h3>
+        <p>Create speaker groups, tune per-route gain, save EQ presets, and see when a route is live, saved only, or backend-required.</p>
+      </article>
+    </section>
+
+    <section class="section page-split" aria-labelledby="mac-flow-title">
+      <div class="page-panel">
+        <h2 id="mac-flow-title">Simple routing flow</h2>
+        <ol class="page-list ordered">
+          <li>Open AudioRouter from the menu bar.</li>
+          <li>Pick a source app in Routes.</li>
+          <li>Select an output device or Group Play target.</li>
+          <li>Approve macOS audio capture when prompted.</li>
+          <li>Use Command-= or Command-- to adjust the selected source by 1%.</li>
+        </ol>
+      </div>
+      <div class="page-panel accent-panel">
+        <h2>Important routing note</h2>
+        <p>Some app-to-device routes are experimental because macOS does not expose every SoundSource-style routing feature through public APIs alone. AudioRouter saves the route and shows the real status instead of pretending unsupported routing is live.</p>
+        <a class="platform-action" href="compatibility.html">Check compatibility</a>
+      </div>
+    </section>
+
+    <section class="section download-section" aria-labelledby="mac-download-title">
+      <div>
+        <h2 id="mac-download-title">Get the Mac build.</h2>
+        <p>The latest release is packaged as a ZIP and includes the app, PDF manual, and install notes.</p>
+      </div>
+      <div class="download-card">
+        <a class="primary-action wide" href="https://github.com/alanlu439/audiorouter/releases/latest/download/AudioRouter-macOS.zip">Download AudioRouter-macOS.zip</a>
+        <a class="manual-link" href="assets/AudioRouter-User-Manual.pdf">Open the PDF user manual</a>
+        <p class="safety-note">If macOS says it cannot verify the app, use the documented Control-click Open flow. Keep Gatekeeper enabled.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div>
+      <strong>AUDIOROUTER</strong>
+      <span>Visual routing for macOS</span>
+    </div>
+    <p>Source-available for noncommercial use with attribution. Commercial use requires written permission.</p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>

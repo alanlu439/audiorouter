@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AudioRouter for Windows | Roadmap</title>
+  <meta name="description" content="AudioRouter for Windows roadmap: WinUI 3 shell, C++/WinRT audio backend, MMDevice, audio sessions, process-loopback capture, and future driver work.">
+  <meta property="og:title" content="AudioRouter for Windows roadmap">
+  <meta property="og:description" content="A native Windows compatibility track for AudioRouter with clear release gates before public downloads.">
+  <meta property="og:image" content="assets/audiorouter-icon.png">
+  <meta name="theme-color" content="#e8fffb">
+  <link rel="icon" href="assets/audiorouter-icon.png">
+  <link rel="apple-touch-icon" href="assets/audiorouter-icon.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="index.html" aria-label="AudioRouter home">
+      <img src="assets/audiorouter-icon.png" alt="" width="36" height="36">
+      <span>AudioRouter</span>
+    </a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-nav">
+      <span></span>
+      <span></span>
+      <span></span>
+      <strong>Menu</strong>
+    </button>
+    <nav id="primary-nav" class="nav-links" aria-label="Primary navigation">
+      <a href="index.html">Home</a>
+      <a href="mac.html">Mac</a>
+      <a href="windows.html" aria-current="page">Windows</a>
+      <a href="compatibility.html">Compatibility</a>
+      <a href="download.html">Download</a>
+      <a href="assets/AudioRouter-User-Manual.pdf">Manual</a>
+      <a href="https://github.com/alanlu439/audiorouter">GitHub</a>
+    </nav>
+  </header>
+
+  <main id="top" class="page-main windows-page">
+    <section class="page-hero windows-page-hero" aria-labelledby="windows-title">
+      <div>
+        <p class="page-kicker">Windows 11 roadmap</p>
+        <h1 id="windows-title">A sibling native Windows app.</h1>
+        <p>AudioRouter for Windows is not a SwiftUI port. It is a separate WinUI 3 app with a C++/WinRT audio backend built around supported Windows audio APIs first.</p>
+        <div class="hero-actions">
+          <a class="primary-action" href="#roadmap">View roadmap</a>
+          <a class="secondary-action" href="compatibility.html">Compare limits</a>
+        </div>
+      </div>
+      <div class="page-hero-panel dark-panel">
+        <span class="platform-mark">Win</span>
+        <h2>No public Windows ZIP yet</h2>
+        <p>The first Windows release must pass VM and hardware checks before it appears on the Download page.</p>
+      </div>
+    </section>
+
+    <section id="roadmap" class="section windows-section" aria-labelledby="windows-roadmap-title">
+      <div class="section-heading">
+        <h2 id="windows-roadmap-title">Windows is a separate build track.</h2>
+        <p>The Windows version has its own tray app, C++/WinRT backend, and release gates before a Windows ZIP or MSIX appears here.</p>
+      </div>
+
+      <div class="windows-roadmap-summary">
+        <div>
+          <span class="windows-eyebrow">Roadmap status</span>
+          <h3>Build the public controls first, then graduate routing into a real Windows audio backend.</h3>
+        </div>
+        <p>The first Windows release should be useful even before driver-level routing exists: list devices, control endpoint volume, show audio sessions, and make unsupported routing states honest.</p>
+      </div>
+
+      <div class="windows-roadmap">
+        <article class="windows-card complete">
+          <div class="windows-card-top">
+            <span>01</span>
+            <strong>Scaffolded</strong>
+          </div>
+          <h3>Native Windows foundation</h3>
+          <p>Create a sibling Windows app instead of trying to port SwiftUI and Core Audio directly.</p>
+          <ul>
+            <li>WinUI 3 dashboard shell</li>
+            <li>C++/WinRT audio backend boundary</li>
+            <li>Shared route/setup JSON contracts</li>
+          </ul>
+        </article>
+        <article class="windows-card complete">
+          <div class="windows-card-top">
+            <span>02</span>
+            <strong>Scaffolded</strong>
+          </div>
+          <h3>Public audio controls</h3>
+          <p>Use supported Windows Core Audio APIs for controls that can work reliably right away.</p>
+          <ul>
+            <li>MMDevice endpoint discovery</li>
+            <li>Endpoint volume and mute</li>
+            <li>Audio session list and per-session gain</li>
+          </ul>
+        </article>
+        <article class="windows-card active">
+          <div class="windows-card-top">
+            <span>03</span>
+            <strong>Next</strong>
+          </div>
+          <h3>Tray app and quick router</h3>
+          <p>Match the Mac menu-bar workflow with a Windows tray flyout and a full dashboard window.</p>
+          <ul>
+            <li>Tray quick routes</li>
+            <li>Real process icons</li>
+            <li>Selected-source volume shortcuts</li>
+          </ul>
+        </article>
+        <article class="windows-card active">
+          <div class="windows-card-top">
+            <span>04</span>
+            <strong>Next</strong>
+          </div>
+          <h3>VM and hardware QA</h3>
+          <p>Prove the app on Windows 11 before a public package is linked from the website.</p>
+          <ul>
+            <li>Windows 11 VM smoke tests</li>
+            <li>Bluetooth, USB, HDMI, virtual outputs</li>
+            <li>Spotify, Chrome, Zoom, and system sessions</li>
+          </ul>
+        </article>
+        <article class="windows-card future">
+          <div class="windows-card-top">
+            <span>05</span>
+            <strong>Experimental</strong>
+          </div>
+          <h3>Process-loopback routing</h3>
+          <p>Investigate app capture and render-to-device routing with Windows process loopback where supported.</p>
+          <ul>
+            <li>Capture selected process audio</li>
+            <li>Render to a chosen endpoint</li>
+            <li>Show Live, Saved, or Requires Driver honestly</li>
+          </ul>
+        </article>
+        <article class="windows-card future">
+          <div class="windows-card-top">
+            <span>06</span>
+            <strong>Driver path</strong>
+          </div>
+          <h3>Production routing backend</h3>
+          <p>Reliable SoundSource-style routing on Windows may need a service or signed virtual audio endpoint driver.</p>
+          <ul>
+            <li>Signed driver or service installer</li>
+            <li>App-as-input devices for mixers</li>
+            <li>Group Play sync and latency controls</li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="windows-release-gates" aria-label="Windows release gates">
+        <h3>Before the first Windows download</h3>
+        <div>
+          <span>Build passes on Windows runner</span>
+          <span>Tray and dashboard open cleanly</span>
+          <span>Real devices and sessions appear</span>
+          <span>Volume and mute work where supported</span>
+          <span>Unsupported routing is labeled clearly</span>
+          <span>ZIP or MSIX install path is documented</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="section page-split" aria-labelledby="windows-qa-title">
+      <div class="page-panel">
+        <h2 id="windows-qa-title">Windows QA matrix</h2>
+        <ul class="page-list">
+          <li>Windows 11 current stable</li>
+          <li>Built-in speakers, Bluetooth, USB, HDMI, and virtual outputs</li>
+          <li>Spotify, Chrome, Apple Music or iTunes, Zoom, and system sessions</li>
+          <li>Device connect and disconnect while audio is playing</li>
+          <li>High contrast, keyboard navigation, and reduced motion</li>
+        </ul>
+      </div>
+      <div class="page-panel accent-panel">
+        <h2>Download status</h2>
+        <p>There is no public Windows package yet. The Download page will show a Windows ZIP or MSIX only after the native build passes release gates.</p>
+        <a class="platform-action" href="download.html">Check downloads</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div>
+      <strong>AUDIOROUTER</strong>
+      <span>Windows compatibility track</span>
+    </div>
+    <p>Source-available for noncommercial use with attribution. Commercial use requires written permission.</p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
