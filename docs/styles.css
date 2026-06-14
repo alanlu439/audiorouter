@@ -1040,22 +1040,6 @@ button {
   box-shadow: var(--shadow);
 }
 
-.route-lab {
-  display: grid;
-  grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.3fr) minmax(260px, 0.72fr);
-  gap: 16px;
-  align-items: center;
-  margin-top: 16px;
-  border: 1px solid rgba(8, 39, 51, 0.13);
-  border-radius: 28px;
-  padding: clamp(18px, 3vw, 28px);
-  background:
-    linear-gradient(135deg, rgba(24, 214, 194, 0.12), rgba(255, 255, 255, 0.92)),
-    #ffffff;
-  box-shadow: 0 18px 48px rgba(8, 39, 51, 0.10);
-}
-
-.route-lab-copy h3,
 .windows-card h3 {
   margin: 0;
   color: var(--ink);
@@ -1064,78 +1048,11 @@ button {
   letter-spacing: -0.035em;
 }
 
-.route-lab-copy p,
 .windows-card p {
   margin: 10px 0 0;
   color: var(--muted);
   line-height: 1.5;
   font-weight: 650;
-}
-
-.route-controls {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.route-controls label {
-  display: grid;
-  gap: 8px;
-  color: var(--ink-soft);
-  font-size: 12px;
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-.route-controls select,
-.route-controls input[type="range"] {
-  width: 100%;
-}
-
-.route-controls select {
-  min-height: 48px;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 0 14px;
-  color: var(--ink);
-  background: #ffffff;
-  font: inherit;
-  font-size: 14px;
-  font-weight: 800;
-  letter-spacing: 0;
-  text-transform: none;
-}
-
-.route-controls input[type="range"] {
-  accent-color: var(--signal);
-}
-
-.route-result {
-  min-width: 0;
-  border-radius: 20px;
-  padding: 18px;
-  color: #ffffff;
-  background: var(--navy);
-}
-
-.route-result span,
-.route-result strong {
-  display: block;
-}
-
-.route-result span {
-  color: rgba(255, 255, 255, 0.66);
-  font-size: 12px;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.route-result strong {
-  margin-top: 8px;
-  font-size: 19px;
-  line-height: 1.2;
 }
 
 .patch-column {
@@ -1656,10 +1573,6 @@ button {
     scroll-snap-align: start;
   }
 
-  .route-lab {
-    grid-template-columns: 1fr;
-  }
-
   .download-section {
     grid-template-columns: 1fr;
   }
@@ -1754,10 +1667,6 @@ button {
 
   .patch-lines {
     grid-template-columns: repeat(3, 1fr);
-  }
-
-  .route-controls {
-    grid-template-columns: 1fr;
   }
 
   .site-footer {
@@ -1927,7 +1836,6 @@ button {
   }
 
   .patch-console,
-  .route-lab,
   .platform-card,
   .download-card,
   .truth-card,

@@ -8,6 +8,7 @@
 - Added `USER_MANUAL.md` plus a generated `AudioRouter-User-Manual.pdf` for the website and release ZIP.
 - Updated release packaging so future macOS ZIP downloads include the PDF manual alongside the app, quick install guide, driver notes, and driver scripts.
 - Added a distinct Platforms section that makes the downloadable macOS app and in-development Windows build track visually separate.
+- Removed the extra interactive route-flow demo card from the website Routing section.
 
 ### Windows Compatibility
 
