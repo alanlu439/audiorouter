@@ -9,6 +9,7 @@
 - Updated release packaging so future macOS ZIP downloads include the PDF manual alongside the app, quick install guide, driver notes, and driver scripts.
 - Added a distinct Platforms section that makes the downloadable macOS app and in-development Windows build track visually separate.
 - Removed the extra interactive route-flow demo card from the website Routing section.
+- Expanded the website's Windows area into a detailed roadmap with implementation phases, experimental driver path notes, and pre-release gates.
 
 ### Windows Compatibility
 

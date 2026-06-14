@@ -27,6 +27,7 @@
     </button>
     <nav id="primary-nav" class="nav-links" aria-label="Primary navigation">
       <a href="#platforms">Platforms</a>
+      <a href="#windows">Windows</a>
       <a href="#features">Features</a>
       <a href="#routing">Routing</a>
       <a href="#truth">Compatibility</a>
@@ -243,24 +244,108 @@
     <section id="windows" class="section windows-section" aria-labelledby="windows-title">
       <div class="section-heading">
         <h2 id="windows-title">Windows is a separate build track.</h2>
-        <p>The Windows version is not a SwiftUI port. It has its own WinUI 3 shell, C++/WinRT backend, and release gate before a Windows ZIP or MSIX appears here.</p>
+        <p>The Windows version is not a SwiftUI port. It has its own WinUI 3 shell, C++/WinRT backend, and release gates before a Windows ZIP or MSIX appears here.</p>
       </div>
-      <div class="windows-grid">
-        <article class="windows-card">
-          <span>01</span>
-          <h3>Windows Core Audio backend</h3>
-          <p>MMDevice endpoint discovery, endpoint volume and mute, session discovery, and per-session volume controls are separated from the macOS app.</p>
+
+      <div class="windows-roadmap-summary">
+        <div>
+          <span class="windows-eyebrow">Roadmap status</span>
+          <h3>Build the public controls first, then graduate routing into a real Windows audio backend.</h3>
+        </div>
+        <p>The first Windows release should be useful even before driver-level routing exists: list devices, control endpoint volume, show audio sessions, and make unsupported routing states honest.</p>
+      </div>
+
+      <div class="windows-roadmap">
+        <article class="windows-card complete">
+          <div class="windows-card-top">
+            <span>01</span>
+            <strong>Scaffolded</strong>
+          </div>
+          <h3>Native Windows foundation</h3>
+          <p>Create a sibling Windows app instead of trying to port SwiftUI and Core Audio directly.</p>
+          <ul>
+            <li>WinUI 3 dashboard shell</li>
+            <li>C++/WinRT audio backend boundary</li>
+            <li>Shared route/setup JSON contracts</li>
+          </ul>
         </article>
-        <article class="windows-card">
-          <span>02</span>
-          <h3>VM smoke testing</h3>
-          <p>A Windows runner compiles and runs a backend smoke test so audio-device code is validated on a real Windows environment.</p>
+        <article class="windows-card complete">
+          <div class="windows-card-top">
+            <span>02</span>
+            <strong>Scaffolded</strong>
+          </div>
+          <h3>Public audio controls</h3>
+          <p>Use supported Windows Core Audio APIs for the controls that can work reliably right away.</p>
+          <ul>
+            <li>MMDevice endpoint discovery</li>
+            <li>Endpoint volume and mute</li>
+            <li>Audio session list and per-session gain</li>
+          </ul>
         </article>
-        <article class="windows-card muted">
-          <span>03</span>
-          <h3>No Windows download yet</h3>
-          <p>The Windows UI shell is still a scaffold. A Windows ZIP or MSIX will be released only after the VM build and app shell are green.</p>
+        <article class="windows-card active">
+          <div class="windows-card-top">
+            <span>03</span>
+            <strong>Next</strong>
+          </div>
+          <h3>Tray app and quick router</h3>
+          <p>Match the Mac menu-bar workflow with a Windows tray flyout and a full dashboard window.</p>
+          <ul>
+            <li>Tray quick routes</li>
+            <li>Real process icons</li>
+            <li>Selected-source volume shortcuts</li>
+          </ul>
         </article>
+        <article class="windows-card active">
+          <div class="windows-card-top">
+            <span>04</span>
+            <strong>Next</strong>
+          </div>
+          <h3>VM and hardware QA</h3>
+          <p>Prove the app on Windows 11 before a public package is linked from the website.</p>
+          <ul>
+            <li>Windows 11 VM smoke tests</li>
+            <li>Bluetooth, USB, HDMI, virtual outputs</li>
+            <li>Spotify, Chrome, Zoom, and system sessions</li>
+          </ul>
+        </article>
+        <article class="windows-card future">
+          <div class="windows-card-top">
+            <span>05</span>
+            <strong>Experimental</strong>
+          </div>
+          <h3>Process-loopback routing</h3>
+          <p>Investigate app capture and render-to-device routing with Windows process loopback where supported.</p>
+          <ul>
+            <li>Capture selected process audio</li>
+            <li>Render to a chosen endpoint</li>
+            <li>Show Live, Saved, or Requires Driver honestly</li>
+          </ul>
+        </article>
+        <article class="windows-card future">
+          <div class="windows-card-top">
+            <span>06</span>
+            <strong>Driver path</strong>
+          </div>
+          <h3>Production routing backend</h3>
+          <p>Reliable SoundSource-style routing on Windows may need a service or signed virtual audio endpoint driver.</p>
+          <ul>
+            <li>Signed driver or service installer</li>
+            <li>App-as-input devices for mixers</li>
+            <li>Group Play sync and latency controls</li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="windows-release-gates" aria-label="Windows release gates">
+        <h3>Before the first Windows download</h3>
+        <div>
+          <span>Build passes on Windows runner</span>
+          <span>Tray and dashboard open cleanly</span>
+          <span>Real devices and sessions appear</span>
+          <span>Volume and mute work where supported</span>
+          <span>Unsupported routing is labeled clearly</span>
+          <span>ZIP or MSIX install path is documented</span>
+        </div>
       </div>
     </section>
 
