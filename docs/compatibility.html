@@ -11,6 +11,17 @@
   <meta name="theme-color" content="#e8fffb">
   <link rel="icon" href="assets/audiorouter-icon.png">
   <link rel="apple-touch-icon" href="assets/audiorouter-icon.png">
+  <script>
+    (() => {
+      try {
+        const saved = localStorage.getItem("audiorouter-theme");
+        const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.dataset.theme = saved || (prefersDark ? "dark" : "light");
+      } catch {
+        document.documentElement.dataset.theme = "light";
+      }
+    })();
+  </script>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -34,10 +45,14 @@
       <a href="assets/AudioRouter-User-Manual.pdf">Manual</a>
       <a href="https://github.com/alanlu439/audiorouter">GitHub</a>
     </nav>
+    <button class="theme-toggle" type="button" aria-pressed="false" aria-label="Switch to dark mode">
+      <span class="theme-toggle-icon" aria-hidden="true"></span>
+      <span class="theme-toggle-label">Dark</span>
+    </button>
   </header>
 
   <main id="top" class="page-main">
-    <section class="page-hero" aria-labelledby="compat-title">
+    <section class="page-hero compat-page-hero" aria-labelledby="compat-title">
       <div>
         <p class="page-kicker">Compatibility</p>
         <h1 id="compat-title">Clear labels for real audio limits.</h1>

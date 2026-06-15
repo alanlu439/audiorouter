@@ -2,6 +2,14 @@
 
 AudioRouter is a macOS menu-bar app for visual audio control. It lists real audio devices, lets you assign apps to output targets, saves setups, and shows what is live versus experimental.
 
+## Quick Start Snapshot
+
+- Dashboard is where you route an app to an output or Group Play target.
+- Devices shows the real inputs and outputs macOS currently exposes.
+- EQ changes active AudioRouter live routes when the route backend is running.
+- Setups save your routes, device choices, mute states, and EQ preset.
+- Advanced explains permissions, reliability tools, updates, and experimental backend features.
+
 ## Install From The ZIP
 
 1. Download `AudioRouter-macOS.zip` from the latest GitHub Release.
@@ -33,6 +41,8 @@ The Dashboard is organized around Routes.
 - `Follow System Output` means the app uses the normal macOS output.
 - A custom output means AudioRouter will try to route that app to the selected device.
 
+Route badges are truth labels. `Working` means AudioRouter can control that route now. `Saved Only` means your choice is stored and will retry automatically. `Requires Audio Backend` means macOS public APIs could not complete that route reliably.
+
 If a route shows `Saved Only`, AudioRouter has saved the preference and will retry when macOS exposes the app audio process. If a route shows `Requires Audio Backend`, the current public macOS APIs could not start that route reliably.
 
 ## Group Play
@@ -56,6 +66,8 @@ Click a source app or route row to select it.
 - Use mute buttons for quick silence without deleting the route.
 
 Device volume controls only work when the output device exposes software volume to macOS.
+
+For the smoothest adjustment, click the app or route row first, then use the keyboard shortcut for small 1% changes and the slider for larger moves.
 
 ## EQ
 

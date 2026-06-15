@@ -1,5 +1,63 @@
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const systemDarkQuery = window.matchMedia("(prefers-color-scheme: dark)");
+const themeStorageKey = "audiorouter-theme";
 let activeRouteIndex = 0;
+
+function currentStoredTheme() {
+  try {
+    return localStorage.getItem(themeStorageKey);
+  } catch {
+    return null;
+  }
+}
+
+function setStoredTheme(theme) {
+  try {
+    localStorage.setItem(themeStorageKey, theme);
+  } catch {
+    // The theme still changes for this page even if storage is blocked.
+  }
+}
+
+function updateThemeToggle(theme) {
+  const toggle = document.querySelector(".theme-toggle");
+  if (!toggle) return;
+
+  const isDark = theme === "dark";
+  toggle.setAttribute("aria-pressed", String(isDark));
+  toggle.setAttribute("aria-label", isDark ? "Switch to light mode" : "Switch to dark mode");
+  toggle.querySelector(".theme-toggle-label").textContent = isDark ? "Light" : "Dark";
+}
+
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme === "dark" ? "#07111f" : "#e8fffb");
+  updateThemeToggle(theme);
+}
+
+function wireThemeToggle() {
+  const toggle = document.querySelector(".theme-toggle");
+  if (!toggle) return;
+
+  applyTheme(document.documentElement.dataset.theme || currentStoredTheme() || (systemDarkQuery.matches ? "dark" : "light"));
+
+  toggle.addEventListener("click", () => {
+    const nextTheme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+    setStoredTheme(nextTheme);
+    applyTheme(nextTheme);
+  });
+
+  const syncSystemTheme = (event) => {
+    if (currentStoredTheme()) return;
+    applyTheme(event.matches ? "dark" : "light");
+  };
+
+  if (systemDarkQuery.addEventListener) {
+    systemDarkQuery.addEventListener("change", syncSystemTheme);
+  } else if (systemDarkQuery.addListener) {
+    systemDarkQuery.addListener(syncSystemTheme);
+  }
+}
 
 function wireMobileNavigation() {
   const header = document.querySelector(".site-header");
@@ -79,6 +137,7 @@ function wirePatchConsole() {
   }
 }
 
+wireThemeToggle();
 wireMobileNavigation();
 wirePatchConsole();
 updateMeters();

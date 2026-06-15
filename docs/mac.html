@@ -11,6 +11,17 @@
   <meta name="theme-color" content="#e8fffb">
   <link rel="icon" href="assets/audiorouter-icon.png">
   <link rel="apple-touch-icon" href="assets/audiorouter-icon.png">
+  <script>
+    (() => {
+      try {
+        const saved = localStorage.getItem("audiorouter-theme");
+        const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.dataset.theme = saved || (prefersDark ? "dark" : "light");
+      } catch {
+        document.documentElement.dataset.theme = "light";
+      }
+    })();
+  </script>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -34,17 +45,26 @@
       <a href="assets/AudioRouter-User-Manual.pdf">Manual</a>
       <a href="https://github.com/alanlu439/audiorouter">GitHub</a>
     </nav>
+    <button class="theme-toggle" type="button" aria-pressed="false" aria-label="Switch to dark mode">
+      <span class="theme-toggle-icon" aria-hidden="true"></span>
+      <span class="theme-toggle-label">Dark</span>
+    </button>
   </header>
 
   <main id="top" class="page-main">
     <section class="page-hero mac-page-hero" aria-labelledby="mac-title">
       <div>
-        <p class="page-kicker">Available now</p>
-        <h1 id="mac-title">AudioRouter for Mac</h1>
-        <p>Use AudioRouter as a visual macOS audio control center for app sources, output devices, Group Play targets, route gain, EQ, setups, and reliability tools.</p>
+        <p class="page-kicker">Available now for macOS</p>
+        <h1 id="mac-title">Professional routing from the Mac menu bar.</h1>
+        <p>AudioRouter turns real Core Audio devices, app sources, route gain, saved setups, EQ, and reliability tools into one polished control surface for everyday listening and production setups.</p>
         <div class="hero-actions">
           <a class="primary-action" href="download.html">Download Mac ZIP</a>
           <a class="secondary-action" href="assets/AudioRouter-User-Manual.pdf">Read Manual</a>
+        </div>
+        <div class="mac-proof-strip" aria-label="Mac product highlights">
+          <span>Core Audio</span>
+          <span>Menu bar app</span>
+          <span>ZIP + PDF guide</span>
         </div>
       </div>
       <div class="mac-product-card" aria-label="AudioRouter Mac app preview">
@@ -60,9 +80,14 @@
         <div class="mac-preview-header">
           <span class="platform-mark">AU</span>
           <div>
-            <small>Menu bar router</small>
-            <h2>Fast source control</h2>
+            <small>Live routing console</small>
+            <h2>Sources, outputs, gain.</h2>
           </div>
+        </div>
+        <div class="mac-control-summary" aria-label="Mac control summary">
+          <div><strong>3</strong><span>source apps</span></div>
+          <div><strong>2</strong><span>outputs</span></div>
+          <div><strong>1</strong><span>group</span></div>
         </div>
         <div class="mac-route-stack">
           <div class="mac-route-card live">
@@ -94,7 +119,7 @@
           </div>
         </div>
         <div class="mac-shortcut-strip">
-          <span>Click a route</span>
+          <span>Selected route gain</span>
           <strong>Cmd-=</strong>
           <small>+1% gain</small>
         </div>
@@ -103,8 +128,8 @@
 
     <section class="section mac-feature-deck" aria-labelledby="mac-works-title">
       <div class="section-heading">
-        <h2 id="mac-works-title">What works today on macOS.</h2>
-        <p>These are the features AudioRouter can provide with public macOS APIs and the current experimental route engine.</p>
+        <h2 id="mac-works-title">Built like a dependable Mac utility.</h2>
+        <p>The Mac product page now focuses on the shippable app: real device controls first, then clear labels for advanced routing that is still experimental.</p>
       </div>
       <div class="mac-feature-list">
         <article class="mac-feature-row">
@@ -138,8 +163,8 @@
       </div>
       <aside class="mac-live-card">
         <small>Current track</small>
-        <h3>Available now, with honest route states.</h3>
-        <p>The Mac app is the production focus. It uses public Core Audio APIs first, then labels experimental process-tap routing clearly when a deeper backend is required.</p>
+        <h3>Downloadable, documented, and honest about limits.</h3>
+        <p>The Mac app is the production focus. It uses public Core Audio APIs first, includes the PDF manual in the download flow, and labels experimental process-tap routing clearly when a deeper backend is required.</p>
         <a class="platform-action" href="download.html">Get the Mac build</a>
       </aside>
     </section>

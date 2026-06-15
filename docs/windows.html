@@ -11,6 +11,17 @@
   <meta name="theme-color" content="#e8fffb">
   <link rel="icon" href="assets/audiorouter-icon.png">
   <link rel="apple-touch-icon" href="assets/audiorouter-icon.png">
+  <script>
+    (() => {
+      try {
+        const saved = localStorage.getItem("audiorouter-theme");
+        const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.dataset.theme = saved || (prefersDark ? "dark" : "light");
+      } catch {
+        document.documentElement.dataset.theme = "light";
+      }
+    })();
+  </script>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -34,26 +45,36 @@
       <a href="assets/AudioRouter-User-Manual.pdf">Manual</a>
       <a href="https://github.com/alanlu439/audiorouter">GitHub</a>
     </nav>
+    <button class="theme-toggle" type="button" aria-pressed="false" aria-label="Switch to dark mode">
+      <span class="theme-toggle-icon" aria-hidden="true"></span>
+      <span class="theme-toggle-label">Dark</span>
+    </button>
   </header>
 
   <main id="top" class="page-main windows-page">
     <section class="page-hero windows-page-hero" aria-labelledby="windows-title">
       <div>
-        <p class="page-kicker">Windows 11 roadmap</p>
-        <h1 id="windows-title">A sibling native Windows app.</h1>
-        <p>AudioRouter for Windows is not a SwiftUI port. It is a separate WinUI 3 app with a C++/WinRT audio backend built around supported Windows audio APIs first.</p>
+        <p class="page-kicker">Prototype track</p>
+        <h1 id="windows-title">Windows is still in the lab.</h1>
+        <p>This is the prototype path for AudioRouter on Windows: a separate WinUI shell, C++/WinRT audio core, public API experiments, and release gates before any download is offered.</p>
         <div class="hero-actions">
-          <a class="primary-action" href="#roadmap">View roadmap</a>
+          <a class="primary-action" href="#roadmap">Inspect prototype plan</a>
           <a class="secondary-action" href="compatibility.html">Compare limits</a>
         </div>
       </div>
       <div class="windows-blueprint-card" aria-label="Windows architecture preview">
+        <div class="prototype-stamp">Prototype</div>
         <div class="blueprint-top">
           <span class="platform-mark">Win</span>
           <div>
-            <small>Native build track</small>
+            <small>Architecture sketch</small>
             <h2>WinUI shell + C++ audio core</h2>
           </div>
+        </div>
+        <div class="prototype-status-grid" aria-label="Prototype status">
+          <span>UI shell: scaffolded</span>
+          <span>Backend: spike</span>
+          <span>Installer: blocked</span>
         </div>
         <div class="blueprint-flow">
           <span>Tray</span>
@@ -70,15 +91,15 @@
           <span>Process loopback</span>
           <span>Future driver</span>
         </div>
-        <p>The first public Windows package appears only after real devices, sessions, volume controls, and unsupported states pass release gates.</p>
+        <p>This page intentionally reads like a prototype board. The first public Windows package appears only after real devices, sessions, volume controls, and unsupported states pass release gates.</p>
       </div>
     </section>
 
     <section class="section windows-lab-section" aria-labelledby="windows-lab-title">
       <div class="windows-lab-header">
         <div>
-          <h2 id="windows-lab-title">Windows work is tracked like an engineering lab.</h2>
-          <p>Each layer has a public-API MVP, an experimental routing path, and a driver-backed production path.</p>
+          <h2 id="windows-lab-title">Prototype layers, not a finished product.</h2>
+          <p>Each layer is shown as a checkpoint: prove the public controls, spike app routing, then decide whether a signed driver/service is worth shipping.</p>
         </div>
         <a class="platform-action ghost" href="compatibility.html">Compatibility notes</a>
       </div>
@@ -103,7 +124,7 @@
 
     <section id="roadmap" class="section windows-section" aria-labelledby="windows-roadmap-title">
       <div class="section-heading">
-        <h2 id="windows-roadmap-title">Windows is a separate build track.</h2>
+        <h2 id="windows-roadmap-title">Roadmap before release.</h2>
         <p>The Windows version has its own tray app, C++/WinRT backend, and release gates before a Windows ZIP or MSIX appears here.</p>
       </div>
 
