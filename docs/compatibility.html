@@ -62,10 +62,38 @@
           <a class="primary-action" href="mac.html">Mac features</a>
           <a class="secondary-action" href="windows.html">Windows roadmap</a>
         </div>
+        <div class="hero-proof-row" aria-label="Compatibility highlights">
+          <span>Working states</span>
+          <span>Saved routes</span>
+          <span>Backend notes</span>
+        </div>
       </div>
-      <div class="page-hero-panel">
-        <h2>Truthful route states</h2>
-        <p>Working, Live, Saved Only, Experimental, Requires Backend, Unsupported, and Device Missing are treated as product states, not hidden errors.</p>
+      <div class="page-hero-panel hero-dashboard-card compat-hero-card">
+        <div class="hero-card-top">
+          <span class="platform-mark">OK</span>
+          <div>
+            <small>Status model</small>
+            <h2>Truthful route states</h2>
+          </div>
+        </div>
+        <div class="compat-status-stack" aria-label="Route status examples">
+          <div>
+            <span class="status-dot working"></span>
+            <strong>Working</strong>
+            <small>Public API control is available now.</small>
+          </div>
+          <div>
+            <span class="status-dot saved"></span>
+            <strong>Saved Only</strong>
+            <small>The route is stored and will retry later.</small>
+          </div>
+          <div>
+            <span class="status-dot backend"></span>
+            <strong>Requires Backend</strong>
+            <small>A future driver or service is needed.</small>
+          </div>
+        </div>
+        <p class="hero-card-note">Compatibility labels are shown as product states, not hidden errors.</p>
       </div>
     </section>
 
