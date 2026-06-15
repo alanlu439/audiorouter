@@ -14,6 +14,7 @@
 - Redesigned the Mac and Windows website pages so Mac feels like a polished available-now app page while Windows feels like a darker engineering roadmap.
 - Added a persistent website dark-mode toggle with system-theme fallback, dark surface styling, and balanced hero layouts across every page.
 - Refined the Mac page into a more professional product page, reframed the Windows page as a prototype/lab track, and rebuilt the PDF manual with a branded cover, route graphic, status legend, color callouts, and cleaner quick-start guidance.
+- Integrated real app appearance preferences so AudioRouter can follow macOS or explicitly use Light or Dark mode, and added browser color-scheme metadata to the website.
 
 ### Windows Compatibility
 

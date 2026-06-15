@@ -10,7 +10,25 @@ public enum AudioRouterTheme: String, Codable, CaseIterable, Identifiable {
     public var id: String { rawValue }
 
     public var colorScheme: ColorScheme? {
-        .dark
+        switch self {
+        case .system:
+            return nil
+        case .light:
+            return .light
+        case .dark:
+            return .dark
+        }
+    }
+
+    public var appKitAppearanceName: NSAppearance.Name? {
+        switch self {
+        case .system:
+            return nil
+        case .light:
+            return .aqua
+        case .dark:
+            return .darkAqua
+        }
     }
 }
 
@@ -25,7 +43,10 @@ public final class AppSettingsStore: ObservableObject {
         }
     }
     @Published public var theme: AudioRouterTheme {
-        didSet { defaults.set(theme.rawValue, forKey: Keys.theme) }
+        didSet {
+            defaults.set(theme.rawValue, forKey: Keys.theme)
+            applyAppearance()
+        }
     }
     @Published public var showUnsupportedNotes: Bool {
         didSet { saveBool(showUnsupportedNotes, for: Keys.showUnsupportedNotes) }
@@ -51,8 +72,8 @@ public final class AppSettingsStore: ObservableObject {
 
     private let defaults: UserDefaults
 
-    public var effectiveColorScheme: ColorScheme {
-        .dark
+    public var effectiveColorScheme: ColorScheme? {
+        theme.colorScheme
     }
 
     public init(defaults: UserDefaults = .standard) {
@@ -91,13 +112,13 @@ public final class AppSettingsStore: ObservableObject {
     }
 
     public func applyAppearance() {
-        NSApp?.appearance = NSAppearance(named: .darkAqua)
+        NSApp?.appearance = theme.appKitAppearanceName.flatMap { NSAppearance(named: $0) }
     }
 
     public func reset() {
         launchAtLogin = false
         showInDock = true
-        theme = .dark
+        theme = .system
         showUnsupportedNotes = true
         demoMode = false
         automaticallyCheckForUpdates = true

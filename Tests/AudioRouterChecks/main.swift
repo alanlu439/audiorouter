@@ -1,10 +1,12 @@
 import AudioRouterCore
 import CoreAudio
 import Foundation
+import SwiftUI
 
 @MainActor
 func runChecks() throws {
     checkEQPresets()
+    checkThemePreferenceMapping()
     try checkPresetPersistence()
     try checkUserProfilePresetScoping()
     checkShortcutPersistence()
@@ -27,6 +29,31 @@ func runChecks() throws {
     checkPlaybackKeepAliveCandidates()
     checkAppInputPublishingMetadata()
     try checkRouteHealthDiagnostics()
+}
+
+func checkThemePreferenceMapping() {
+    let suiteName = "AudioRouterChecks-\(UUID().uuidString)"
+    let defaults = UserDefaults(suiteName: suiteName)!
+    defer { defaults.removePersistentDomain(forName: suiteName) }
+
+    let settings = AppSettingsStore(defaults: defaults)
+    settings.theme = .system
+    precondition(settings.effectiveColorScheme == nil, "System theme should follow macOS color scheme")
+    precondition(settings.theme.appKitAppearanceName == nil, "System theme should not force an AppKit appearance")
+
+    settings.theme = .light
+    precondition(settings.effectiveColorScheme == .light, "Light theme should request SwiftUI light mode")
+    precondition(settings.theme.appKitAppearanceName == .aqua, "Light theme should request Aqua appearance")
+
+    settings.theme = .dark
+    precondition(settings.effectiveColorScheme == .dark, "Dark theme should request SwiftUI dark mode")
+    precondition(settings.theme.appKitAppearanceName == .darkAqua, "Dark theme should request Dark Aqua appearance")
+
+    let reloaded = AppSettingsStore(defaults: defaults)
+    precondition(reloaded.theme == .dark, "Theme preference should persist")
+
+    settings.reset()
+    precondition(settings.theme == .system, "Reset should return appearance to System")
 }
 
 func checkEQPresets() {

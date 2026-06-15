@@ -257,7 +257,7 @@ private struct AdvancedSettingsView: View {
                         )
                         HALDriverStatusView()
                         AppInputPublishingStatusView(store: store)
-                        DarkAppearanceRow()
+                        ThemePreferenceRow(settings: store.settings)
                     }
                 }
             }
@@ -767,39 +767,70 @@ private struct AppInputPublishingStatusView: View {
     }
 }
 
-private struct DarkAppearanceRow: View {
+private struct ThemePreferenceRow: View {
+    @ObservedObject var settings: AppSettingsStore
+
     var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "moon.fill")
-                .foregroundStyle(ConsolePalette.teal)
-                .font(.system(size: 14, weight: .semibold))
-                .frame(width: 32, height: 32)
-                .background(ConsolePalette.teal.opacity(0.10), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Appearance")
-                    .font(.subheadline.weight(.semibold))
-                Text("Fixed dark console theme")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                Image(systemName: themeIcon)
+                    .foregroundStyle(ConsolePalette.teal)
+                    .font(.system(size: 14, weight: .semibold))
+                    .frame(width: 32, height: 32)
+                    .background(ConsolePalette.teal.opacity(0.10), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Appearance")
+                        .font(.subheadline.weight(.semibold))
+                    Text(themeDetail)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                Spacer()
             }
-            Spacer()
-            Text("Dark")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(ConsolePalette.inset, in: Capsule())
+
+            Picker("Appearance", selection: $settings.theme) {
+                ForEach(AudioRouterTheme.allCases) { theme in
+                    Text(theme.rawValue).tag(theme)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .tint(ConsolePalette.teal)
+            .accessibilityLabel("Appearance")
+            .accessibilityHint("Choose whether AudioRouter follows macOS appearance or uses light or dark mode.")
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 11)
-        .frame(minHeight: 56)
+        .frame(minHeight: 76)
         .background(ConsolePalette.inset.opacity(0.72), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .stroke(Color.white.opacity(0.06), lineWidth: 1)
         }
-        .help("AudioRouter uses a fixed dark appearance for console readability.")
+        .help("Choose System, Light, or Dark appearance for AudioRouter windows and controls.")
+    }
+
+    private var themeIcon: String {
+        switch settings.theme {
+        case .system:
+            return "circle.lefthalf.filled"
+        case .light:
+            return "sun.max.fill"
+        case .dark:
+            return "moon.fill"
+        }
+    }
+
+    private var themeDetail: String {
+        switch settings.theme {
+        case .system:
+            return "Follow the current macOS appearance"
+        case .light:
+            return "Use light Aqua controls"
+        case .dark:
+            return "Use dark console controls"
+        }
     }
 }
 

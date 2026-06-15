@@ -32,6 +32,10 @@ Recommended first steps:
 4. Add or select a source app such as Spotify, Apple Music, or Chrome.
 5. Choose a target output for that app.
 
+## Appearance
+
+AudioRouter supports `System`, `Light`, and `Dark` appearance modes. Open `Advanced`, then `System Controls`, and use the `Appearance` control to choose whether the app follows macOS or stays in a specific mode.
+
 ## Routing Apps To Outputs
 
 The Dashboard is organized around Routes.
