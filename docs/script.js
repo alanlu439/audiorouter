@@ -31,7 +31,10 @@ function updateThemeToggle(theme) {
 
 function applyTheme(theme) {
   document.documentElement.dataset.theme = theme;
-  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme === "dark" ? "#07111f" : "#e8fffb");
+  const pageThemeColor = document.body.classList.contains("windows-site")
+    ? "#07111f"
+    : (theme === "dark" ? "#07111f" : "#e8fffb");
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", pageThemeColor);
   updateThemeToggle(theme);
 }
 

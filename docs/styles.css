@@ -149,6 +149,47 @@ button {
   background: radial-gradient(ellipse at center, rgba(132, 216, 255, 0.24), transparent 68%);
 }
 
+.windows-site {
+  background:
+    radial-gradient(circle at 12% 0%, rgba(24, 214, 194, 0.12), transparent 30%),
+    radial-gradient(circle at 92% 8%, rgba(70, 140, 255, 0.18), transparent 34%),
+    linear-gradient(180deg, #07111f 0, #0f1b30 44%, #08111d 100%);
+}
+
+.windows-site .site-header {
+  border-color: rgba(255, 255, 255, 0.16);
+  background:
+    linear-gradient(135deg, rgba(15, 27, 44, 0.78), rgba(10, 18, 31, 0.58) 48%, rgba(15, 27, 44, 0.74)),
+    radial-gradient(circle at 12% 0%, rgba(53, 234, 212, 0.18), transparent 38%),
+    radial-gradient(circle at 88% 20%, rgba(132, 216, 255, 0.14), transparent 34%);
+  box-shadow:
+    0 22px 52px rgba(0, 0, 0, 0.30),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.windows-site .site-header::before {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.windows-site .site-header::after {
+  background: radial-gradient(ellipse at center, rgba(132, 216, 255, 0.24), transparent 68%);
+}
+
+.windows-site .brand,
+.windows-site .nav-links a,
+.windows-site .nav-links a:hover,
+.windows-site .nav-links a[aria-current="page"] {
+  color: #f6fbff;
+}
+
+.windows-site .theme-toggle,
+.windows-site .nav-toggle {
+  color: #f6fbff;
+  background: rgba(246, 251, 255, 0.10);
+  box-shadow: inset 0 0 0 1px rgba(246, 251, 255, 0.12);
+}
+
 .brand {
   position: relative;
   z-index: 1;
@@ -3139,6 +3180,16 @@ button {
 
   .nav-links a::after {
     display: none;
+  }
+
+  .windows-site .nav-links {
+    border-color: rgba(255, 255, 255, 0.14);
+    background: rgba(10, 18, 31, 0.96);
+    box-shadow: 0 20px 44px rgba(0, 0, 0, 0.30);
+  }
+
+  .windows-site .nav-links a:hover {
+    background: rgba(53, 234, 212, 0.12);
   }
 
   .hero {
