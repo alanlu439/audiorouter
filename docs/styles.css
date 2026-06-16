@@ -20,6 +20,9 @@
   --shadow: 0 26px 70px rgba(8, 39, 51, 0.14);
   --radius: 24px;
   --max: 1180px;
+  --hero-screen-height: clamp(540px, calc(100svh - 92px), 720px);
+  --hero-screen-padding: clamp(34px, 5.6svh, 58px);
+  --hero-screen-gap: clamp(24px, 3.6vw, 46px);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
@@ -357,14 +360,14 @@ button {
   position: relative;
   isolation: isolate;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(420px, 0.92fr);
-  gap: clamp(30px, 4.4vw, 58px);
+  grid-template-columns: minmax(0, 1fr) minmax(400px, 0.86fr);
+  gap: var(--hero-screen-gap);
   align-items: center;
   width: min(100%, 1440px);
-  min-height: clamp(620px, calc(100svh - 82px), 820px);
+  min-height: var(--hero-screen-height);
   height: auto;
   margin: 0 auto;
-  padding: clamp(50px, 7svh, 82px) clamp(20px, 5vw, 72px) clamp(54px, 7svh, 82px);
+  padding: var(--hero-screen-padding) clamp(20px, 5vw, 72px);
   overflow: hidden;
 }
 
@@ -409,9 +412,9 @@ button {
   max-width: 760px;
   margin: 0;
   color: var(--navy);
-  font-size: clamp(52px, 6vw, 86px);
+  font-size: clamp(48px, 5.4vw, 76px);
   font-weight: 950;
-  line-height: 0.91;
+  line-height: 0.93;
   letter-spacing: -0.055em;
 }
 
@@ -422,11 +425,11 @@ button {
 }
 
 .hero-lede {
-  max-width: 570px;
-  margin: 28px 0 0;
+  max-width: 540px;
+  margin: 20px 0 0;
   color: var(--ink-soft);
-  font-size: clamp(19px, 2.2vw, 25px);
-  line-height: 1.32;
+  font-size: clamp(18px, 1.85vw, 22px);
+  line-height: 1.3;
   font-weight: 700;
 }
 
@@ -434,7 +437,7 @@ button {
   display: flex;
   flex-wrap: wrap;
   gap: 13px;
-  margin-top: 32px;
+  margin-top: 24px;
 }
 
 .primary-action,
@@ -442,7 +445,7 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 52px;
+  min-height: 48px;
   border-radius: 12px;
   padding: 0 22px;
   font-size: 15px;
@@ -482,7 +485,7 @@ button {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin-top: 24px;
+  margin-top: 18px;
 }
 
 .trust-row span,
@@ -508,7 +511,7 @@ button {
 
 .hero-stage {
   justify-self: end;
-  width: min(100%, clamp(470px, 40vw, 590px));
+  width: min(100%, clamp(420px, 37vw, 540px));
 }
 
 .menu-bar,
@@ -973,12 +976,12 @@ button {
   isolation: isolate;
   display: grid;
   grid-template-columns: minmax(0, 0.98fr) minmax(360px, 0.82fr);
-  gap: clamp(28px, 4.6vw, 56px);
+  gap: var(--hero-screen-gap);
   align-items: center;
   max-width: 1240px;
-  min-height: clamp(560px, calc(100svh - 82px), 740px);
+  min-height: var(--hero-screen-height);
   margin: 0 auto;
-  padding: clamp(60px, 8vw, 96px) clamp(20px, 4vw, 28px) clamp(54px, 7vw, 82px);
+  padding: var(--hero-screen-padding) clamp(20px, 4vw, 28px);
   overflow: hidden;
 }
 
@@ -1009,7 +1012,7 @@ button {
 }
 
 .page-kicker {
-  margin: 0 0 16px;
+  margin: 0 0 12px;
   color: var(--teal-dark);
   font-size: 13px;
   font-weight: 950;
@@ -1021,24 +1024,24 @@ button {
   max-width: 800px;
   margin: 0;
   color: var(--navy);
-  font-size: clamp(46px, 6.3vw, 82px);
+  font-size: clamp(42px, 5.4vw, 70px);
   font-weight: 950;
-  line-height: 0.92;
+  line-height: 0.95;
   letter-spacing: -0.055em;
 }
 
 .page-hero p {
-  max-width: 620px;
+  max-width: 590px;
   color: var(--ink-soft);
-  font-size: clamp(18px, 2.1vw, 24px);
-  line-height: 1.38;
+  font-size: clamp(17px, 1.75vw, 21px);
+  line-height: 1.34;
   font-weight: 700;
 }
 
 .page-hero-panel {
   border: 1px solid var(--line);
-  border-radius: 34px;
-  padding: clamp(24px, 4vw, 38px);
+  border-radius: 30px;
+  padding: clamp(20px, 3.2vw, 30px);
   background:
     radial-gradient(circle at 86% 4%, rgba(24, 214, 194, 0.30), transparent 32%),
     #ffffff;
@@ -1053,9 +1056,9 @@ button {
 }
 
 .page-hero-panel h2 {
-  margin: 24px 0 0;
+  margin: 18px 0 0;
   color: var(--navy);
-  font-size: clamp(28px, 3.8vw, 46px);
+  font-size: clamp(26px, 3.2vw, 38px);
   line-height: 0.98;
   letter-spacing: -0.045em;
 }
@@ -1068,7 +1071,7 @@ button {
 
 .hero-dashboard-card {
   display: grid;
-  gap: 18px;
+  gap: 14px;
   overflow: hidden;
   background:
     linear-gradient(145deg, rgba(255, 255, 255, 0.94), rgba(232, 255, 251, 0.78)),
@@ -1088,7 +1091,7 @@ button {
 .hero-card-top {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
 }
 
 .hero-card-top small {
@@ -1123,17 +1126,17 @@ button {
 .compat-status-stack,
 .package-stack {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .compat-status-stack div,
 .package-stack div {
   display: grid;
   align-items: center;
-  min-height: 68px;
+  min-height: 58px;
   border: 1px solid rgba(8, 39, 51, 0.10);
   border-radius: 18px;
-  padding: 13px 14px;
+  padding: 11px 12px;
   background: rgba(255, 255, 255, 0.72);
 }
 
@@ -1218,7 +1221,7 @@ button {
 
 .mac-page-hero,
 .download-page-hero {
-  min-height: min(680px, calc(100svh - 82px));
+  min-height: var(--hero-screen-height);
 }
 
 .compat-page-hero,
@@ -1345,7 +1348,7 @@ button {
 }
 
 .mac-page-hero {
-  grid-template-columns: minmax(0, 0.94fr) minmax(430px, 0.96fr);
+  grid-template-columns: minmax(0, 0.94fr) minmax(400px, 0.9fr);
 }
 
 .mac-page-hero .page-kicker {
@@ -1361,7 +1364,7 @@ button {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin-top: 24px;
+  margin-top: 18px;
 }
 
 .mac-proof-strip span {
@@ -1401,8 +1404,8 @@ button {
   z-index: 1;
   overflow: hidden;
   border: 1px solid rgba(24, 214, 194, 0.28);
-  border-radius: 38px;
-  padding: 18px;
+  border-radius: 32px;
+  padding: 16px;
   background:
     linear-gradient(140deg, rgba(255, 255, 255, 0.92), rgba(232, 255, 251, 0.76)),
     radial-gradient(circle at 92% 8%, rgba(255, 180, 78, 0.26), transparent 32%);
@@ -1444,7 +1447,7 @@ button {
   display: flex;
   align-items: center;
   gap: 12px;
-  min-height: 44px;
+  min-height: 38px;
   border-radius: 22px;
   padding: 0 14px;
   color: var(--ink-soft);
@@ -1502,10 +1505,10 @@ button {
 .mac-preview-header {
   display: flex;
   align-items: center;
-  gap: 16px;
-  margin-top: 20px;
-  border-radius: 28px;
-  padding: 22px;
+  gap: 14px;
+  margin-top: 14px;
+  border-radius: 24px;
+  padding: 17px;
   color: var(--navy);
   background: #ffffff;
   border: 1px solid rgba(8, 39, 51, 0.10);
@@ -1515,14 +1518,14 @@ button {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
-  margin-top: 14px;
+  margin-top: 10px;
 }
 
 .mac-control-summary div {
-  min-height: 76px;
+  min-height: 62px;
   border: 1px solid rgba(8, 39, 51, 0.10);
   border-radius: 18px;
-  padding: 14px;
+  padding: 12px;
   background: rgba(255, 255, 255, 0.64);
 }
 
@@ -1538,7 +1541,7 @@ button {
 
 .mac-control-summary strong {
   color: var(--ink);
-  font-size: 28px;
+  font-size: 24px;
   line-height: 1;
   letter-spacing: -0.04em;
 }
@@ -1562,25 +1565,25 @@ button {
 
 .mac-preview-header h2 {
   margin: 5px 0 0;
-  font-size: clamp(30px, 4vw, 48px);
+  font-size: clamp(26px, 3.2vw, 38px);
   line-height: 0.95;
   letter-spacing: -0.045em;
 }
 
 .mac-route-stack {
   display: grid;
-  gap: 12px;
-  margin-top: 14px;
+  gap: 9px;
+  margin-top: 10px;
 }
 
 .mac-route-card {
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr) minmax(86px, auto) 86px;
+  grid-template-columns: 38px minmax(0, 1fr) minmax(78px, auto) 74px;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   min-width: 0;
-  border-radius: 22px;
-  padding: 14px;
+  border-radius: 18px;
+  padding: 11px;
   background: rgba(255, 255, 255, 0.82);
   border: 1px solid rgba(8, 39, 51, 0.10);
 }
@@ -1627,12 +1630,12 @@ button {
   display: flex;
   align-items: end;
   justify-content: end;
-  gap: 5px;
-  height: 30px;
+  gap: 4px;
+  height: 24px;
 }
 
 .mac-route-card [data-meter] span {
-  width: 7px;
+  width: 6px;
   height: 100%;
   border-radius: 999px;
   background: linear-gradient(180deg, var(--teal), var(--signal));
@@ -1644,9 +1647,9 @@ button {
   grid-template-columns: 1fr auto auto;
   gap: 10px;
   align-items: center;
-  margin-top: 14px;
-  border-radius: 20px;
-  padding: 14px 16px;
+  margin-top: 10px;
+  border-radius: 18px;
+  padding: 11px 13px;
   color: var(--ink-soft);
   background: #fff8e3;
   border: 1px solid rgba(255, 180, 78, 0.34);
@@ -1796,7 +1799,7 @@ button {
 }
 
 .windows-page-hero {
-  grid-template-columns: minmax(0, 0.94fr) minmax(420px, 0.96fr);
+  grid-template-columns: minmax(0, 0.94fr) minmax(390px, 0.9fr);
 }
 
 .windows-page-hero .page-kicker {
@@ -1813,8 +1816,8 @@ button {
   position: relative;
   overflow: hidden;
   border: 1px solid rgba(132, 216, 255, 0.24);
-  border-radius: 38px;
-  padding: clamp(18px, 3vw, 28px);
+  border-radius: 32px;
+  padding: clamp(16px, 2.4vw, 24px);
   color: #f6fbff;
   background:
     linear-gradient(90deg, rgba(255, 255, 255, 0.07) 1px, transparent 1px),
@@ -1829,12 +1832,12 @@ button {
 
 .prototype-stamp {
   position: absolute;
-  top: 18px;
-  right: 18px;
+  top: 16px;
+  right: 16px;
   transform: rotate(3deg);
   border: 2px dashed rgba(255, 196, 107, 0.68);
   border-radius: 14px;
-  padding: 8px 12px;
+  padding: 7px 10px;
   color: #ffc46b;
   background: rgba(255, 196, 107, 0.10);
   font-size: 12px;
@@ -1846,8 +1849,8 @@ button {
 .blueprint-top {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding-right: 96px;
+  gap: 14px;
+  padding-right: 86px;
 }
 
 .blueprint-top small {
@@ -1861,7 +1864,7 @@ button {
 .blueprint-top h2 {
   margin: 5px 0 0;
   color: #f6fbff;
-  font-size: clamp(28px, 3.8vw, 44px);
+  font-size: clamp(25px, 3.2vw, 36px);
   line-height: 0.98;
   letter-spacing: -0.04em;
 }
@@ -1870,14 +1873,14 @@ button {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
-  margin-top: 14px;
+  margin-top: 12px;
 }
 
 .prototype-status-grid span {
-  min-height: 44px;
+  min-height: 38px;
   border: 1px dashed rgba(255, 255, 255, 0.18);
   border-radius: 14px;
-  padding: 11px;
+  padding: 9px;
   color: rgba(246, 251, 255, 0.78);
   background: rgba(255, 255, 255, 0.05);
   font-size: 12px;
@@ -1888,17 +1891,17 @@ button {
   display: grid;
   grid-template-columns: auto 1fr auto 1fr auto 1fr auto;
   align-items: center;
-  gap: 10px;
-  margin-top: 22px;
+  gap: 8px;
+  margin-top: 16px;
 }
 
 .blueprint-flow span {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 42px;
+  min-height: 36px;
   border-radius: 14px;
-  padding: 0 13px;
+  padding: 0 10px;
   color: #dff7ff;
   background: rgba(132, 216, 255, 0.11);
   border: 1px solid rgba(132, 216, 255, 0.22);
@@ -1917,25 +1920,25 @@ button {
 .blueprint-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 16px;
+  gap: 8px;
+  margin-top: 12px;
 }
 
 .blueprint-grid span {
-  min-height: 56px;
+  min-height: 46px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 18px;
-  padding: 16px;
+  padding: 12px;
   color: rgba(246, 251, 255, 0.82);
   background: rgba(255, 255, 255, 0.07);
   font-weight: 850;
 }
 
 .windows-blueprint-card p {
-  margin: 16px 0 0;
+  margin: 12px 0 0;
   color: rgba(246, 251, 255, 0.72);
-  font-size: 15px;
-  line-height: 1.42;
+  font-size: 14px;
+  line-height: 1.36;
 }
 
 .windows-lab-section {
@@ -2930,6 +2933,12 @@ button {
 }
 
 @media (min-width: 1081px) and (max-height: 780px) {
+  :root {
+    --hero-screen-height: calc(100svh - 76px);
+    --hero-screen-padding: clamp(24px, 3.8svh, 34px);
+    --hero-screen-gap: clamp(20px, 3vw, 34px);
+  }
+
   .site-header {
     top: 10px;
     height: 60px;
@@ -2944,17 +2953,16 @@ button {
 
   .hero {
     grid-template-columns: minmax(0, 0.92fr) minmax(390px, 0.86fr);
-    gap: clamp(28px, 4vw, 52px);
-    height: calc(100svh - 70px);
-    min-height: 620px;
-    padding-top: clamp(28px, 4.5svh, 40px);
-    padding-bottom: clamp(28px, 4.5svh, 40px);
+    gap: var(--hero-screen-gap);
+    min-height: var(--hero-screen-height);
+    padding-top: var(--hero-screen-padding);
+    padding-bottom: var(--hero-screen-padding);
   }
 
   .hero h1 {
     max-width: 600px;
-    font-size: clamp(52px, 5.7vw, 74px);
-    line-height: 0.94;
+    font-size: clamp(44px, 5vw, 64px);
+    line-height: 0.95;
   }
 
   .hero-lede {
@@ -2982,7 +2990,180 @@ button {
   }
 
   .hero-stage {
-    width: min(100%, 500px);
+    width: min(100%, 480px);
+  }
+
+  .page-hero {
+    grid-template-columns: minmax(0, 0.92fr) minmax(360px, 0.86fr);
+    gap: var(--hero-screen-gap);
+    min-height: var(--hero-screen-height);
+    padding-top: var(--hero-screen-padding);
+    padding-bottom: var(--hero-screen-padding);
+  }
+
+  .page-hero h1 {
+    max-width: 600px;
+    font-size: clamp(40px, 4.8vw, 58px);
+    line-height: 0.96;
+  }
+
+  .page-hero p {
+    max-width: 540px;
+    font-size: clamp(16px, 1.45vw, 19px);
+    line-height: 1.32;
+  }
+
+  .page-kicker {
+    margin-bottom: 10px;
+  }
+
+  .page-hero .hero-actions {
+    margin-top: 18px;
+  }
+
+  .page-hero .hero-proof-row {
+    margin-top: 14px;
+  }
+
+  .page-hero-panel,
+  .mac-product-card,
+  .windows-blueprint-card {
+    border-radius: 26px;
+    padding: 18px;
+  }
+
+  .hero-dashboard-card {
+    gap: 12px;
+  }
+
+  .page-hero-panel h2,
+  .hero-card-top h2 {
+    font-size: clamp(24px, 2.8vw, 32px);
+  }
+
+  .compat-status-stack div,
+  .package-stack div {
+    min-height: 52px;
+    padding: 10px 11px;
+  }
+
+  .mac-page-hero,
+  .windows-page-hero {
+    grid-template-columns: minmax(0, 0.88fr) minmax(370px, 0.82fr);
+  }
+
+  .mac-window-chrome {
+    min-height: 34px;
+  }
+
+  .mac-preview-header {
+    margin-top: 10px;
+    padding: 14px;
+    border-radius: 20px;
+  }
+
+  .mac-preview-header .platform-mark,
+  .hero-card-top .platform-mark,
+  .blueprint-top .platform-mark {
+    min-width: 50px;
+    height: 50px;
+    border-radius: 16px;
+    font-size: 17px;
+  }
+
+  .mac-preview-header h2 {
+    font-size: clamp(24px, 2.8vw, 32px);
+  }
+
+  .mac-control-summary {
+    margin-top: 8px;
+  }
+
+  .mac-control-summary div {
+    min-height: 54px;
+    padding: 10px;
+  }
+
+  .mac-control-summary strong {
+    font-size: 21px;
+  }
+
+  .mac-control-summary span,
+  .mac-route-card small,
+  .prototype-status-grid span,
+  .blueprint-flow span {
+    font-size: 11px;
+  }
+
+  .mac-route-stack {
+    gap: 7px;
+    margin-top: 8px;
+  }
+
+  .mac-route-card {
+    grid-template-columns: 34px minmax(0, 1fr) minmax(70px, auto) 64px;
+    gap: 8px;
+    padding: 9px;
+    border-radius: 16px;
+  }
+
+  .mac-route-card [data-meter] {
+    height: 20px;
+  }
+
+  .mac-shortcut-strip {
+    margin-top: 8px;
+    padding: 9px 11px;
+  }
+
+  .prototype-stamp {
+    top: 14px;
+    right: 14px;
+    padding: 6px 9px;
+  }
+
+  .blueprint-top {
+    gap: 12px;
+    padding-right: 78px;
+  }
+
+  .blueprint-top h2 {
+    font-size: clamp(23px, 2.8vw, 31px);
+  }
+
+  .prototype-status-grid {
+    gap: 7px;
+    margin-top: 10px;
+  }
+
+  .prototype-status-grid span {
+    min-height: 34px;
+    padding: 8px;
+  }
+
+  .blueprint-flow {
+    gap: 7px;
+    margin-top: 12px;
+  }
+
+  .blueprint-flow span {
+    min-height: 32px;
+    padding: 0 8px;
+  }
+
+  .blueprint-grid {
+    gap: 7px;
+    margin-top: 10px;
+  }
+
+  .blueprint-grid span {
+    min-height: 40px;
+    padding: 10px;
+  }
+
+  .windows-blueprint-card p {
+    margin-top: 10px;
+    font-size: 13px;
   }
 
   .menu-bar {
