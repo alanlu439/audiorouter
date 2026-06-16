@@ -50,7 +50,9 @@
 }
 
 html {
+  min-height: 100%;
   scroll-behavior: smooth;
+  background: var(--bg);
 }
 
 body {
@@ -61,6 +63,13 @@ body {
     linear-gradient(135deg, rgba(24, 214, 194, 0.16), transparent 34%),
     linear-gradient(180deg, #f4fffd 0%, #ffffff 48%, #f4fbff 100%);
   transition: background 220ms ease, color 220ms ease;
+}
+
+.windows-site-root {
+  background:
+    radial-gradient(circle at 12% 0%, rgba(24, 214, 194, 0.12), transparent 30%),
+    radial-gradient(circle at 92% 8%, rgba(70, 140, 255, 0.18), transparent 34%),
+    linear-gradient(180deg, #07111f 0, #0f1b30 44%, #08111d 100%);
 }
 
 :root[data-theme="dark"] body {
