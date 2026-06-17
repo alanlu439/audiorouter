@@ -1,58 +1,127 @@
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const systemDarkQuery = window.matchMedia("(prefers-color-scheme: dark)");
-const themeStorageKey = "audiorouter-theme";
+const themeModeStorageKey = "audiorouter-theme-mode";
+const themeModes = ["auto", "dark", "light"];
 let activeRouteIndex = 0;
 
-function currentStoredTheme() {
+function wirePageTransitions() {
+  if (reduceMotion) return;
+
+  const root = document.documentElement;
+  root.classList.add("page-transition-ready");
+
+  window.addEventListener("pageshow", () => {
+    root.classList.remove("is-navigating");
+    root.classList.add("page-transition-ready");
+  });
+
+  document.addEventListener("click", (event) => {
+    if (
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    ) {
+      return;
+    }
+
+    const target = event.target instanceof Element ? event.target : event.target?.parentElement;
+    const link = target?.closest("a[href]");
+    if (!(link instanceof HTMLAnchorElement) || !shouldAnimateLink(link)) return;
+
+    event.preventDefault();
+    root.classList.add("is-navigating");
+    window.setTimeout(() => {
+      window.location.href = link.href;
+    }, 150);
+  });
+}
+
+function shouldAnimateLink(link) {
+  const url = new URL(link.href, window.location.href);
+  const samePage = url.pathname === window.location.pathname && url.search === window.location.search;
+  const isHtmlPage = url.pathname.endsWith("/") || url.pathname.endsWith(".html") || !url.pathname.includes(".");
+
+  return (
+    url.origin === window.location.origin &&
+    isHtmlPage &&
+    !samePage &&
+    !link.target &&
+    !link.hasAttribute("download")
+  );
+}
+
+function normalizeThemeMode(mode) {
+  return themeModes.includes(mode) ? mode : "auto";
+}
+
+function effectiveThemeForMode(mode) {
+  const normalizedMode = normalizeThemeMode(mode);
+  if (normalizedMode === "auto") {
+    return systemDarkQuery.matches ? "dark" : "light";
+  }
+  return normalizedMode;
+}
+
+function currentStoredThemeMode() {
   try {
-    return localStorage.getItem(themeStorageKey);
+    return localStorage.getItem(themeModeStorageKey);
   } catch {
     return null;
   }
 }
 
-function setStoredTheme(theme) {
+function setStoredThemeMode(mode) {
   try {
-    localStorage.setItem(themeStorageKey, theme);
+    localStorage.setItem(themeModeStorageKey, normalizeThemeMode(mode));
   } catch {
     // The theme still changes for this page even if storage is blocked.
   }
 }
 
-function updateThemeToggle(theme) {
+function updateThemeToggle(mode, effectiveTheme) {
   const toggle = document.querySelector(".theme-toggle");
   if (!toggle) return;
 
-  const isDark = theme === "dark";
+  const normalizedMode = normalizeThemeMode(mode);
+  const nextMode = normalizedMode === "auto" ? "dark" : normalizedMode === "dark" ? "light" : "auto";
+  const label = normalizedMode === "auto" ? "Auto" : normalizedMode === "dark" ? "Dark" : "Light";
+  const isDark = effectiveTheme === "dark";
   toggle.setAttribute("aria-pressed", String(isDark));
-  toggle.setAttribute("aria-label", isDark ? "Switch to light mode" : "Switch to dark mode");
-  toggle.querySelector(".theme-toggle-label").textContent = isDark ? "Light" : "Dark";
+  toggle.setAttribute("aria-label", `Theme mode ${label}. Switch to ${nextMode} mode`);
+  toggle.querySelector(".theme-toggle-label").textContent = label;
 }
 
-function applyTheme(theme) {
-  document.documentElement.dataset.theme = theme;
+function applyThemeMode(mode) {
+  const normalizedMode = normalizeThemeMode(mode);
+  const effectiveTheme = effectiveThemeForMode(normalizedMode);
+  document.documentElement.dataset.themeMode = normalizedMode;
+  document.documentElement.dataset.theme = effectiveTheme;
   const pageThemeColor = document.body.classList.contains("windows-site")
     ? "#07111f"
-    : (theme === "dark" ? "#07111f" : "#e8fffb");
+    : (effectiveTheme === "dark" ? "#07111f" : "#e8fffb");
   document.querySelector('meta[name="theme-color"]')?.setAttribute("content", pageThemeColor);
-  updateThemeToggle(theme);
+  updateThemeToggle(normalizedMode, effectiveTheme);
 }
 
 function wireThemeToggle() {
   const toggle = document.querySelector(".theme-toggle");
   if (!toggle) return;
 
-  applyTheme(document.documentElement.dataset.theme || currentStoredTheme() || (systemDarkQuery.matches ? "dark" : "light"));
+  applyThemeMode(document.documentElement.dataset.themeMode || currentStoredThemeMode() || "auto");
 
   toggle.addEventListener("click", () => {
-    const nextTheme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
-    setStoredTheme(nextTheme);
-    applyTheme(nextTheme);
+    const currentMode = normalizeThemeMode(document.documentElement.dataset.themeMode);
+    const nextMode = currentMode === "auto" ? "dark" : currentMode === "dark" ? "light" : "auto";
+    setStoredThemeMode(nextMode);
+    applyThemeMode(nextMode);
   });
 
-  const syncSystemTheme = (event) => {
-    if (currentStoredTheme()) return;
-    applyTheme(event.matches ? "dark" : "light");
+  const syncSystemTheme = () => {
+    if (normalizeThemeMode(document.documentElement.dataset.themeMode) !== "auto") return;
+    applyThemeMode("auto");
   };
 
   if (systemDarkQuery.addEventListener) {
@@ -140,6 +209,7 @@ function wirePatchConsole() {
   }
 }
 
+wirePageTransitions();
 wireThemeToggle();
 wireMobileNavigation();
 wirePatchConsole();
