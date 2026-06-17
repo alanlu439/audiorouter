@@ -32,8 +32,8 @@
   color-scheme: dark;
   --bg: #07111f;
   --ink: #f6fbff;
-  --ink-soft: #c3d8df;
-  --muted: #8fa8b3;
+  --ink-soft: #d8e8ee;
+  --muted: #b4c8d0;
   --line: rgba(246, 251, 255, 0.14);
   --line-strong: rgba(246, 251, 255, 0.24);
   --teal: #35ead4;
@@ -649,6 +649,13 @@ button {
   background: rgba(255, 196, 107, 0.11);
 }
 
+:root[data-theme="dark"] .live-pill,
+:root[data-theme="dark"] .platform-status.live {
+  color: #061c23;
+  background: rgba(53, 234, 212, 0.88);
+  border-color: rgba(53, 234, 212, 0.58);
+}
+
 .console-title {
   display: flex;
   align-items: center;
@@ -763,6 +770,10 @@ button {
 
 .app-dot.music {
   background: #ff4f79;
+}
+
+:root[data-theme="dark"] .app-dot.music {
+  color: #07111f;
 }
 
 .app-dot.chrome {
@@ -1968,7 +1979,7 @@ button {
 
 .windows-blueprint-card p {
   margin: 12px 0 0;
-  color: rgba(246, 251, 255, 0.72);
+  color: rgba(246, 251, 255, 0.84);
   font-size: 14px;
   line-height: 1.36;
 }
@@ -1997,7 +2008,7 @@ button {
 
 .windows-lab-header p {
   max-width: 720px;
-  color: rgba(246, 251, 255, 0.68);
+  color: rgba(246, 251, 255, 0.84);
   font-size: 18px;
   line-height: 1.5;
   font-weight: 680;
@@ -2045,13 +2056,13 @@ button {
 }
 
 .windows-lab-grid p {
-  color: rgba(246, 251, 255, 0.72);
+  color: rgba(246, 251, 255, 0.84);
   line-height: 1.5;
   font-weight: 680;
 }
 
 .windows-page + .site-footer {
-  color: rgba(246, 251, 255, 0.64);
+  color: rgba(246, 251, 255, 0.76);
   background: #07111f;
   border-top: 1px solid rgba(255, 255, 255, 0.10);
 }
@@ -2488,7 +2499,7 @@ button {
 }
 
 .windows-section .section-heading p {
-  color: rgba(246, 251, 255, 0.70);
+  color: rgba(246, 251, 255, 0.84);
 }
 
 .windows-roadmap-summary {
@@ -2527,7 +2538,7 @@ button {
 
 .windows-roadmap-summary p {
   margin: 0;
-  color: rgba(246, 251, 255, 0.72);
+  color: rgba(246, 251, 255, 0.84);
   font-size: 17px;
   line-height: 1.48;
   font-weight: 700;
@@ -2618,7 +2629,7 @@ button {
 
 .windows-card p {
   margin: 12px 0 0;
-  color: rgba(246, 251, 255, 0.72);
+  color: rgba(246, 251, 255, 0.84);
   line-height: 1.48;
   font-weight: 680;
 }
@@ -2634,7 +2645,7 @@ button {
 .windows-card li {
   display: flex;
   gap: 9px;
-  color: rgba(246, 251, 255, 0.74);
+  color: rgba(246, 251, 255, 0.84);
   font-size: 14px;
   font-weight: 760;
   line-height: 1.35;
@@ -2875,9 +2886,36 @@ button {
   color: var(--ink-soft);
 }
 
+:root[data-theme="dark"] .platform-action:not(.ghost),
+:root[data-theme="dark"] .platform-card-mac .platform-mark,
+:root[data-theme="dark"] .feature-icon,
+:root[data-theme="dark"] .speaker-icon.group,
+:root[data-theme="dark"] .mac-feature-row span,
+:root[data-theme="dark"] .compat-hero-card .platform-mark {
+  color: #061c23;
+  background: var(--teal);
+  box-shadow: 0 18px 40px rgba(53, 234, 212, 0.16);
+}
+
+:root[data-theme="dark"] .platform-action:not(.ghost):hover {
+  color: #061c23;
+  background: #79f5e8;
+  box-shadow: 0 20px 44px rgba(53, 234, 212, 0.20);
+}
+
+:root[data-theme="dark"] .fader-row button {
+  color: #07111f;
+  background: #f6fbff;
+}
+
 :root[data-theme="dark"] .platform-list code {
   color: var(--ink);
   background: rgba(246, 251, 255, 0.10);
+}
+
+:root[data-theme="dark"] .mac-page-hero .page-kicker,
+:root[data-theme="dark"] .mac-window-chrome em {
+  color: var(--teal-dark);
 }
 
 :root[data-theme="dark"] .download-card {
