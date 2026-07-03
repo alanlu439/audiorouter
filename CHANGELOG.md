@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+_No unreleased changes._
+
+## 1.1.2 - 2026-07-03
+
 ### Website And Download Guide
 
 - Updated the GitHub Pages site with a more interactive route demo, mobile navigation, a Windows compatibility section, and direct links to the user manual.
