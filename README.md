@@ -331,6 +331,8 @@ If the backend panel says `Saved Only`, leave the source app playing and click `
 
 AudioRouter starts with Spotify, Apple Music, and Chrome as source apps. You can add more apps from the Routing Dashboard. Output choices are connected Bluetooth devices, AirPlay speakers, and the built-in/system speaker.
 
+HomePod outputs appear after macOS exposes them as audio devices, usually after selecting the HomePod once from Control Center, the macOS Sound output menu, or System Settings. AudioRouter recognizes normal AirPlay transport devices and HomePod/Apple TV-style AirPlay device names even when Core Audio reports the transport as `Unknown`.
+
 AudioRouter also includes `Advanced` -> `System` -> `Protect playback`, which is on by default. It debounces Bluetooth and AirPods device-change notifications before refreshing devices or retrying routes, so temporary wear/remove re-enumeration is less likely to disturb active playback. `Always keep media playing` is also on by default. While AudioRouter is running, it periodically tells Spotify and Music to keep playing, and it listens for Spotify playback-state pause notifications so Spotify can resume faster when macOS sends an AirPods ear-detection pause event. macOS may ask for Automation permission the first time this runs.
 
 ## Status Badges

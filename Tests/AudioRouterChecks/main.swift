@@ -260,12 +260,19 @@ func checkFocusedOutputFiltering() {
         AudioDevice(audioObjectID: 1, uid: "built-in", name: "MacBook Speakers", kind: .output, channelCount: 2, transport: .builtIn, isDefault: true, isAlive: true),
         AudioDevice(audioObjectID: 2, uid: "airpods", name: "AirPods", kind: .output, channelCount: 2, transport: .bluetoothLE, isDefault: false, isAlive: true),
         AudioDevice(audioObjectID: 3, uid: "living-room", name: "Living Room AirPlay", kind: .output, channelCount: 2, transport: .airPlay, isDefault: false, isAlive: true),
-        AudioDevice(audioObjectID: 4, uid: "hdmi", name: "HDMI", kind: .output, channelCount: 2, transport: .hdmi, isDefault: false, isAlive: true),
-        AudioDevice(audioObjectID: 5, uid: "old-speaker", name: "Old Speaker", kind: .output, channelCount: 2, transport: .bluetooth, isDefault: false, isAlive: false),
-        AudioDevice(audioObjectID: 6, uid: "mic", name: "Mic", kind: .input, channelCount: 1, transport: .builtIn, isDefault: true, isAlive: true)
+        AudioDevice(audioObjectID: 4, uid: "homepod", name: "Kitchen HomePod", kind: .output, channelCount: 2, transport: .unknown, isDefault: false, isAlive: true),
+        AudioDevice(audioObjectID: 5, uid: "hdmi", name: "HDMI", kind: .output, channelCount: 2, transport: .hdmi, isDefault: false, isAlive: true),
+        AudioDevice(audioObjectID: 6, uid: "old-speaker", name: "Old Speaker", kind: .output, channelCount: 2, transport: .bluetooth, isDefault: false, isAlive: false),
+        AudioDevice(audioObjectID: 7, uid: "mic", name: "Mic", kind: .input, channelCount: 1, transport: .builtIn, isDefault: true, isAlive: true)
     ]
     let routedOutputs = AudioRouterStore.routeOutputDevices(from: devices)
-    precondition(routedOutputs.map(\.uid) == ["built-in", "airpods", "living-room"], "Connected Bluetooth, AirPlay, and system speaker outputs should be shown")
+    precondition(routedOutputs.map(\.uid) == ["built-in", "airpods", "living-room", "homepod"], "Connected Bluetooth, AirPlay, HomePod, and system speaker outputs should be shown")
+
+    let currentDefaultOutputs = [
+        AudioDevice(audioObjectID: 8, uid: "built-in", name: "MacBook Speakers", kind: .output, channelCount: 2, transport: .builtIn, isDefault: false, isAlive: true),
+        AudioDevice(audioObjectID: 9, uid: "selected-homepod", name: "Bedroom HomePod", kind: .output, channelCount: 2, transport: .unknown, isDefault: true, isAlive: true)
+    ]
+    precondition(AudioRouterStore.routeOutputDevices(from: currentDefaultOutputs).map(\.uid) == ["selected-homepod", "built-in"], "The current default output should remain selectable even when macOS reports it with an unknown transport")
 }
 
 func checkRouteBackwardCompatibility() {

@@ -175,23 +175,25 @@ public final class AudioRouterStore: ObservableObject {
 
     nonisolated public static func routeOutputDevices(from devices: [AudioDevice]) -> [AudioDevice] {
         let outputs = devices.filter { $0.kind == .output && $0.isAlive }
-        let focusedOutputs = outputs.filter { device in
-            device.transport == .bluetooth
-                || device.transport == .bluetoothLE
-                || device.transport == .airPlay
-                || device.transport == .builtIn
-        }
+        let focusedOutputs = outputs.filter(isRouteOutputCandidate)
 
-        if focusedOutputs.contains(where: { $0.transport == .builtIn }) {
-            return focusedOutputs
-        }
-
-        if let defaultOutput = outputs.first(where: { $0.isDefault }),
-           !focusedOutputs.contains(where: { $0.uid == defaultOutput.uid }) {
+        if let defaultOutput = outputs.first(where: { $0.isDefault }) {
             return ([defaultOutput] + focusedOutputs).uniquedByUID()
         }
 
         return focusedOutputs
+    }
+
+    nonisolated private static func isRouteOutputCandidate(_ device: AudioDevice) -> Bool {
+        switch device.transport {
+        case .builtIn, .bluetooth, .bluetoothLE, .airPlay:
+            return true
+        default:
+            let lowercasedName = device.name.lowercased()
+            return lowercasedName.contains("homepod")
+                || lowercasedName.contains("airplay")
+                || lowercasedName.contains("apple tv")
+        }
     }
 
     public var currentInput: AudioDevice? {
