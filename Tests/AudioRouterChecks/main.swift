@@ -259,12 +259,13 @@ func checkFocusedOutputFiltering() {
     let devices = [
         AudioDevice(audioObjectID: 1, uid: "built-in", name: "MacBook Speakers", kind: .output, channelCount: 2, transport: .builtIn, isDefault: true, isAlive: true),
         AudioDevice(audioObjectID: 2, uid: "airpods", name: "AirPods", kind: .output, channelCount: 2, transport: .bluetoothLE, isDefault: false, isAlive: true),
-        AudioDevice(audioObjectID: 3, uid: "hdmi", name: "HDMI", kind: .output, channelCount: 2, transport: .hdmi, isDefault: false, isAlive: true),
-        AudioDevice(audioObjectID: 4, uid: "old-speaker", name: "Old Speaker", kind: .output, channelCount: 2, transport: .bluetooth, isDefault: false, isAlive: false),
-        AudioDevice(audioObjectID: 5, uid: "mic", name: "Mic", kind: .input, channelCount: 1, transport: .builtIn, isDefault: true, isAlive: true)
+        AudioDevice(audioObjectID: 3, uid: "living-room", name: "Living Room AirPlay", kind: .output, channelCount: 2, transport: .airPlay, isDefault: false, isAlive: true),
+        AudioDevice(audioObjectID: 4, uid: "hdmi", name: "HDMI", kind: .output, channelCount: 2, transport: .hdmi, isDefault: false, isAlive: true),
+        AudioDevice(audioObjectID: 5, uid: "old-speaker", name: "Old Speaker", kind: .output, channelCount: 2, transport: .bluetooth, isDefault: false, isAlive: false),
+        AudioDevice(audioObjectID: 6, uid: "mic", name: "Mic", kind: .input, channelCount: 1, transport: .builtIn, isDefault: true, isAlive: true)
     ]
     let routedOutputs = AudioRouterStore.routeOutputDevices(from: devices)
-    precondition(routedOutputs.map(\.uid) == ["built-in", "airpods"], "Only connected Bluetooth outputs and system speakers should be shown")
+    precondition(routedOutputs.map(\.uid) == ["built-in", "airpods", "living-room"], "Connected Bluetooth, AirPlay, and system speaker outputs should be shown")
 }
 
 func checkRouteBackwardCompatibility() {

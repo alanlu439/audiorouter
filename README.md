@@ -234,7 +234,7 @@ App mixer inputs have two layers. The app-only layer in `Advanced` -> `System` -
 
 The backend readiness panel is the fastest way to see what to do next:
 
-- `Devices`: confirms connected Bluetooth outputs and the system speaker are available.
+- `Devices`: confirms connected Bluetooth, AirPlay, and system speaker outputs are available.
 - `Route Apps`: confirms configured route apps have Core Audio process objects while playing audio.
 - `Process Taps`: shows whether the public capture path is available on this macOS version.
 - `Custom Routes`: shows whether any selected app-to-output route is live or saved for retry.
@@ -329,7 +329,7 @@ If the input is not listed yet, confirm `Advanced` -> `System` says the HAL driv
 
 If the backend panel says `Saved Only`, leave the source app playing and click `Retry Route`. If it says `Requires Backend`, the chosen app/device pair could not be made live through public Core Audio process taps, but the route preference is saved for a future routing backend.
 
-AudioRouter starts with Spotify, Apple Music, and Chrome as source apps. You can add more apps from the Routing Dashboard. Output choices are connected Bluetooth devices plus the built-in/system speaker.
+AudioRouter starts with Spotify, Apple Music, and Chrome as source apps. You can add more apps from the Routing Dashboard. Output choices are connected Bluetooth devices, AirPlay speakers, and the built-in/system speaker.
 
 AudioRouter also includes `Advanced` -> `System` -> `Protect playback`, which is on by default. It debounces Bluetooth and AirPods device-change notifications before refreshing devices or retrying routes, so temporary wear/remove re-enumeration is less likely to disturb active playback. `Always keep media playing` is also on by default. While AudioRouter is running, it periodically tells Spotify and Music to keep playing, and it listens for Spotify playback-state pause notifications so Spotify can resume faster when macOS sends an AirPods ear-detection pause event. macOS may ask for Automation permission the first time this runs.
 

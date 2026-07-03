@@ -29,6 +29,7 @@
 
 - Added `Advanced` -> `Reliability` with a Route Reliability Center that summarizes route health across every source app, with refresh, permission probe, retry, and route test actions.
 - Added route and output test tones so users can preview individual speakers, assigned app routes, and Group Play destinations.
+- Included connected AirPlay speakers in route output pickers alongside Bluetooth devices and the system speaker.
 - Added Device Change Guard to `Advanced` -> `Reliability` for Bluetooth/AirPods route protection and keep-playing controls.
 - Expanded Group Play controls with group test, retry, and per-speaker volume controls.
 - Redesigned the menu bar popover into a faster two-panel Quick Router with source selection, output target chips, selected-route gain/mute/retry/test controls, and a compact route list.
