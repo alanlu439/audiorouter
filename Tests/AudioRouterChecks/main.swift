@@ -13,7 +13,7 @@ func runChecks() throws {
     try checkSelectedSourceVolumeCommandStep()
     try checkSelectedOutputVolumeCommandStep()
     checkDeviceModelIDs()
-    checkFocusedOutputFiltering()
+    checkAllAliveOutputFiltering()
     checkRouteBackwardCompatibility()
     try checkRoutingManagerRoutesAndFallback()
     try checkSupportedBackendFailuresStaySaved()
@@ -255,22 +255,27 @@ func checkDeviceModelIDs() {
     precondition(output.id != input.id, "Input and output identities must not collide")
 }
 
-func checkFocusedOutputFiltering() {
+func checkAllAliveOutputFiltering() {
     let devices = [
         AudioDevice(audioObjectID: 1, uid: "built-in", name: "MacBook Speakers", kind: .output, channelCount: 2, transport: .builtIn, isDefault: true, isAlive: true),
         AudioDevice(audioObjectID: 2, uid: "airpods", name: "AirPods", kind: .output, channelCount: 2, transport: .bluetoothLE, isDefault: false, isAlive: true),
         AudioDevice(audioObjectID: 3, uid: "living-room", name: "Living Room AirPlay", kind: .output, channelCount: 2, transport: .airPlay, isDefault: false, isAlive: true),
         AudioDevice(audioObjectID: 4, uid: "homepod", name: "Kitchen HomePod", kind: .output, channelCount: 2, transport: .unknown, isDefault: false, isAlive: true),
-        AudioDevice(audioObjectID: 5, uid: "hdmi", name: "HDMI", kind: .output, channelCount: 2, transport: .hdmi, isDefault: false, isAlive: true),
-        AudioDevice(audioObjectID: 6, uid: "old-speaker", name: "Old Speaker", kind: .output, channelCount: 2, transport: .bluetooth, isDefault: false, isAlive: false),
-        AudioDevice(audioObjectID: 7, uid: "mic", name: "Mic", kind: .input, channelCount: 1, transport: .builtIn, isDefault: true, isAlive: true)
+        AudioDevice(audioObjectID: 5, uid: "benq", name: "BenQ MA270U", kind: .output, channelCount: 2, transport: .displayPort, isDefault: false, isAlive: true),
+        AudioDevice(audioObjectID: 6, uid: "vb-cable", name: "VB-Cable", kind: .output, channelCount: 2, transport: .virtual, isDefault: false, isAlive: true),
+        AudioDevice(audioObjectID: 7, uid: "hdmi", name: "HDMI", kind: .output, channelCount: 2, transport: .hdmi, isDefault: false, isAlive: true),
+        AudioDevice(audioObjectID: 8, uid: "old-speaker", name: "Old Speaker", kind: .output, channelCount: 2, transport: .bluetooth, isDefault: false, isAlive: false),
+        AudioDevice(audioObjectID: 9, uid: "mic", name: "Mic", kind: .input, channelCount: 1, transport: .builtIn, isDefault: true, isAlive: true)
     ]
     let routedOutputs = AudioRouterStore.routeOutputDevices(from: devices)
-    precondition(routedOutputs.map(\.uid) == ["built-in", "airpods", "living-room", "homepod"], "Connected Bluetooth, AirPlay, HomePod, and system speaker outputs should be shown")
+    precondition(
+        routedOutputs.map(\.uid) == ["built-in", "airpods", "living-room", "homepod", "benq", "vb-cable", "hdmi"],
+        "Every connected macOS output should be shown, including display, virtual, AirPlay, Bluetooth, HomePod, and system speaker outputs"
+    )
 
     let currentDefaultOutputs = [
-        AudioDevice(audioObjectID: 8, uid: "built-in", name: "MacBook Speakers", kind: .output, channelCount: 2, transport: .builtIn, isDefault: false, isAlive: true),
-        AudioDevice(audioObjectID: 9, uid: "selected-homepod", name: "Bedroom HomePod", kind: .output, channelCount: 2, transport: .unknown, isDefault: true, isAlive: true)
+        AudioDevice(audioObjectID: 10, uid: "built-in", name: "MacBook Speakers", kind: .output, channelCount: 2, transport: .builtIn, isDefault: false, isAlive: true),
+        AudioDevice(audioObjectID: 11, uid: "selected-homepod", name: "Bedroom HomePod", kind: .output, channelCount: 2, transport: .unknown, isDefault: true, isAlive: true)
     ]
     precondition(AudioRouterStore.routeOutputDevices(from: currentDefaultOutputs).map(\.uid) == ["selected-homepod", "built-in"], "The current default output should remain selectable even when macOS reports it with an unknown transport")
 }
