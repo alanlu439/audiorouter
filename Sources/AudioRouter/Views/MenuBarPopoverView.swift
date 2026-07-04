@@ -296,6 +296,7 @@ public struct MenuBarPopoverView: View {
                     .font(.caption2.weight(.bold))
                     .foregroundStyle(.secondary)
                 Spacer()
+                SystemAirPlayPickerButton(compact: true)
                 Button {
                     chooseOutput("")
                 } label: {

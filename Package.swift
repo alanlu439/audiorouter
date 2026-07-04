@@ -17,6 +17,7 @@ let package = Package(
             path: "Sources/AudioRouter",
             linkerSettings: [
                 .linkedFramework("AppKit"),
+                .linkedFramework("AVKit"),
                 .linkedFramework("CoreAudio"),
                 .linkedFramework("AudioToolbox"),
                 .linkedFramework("ServiceManagement")

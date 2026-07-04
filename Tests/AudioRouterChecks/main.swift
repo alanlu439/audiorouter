@@ -3,6 +3,23 @@ import CoreAudio
 import Foundation
 import SwiftUI
 
+func dumpRealOutputDevices() throws {
+    let devices = try AudioDeviceManager().refreshDevices()
+    let rawOutputs = devices.filter { $0.kind == .output }
+    let menuOutputs = AudioRouterStore.routeOutputDevices(from: devices)
+
+    print("Raw Core Audio outputs (\(rawOutputs.count)):")
+    for device in rawOutputs {
+        print("- \(device.name) | uid=\(device.uid) | transport=\(device.transport.rawValue) | alive=\(device.isAlive) | default=\(device.isDefault) | channels=\(device.channelCount)")
+    }
+
+    print("")
+    print("AudioRouter output menu options (\(menuOutputs.count)):")
+    for device in menuOutputs {
+        print("- \(device.name) | uid=\(device.uid) | transport=\(device.transport.rawValue) | default=\(device.isDefault) | channels=\(device.channelCount)")
+    }
+}
+
 @MainActor
 func runChecks() throws {
     checkEQPresets()
@@ -1009,6 +1026,11 @@ private final class FakeDeviceManager: AudioDeviceManaging {
 }
 
 do {
+    if CommandLine.arguments.contains("--dump-outputs") {
+        try dumpRealOutputDevices()
+        exit(0)
+    }
+
     try MainActor.assumeIsolated {
         try runChecks()
     }

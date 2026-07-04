@@ -1,5 +1,8 @@
 import AppKit
 import SwiftUI
+#if canImport(AVKit)
+import AVKit
+#endif
 
 struct DockCard<Content: View>: View {
     let content: Content
@@ -36,6 +39,60 @@ enum ConsolePalette {
     static let red = Color(red: 0.94, green: 0.38, blue: 0.36)
     static let warmInk = Color(red: 0.11, green: 0.085, blue: 0.050)
 }
+
+struct SystemAirPlayPickerButton: View {
+    var title: String = "AirPlay"
+    var compact = false
+
+    var body: some View {
+        HStack(spacing: 7) {
+#if canImport(AVKit)
+            AirPlayRoutePickerRepresentable()
+                .frame(width: 26, height: 22)
+                .accessibilityLabel("Open macOS AirPlay route picker")
+#else
+            Image(systemName: "airplayaudio")
+                .frame(width: 26, height: 22)
+#endif
+
+            if !compact {
+                Text(title)
+                    .font(.caption.weight(.semibold))
+                    .lineLimit(1)
+            }
+        }
+        .padding(.horizontal, compact ? 6 : 9)
+        .padding(.vertical, 5)
+        .background(ConsolePalette.strip.opacity(0.82), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .stroke(ConsolePalette.teal.opacity(0.36), lineWidth: 1)
+        }
+        .foregroundStyle(.white.opacity(0.86))
+        .help("Open the macOS AirPlay picker for TV, HomePod, and other routes that may not appear as Core Audio devices until selected.")
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Open AirPlay output picker")
+        .accessibilityHint("Use this for TV, HomePod, and other AirPlay routes that are not yet listed as output devices.")
+    }
+}
+
+#if canImport(AVKit)
+private struct AirPlayRoutePickerRepresentable: NSViewRepresentable {
+    func makeNSView(context: Context) -> AVRoutePickerView {
+        let view = AVRoutePickerView(frame: .zero)
+        view.isRoutePickerButtonBordered = false
+        view.setRoutePickerButtonColor(NSColor.white.withAlphaComponent(0.86), for: .normal)
+        view.setRoutePickerButtonColor(NSColor.white, for: .normalHighlighted)
+        view.setRoutePickerButtonColor(NSColor.systemTeal, for: .active)
+        view.setRoutePickerButtonColor(NSColor.systemTeal, for: .activeHighlighted)
+        view.setContentHuggingPriority(.required, for: .horizontal)
+        view.setContentHuggingPriority(.required, for: .vertical)
+        return view
+    }
+
+    func updateNSView(_ nsView: AVRoutePickerView, context: Context) {}
+}
+#endif
 
 struct ConsoleFrame<Content: View>: View {
     let content: Content

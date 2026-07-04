@@ -2265,6 +2265,8 @@ private struct StudioOutputActions: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
 
+            SystemAirPlayPickerButton(title: "AirPlay")
+
             Button {
                 store.createOutputGroup()
             } label: {

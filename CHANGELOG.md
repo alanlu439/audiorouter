@@ -33,7 +33,8 @@ _No unreleased changes._
 
 - Added `Advanced` -> `Reliability` with a Route Reliability Center that summarizes route health across every source app, with refresh, permission probe, retry, and route test actions.
 - Added route and output test tones so users can preview individual speakers, assigned app routes, and Group Play destinations.
-- Changed route output pickers to show every live macOS output device, including display/HDMI monitors, virtual devices like VB-Cable, AirPlay/TV/HomePod, Bluetooth devices, and the system speaker.
+- Changed route output pickers to show every live Core Audio output device, including display/HDMI monitors, virtual devices like VB-Cable, Bluetooth devices, and the system speaker.
+- Added a public macOS AirPlay picker to the Dashboard and menu-bar popover for TV, HomePod, and other AirPlay destinations that macOS shows in Control Center before exposing them as Core Audio output devices.
 - Added Device Change Guard to `Advanced` -> `Reliability` for Bluetooth/AirPods route protection and keep-playing controls.
 - Expanded Group Play controls with group test, retry, and per-speaker volume controls.
 - Redesigned the menu bar popover into a faster two-panel Quick Router with source selection, output target chips, selected-route gain/mute/retry/test controls, and a compact route list.
