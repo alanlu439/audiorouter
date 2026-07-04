@@ -2,7 +2,13 @@
 
 ## Unreleased
 
-_No unreleased changes._
+### AirPlay Backend Discovery
+
+- Added a backend-level AirPlay/RAOP Bonjour discovery service so AudioRouter can see AirPlay route candidates such as TV and HomePod even when macOS does not expose them as Core Audio output devices.
+- Added discovered AirPlay candidates to the Dashboard route builder, source-row output menus, and menu-bar Quick Router.
+- Added local-network and Bonjour usage descriptions to the app bundle so macOS can ask for discovery permission cleanly.
+- Added an `AudioRouterChecks --dump-airplay` diagnostic that verifies the AirPlay discovery layer separately from the Core Audio output list.
+- AirPlay candidates are labeled as AirPlay handoff routes instead of fake live Core Audio devices; live routing still requires macOS to expose a real output UID or a future dedicated AirPlay sender backend.
 
 ## 1.1.2 - 2026-07-03
 

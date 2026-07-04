@@ -85,6 +85,13 @@ cat >"$INFO_PLIST" <<PLIST
   <string>NSApplication</string>
   <key>NSAudioCaptureUsageDescription</key>
   <string>AudioRouter uses public Core Audio process taps to capture selected app audio for live routing and meters.</string>
+  <key>NSLocalNetworkUsageDescription</key>
+  <string>AudioRouter discovers AirPlay, HomePod, and TV playback routes on your local network so they can be shown as route candidates.</string>
+  <key>NSBonjourServices</key>
+  <array>
+    <string>_airplay._tcp</string>
+    <string>_raop._tcp</string>
+  </array>
 </dict>
 </plist>
 PLIST

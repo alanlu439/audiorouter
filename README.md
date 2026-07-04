@@ -118,6 +118,7 @@ Run validation checks:
 ```bash
 swift build --disable-sandbox
 swift run --disable-sandbox AudioRouterChecks
+swift run --disable-sandbox AudioRouterChecks --dump-airplay
 plutil -lint dist/AudioRouter.app/Contents/Info.plist
 ```
 
@@ -140,6 +141,7 @@ The AudioRouter name, logo, app icon, and branding assets are not licensed for c
 - Output volume, input volume, mute, and balance where a device exposes those controls.
 - Core Audio hardware change observation plus a refresh fallback for Bluetooth, USB, HDMI, virtual, aggregate, and built-in device changes.
 - A public macOS AirPlay picker in the Dashboard and menu-bar popover for TV, HomePod, and other AirPlay destinations that may not appear as Core Audio outputs until macOS activates them.
+- Backend-level AirPlay/RAOP discovery through Bonjour so TV, HomePod, and other AirPlay route candidates can appear in the route UI even before macOS exposes them as Core Audio devices.
 - Running audio-capable app discovery through Core Audio process objects, with a running-app fallback.
 - Experimental live per-app routes on macOS 14.2+ using public Core Audio process taps, transient aggregate devices, and an IO callback.
 - High-quality experimental route rendering using 32-bit floating-point PCM, source-rate-first AudioQueue client formats, Core Audio output conversion, high-quality drift compensation, and clean unity-gain snapping to avoid accidental limiting near 100%.
@@ -313,7 +315,7 @@ The script builds the SwiftPM product, stages `dist/AudioRouter.app`, writes the
 4. Start playback in Spotify, Apple Music, Chrome, or another app you added.
 5. To customize sources, open the Routing Dashboard, click `Add App`, pick a running app, browse for an installed `.app`, drag input rows to reorder them, or hide apps you do not want from the source row menu.
 6. Use the Route Builder, pick an output from an app row, or drag the app card onto an output device card.
-7. If a TV, HomePod, or AirPlay speaker appears in Control Center but not in the normal output menu, press the `AirPlay` button in the Dashboard or menu-bar popover, choose that route in macOS, then refresh AudioRouter.
+7. If a TV, HomePod, or AirPlay speaker appears as an `AirPlay` candidate, select it to save the route preference, press the `AirPlay` button, choose that route in macOS, then refresh AudioRouter.
 8. When macOS asks for System Audio Recording permission, allow AudioRouter.
 9. If a route starts successfully, the route badge changes to `Live` and the meter begins moving.
 10. Select a route/app row, then press `Command =` or `Command -` to adjust that track's gain by exactly 1% per press. The source card fader and mute button also work when the route backend supports per-app control.

@@ -6,6 +6,7 @@ public final class AudioRouterStore: ObservableObject {
     @Published public private(set) var devices: [AudioDevice] = []
     @Published public private(set) var audioSources: [AudioSource] = []
     @Published public private(set) var availableAppCandidates: [AudioSource] = []
+    @Published public private(set) var airPlayRouteCandidates: [AirPlayRouteCandidate] = []
     @Published public private(set) var lastError: String?
     @Published public private(set) var unsupportedNote: String?
     @Published public var selectedSettingsSection: SettingsSection = .dashboard
@@ -51,6 +52,7 @@ public final class AudioRouterStore: ObservableObject {
     private let appInputPublisher: AppInputPublishing
     private let playbackKeepAliveService: PlaybackKeepAliveService
     private let outputTestToneService: OutputTestToneService
+    private let airPlayRouteDiscoveryService: AirPlayRouteDiscoveryService
     private var refreshTimer: Timer?
     private var meterTimer: Timer?
     private var deviceObservation: DevicePropertyObservation?
@@ -102,6 +104,7 @@ public final class AudioRouterStore: ObservableObject {
         appInputPublisher: AppInputPublishing = AppInputDevicePublisher(),
         playbackKeepAliveService: PlaybackKeepAliveService = PlaybackKeepAliveService(),
         outputTestToneService: OutputTestToneService = OutputTestToneService(),
+        airPlayRouteDiscoveryService: AirPlayRouteDiscoveryService = AirPlayRouteDiscoveryService(),
         outputGroupsURL: URL = try! AppSupport.fileURL(named: "output-groups.json"),
         appSourcesURL: URL = try! AppSupport.fileURL(named: "audio-sources.json"),
         hiddenDefaultSourcesURL: URL = try! AppSupport.fileURL(named: "hidden-default-sources.json"),
@@ -120,6 +123,7 @@ public final class AudioRouterStore: ObservableObject {
         self.appInputPublisher = appInputPublisher
         self.playbackKeepAliveService = playbackKeepAliveService
         self.outputTestToneService = outputTestToneService
+        self.airPlayRouteDiscoveryService = airPlayRouteDiscoveryService
         self.outputGroupsURL = outputGroupsURL
         self.appSourcesURL = appSourcesURL
         self.hiddenDefaultSourcesURL = hiddenDefaultSourcesURL
@@ -158,6 +162,12 @@ public final class AudioRouterStore: ObservableObject {
             .store(in: &cancellables)
         self.updateManager.objectWillChange
             .sink { [weak self] _ in self?.objectWillChange.send() }
+            .store(in: &cancellables)
+        airPlayRouteDiscoveryService.$candidates
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] candidates in
+                self?.airPlayRouteCandidates = candidates
+            }
             .store(in: &cancellables)
     }
 
@@ -354,6 +364,9 @@ public final class AudioRouterStore: ObservableObject {
 
     public func start() {
         refresh()
+        if !settings.demoMode {
+            airPlayRouteDiscoveryService.start()
+        }
         startDeviceObservationIfNeeded()
         updateManager.startAutomaticChecks(enabled: settings.automaticallyCheckForUpdates)
         startImmediatePlaybackObserversIfNeeded()
@@ -369,6 +382,7 @@ public final class AudioRouterStore: ObservableObject {
     }
 
     public func stop() {
+        airPlayRouteDiscoveryService.stop()
         refreshTimer?.invalidate()
         refreshTimer = nil
         meterTimer?.invalidate()
@@ -412,6 +426,7 @@ public final class AudioRouterStore: ObservableObject {
             let hadDeviceSnapshot = lastRefreshUsedDemoMode != nil || !devices.isEmpty
             var refreshedDevices: [AudioDevice]
             if usingDemoMode {
+                airPlayRouteDiscoveryService.stop()
                 deviceObservation?.cancel()
                 deviceObservation = nil
                 if lastRefreshUsedDemoMode != true || devices.isEmpty {
@@ -420,6 +435,7 @@ public final class AudioRouterStore: ObservableObject {
                     refreshedDevices = devices
                 }
             } else {
+                airPlayRouteDiscoveryService.start()
                 refreshedDevices = try deviceManager.refreshDevices()
             }
             let currentOutputUIDs = Self.aliveOutputUIDs(from: refreshedDevices)
@@ -728,7 +744,19 @@ public final class AudioRouterStore: ObservableObject {
            let group = outputGroups.first(where: { $0.routeTargetID == outputDeviceID }) {
             return group.name
         }
+        if let outputDeviceID = route.outputDeviceID,
+           AirPlayRouteCandidate.isRouteTargetID(outputDeviceID) {
+            return airPlayRouteCandidate(forRouteTargetID: outputDeviceID)?.name ?? "AirPlay Route"
+        }
         return audioRoutingManager.deviceName(for: route, outputs: outputDevices)
+    }
+
+    public func airPlayRouteCandidate(forRouteTargetID routeTargetID: String) -> AirPlayRouteCandidate? {
+        airPlayRouteCandidates.first { $0.routeTargetID == routeTargetID }
+    }
+
+    public func isAirPlayRouteCandidateTarget(_ routeTargetID: String) -> Bool {
+        AirPlayRouteCandidate.isRouteTargetID(routeTargetID)
     }
 
     public var routeAppDisplayNames: [String] {
@@ -935,6 +963,11 @@ public final class AudioRouterStore: ObservableObject {
             return
         }
 
+        if AirPlayRouteCandidate.isRouteTargetID(uid) {
+            assignAirPlayCandidateRoute(source: source, routeTargetID: uid)
+            return
+        }
+
         preparingRouteSourceIDs.insert(source.id)
         let probeResult = processAudioMonitor.probeSystemAudioPermission()
         processTapProbeMessage = probeResult.message
@@ -964,6 +997,12 @@ public final class AudioRouterStore: ObservableObject {
                 self.schedulePreparedRouteRetries(sourceID: refreshedSource.id, outputID: uid)
             }
         }
+    }
+
+    private func assignAirPlayCandidateRoute(source: AudioSource, routeTargetID: String) {
+        assignSourceOutput(source: source, uid: routeTargetID)
+        let candidateName = airPlayRouteCandidate(forRouteTargetID: routeTargetID)?.name ?? "that AirPlay device"
+        showUnsupportedNote("AudioRouter found \(candidateName) through AirPlay discovery, but macOS has not exposed it as a Core Audio output device yet. Press AirPlay, choose \(candidateName) in macOS, then refresh AudioRouter. Live routing can start only after macOS exposes a real output device.")
     }
 
     public func resetSourceToSystemOutput(_ source: AudioSource) {
@@ -1143,6 +1182,9 @@ public final class AudioRouterStore: ObservableObject {
             testOutputGroup(group)
         } else if let output = outputDevices.first(where: { $0.uid == outputID }) {
             testOutput(output)
+        } else if AirPlayRouteCandidate.isRouteTargetID(outputID) {
+            let candidateName = airPlayRouteCandidate(forRouteTargetID: outputID)?.name ?? "that AirPlay route"
+            showUnsupportedNote("Use the AirPlay button to choose \(candidateName) in macOS first. AudioRouter can test it after macOS exposes it as a Core Audio output.")
         } else {
             showUnsupportedNote("\(source.appName)'s assigned output is missing.")
         }
@@ -1171,6 +1213,10 @@ public final class AudioRouterStore: ObservableObject {
         }
         if route.routeMode == .followSystemOutput {
             return "Working"
+        }
+        if let outputID = route.outputDeviceID,
+           AirPlayRouteCandidate.isRouteTargetID(outputID) {
+            return "AirPlay"
         }
         switch route.status {
         case .active:
@@ -1355,6 +1401,7 @@ public final class AudioRouterStore: ObservableObject {
         switch routeStatus(for: source) {
         case "Live": return .live
         case "Working": return .working
+        case "AirPlay": return .savedOnly
         case "Saved Only": return .savedOnly
         case "Simulated": return .demo
         case "Requires Audio Backend": return .requiresBackend
@@ -1364,7 +1411,7 @@ public final class AudioRouterStore: ObservableObject {
     }
 
     public func routeStatusIsWarning(for source: AudioSource) -> Bool {
-        ["Requires Audio Backend", "Unsupported", "Device Missing"].contains(routeStatus(for: source))
+        ["AirPlay", "Requires Audio Backend", "Unsupported", "Device Missing"].contains(routeStatus(for: source))
     }
 
     public var activeUserProfile: UserProfile {
@@ -1534,6 +1581,7 @@ public final class AudioRouterStore: ObservableObject {
         case "Live": return .live
         case "Demo": return .demo
         case "Simulated": return .simulated
+        case "AirPlay": return .savedOnly
         case "Saved Only": return .savedOnly
         case "Requires Audio Backend": return .requiresBackend
         case "Device Missing": return .deviceMissing

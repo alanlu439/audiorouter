@@ -1156,6 +1156,14 @@ private struct StudioSmoothRouteBuilder: View {
                     selectOutput(device.uid)
                 }
             }
+            if !store.airPlayRouteCandidates.isEmpty {
+                Divider()
+                ForEach(store.airPlayRouteCandidates) { candidate in
+                    Button("\(candidate.name) (AirPlay)") {
+                        selectOutput(candidate.routeTargetID)
+                    }
+                }
+            }
             if !store.outputGroups.isEmpty {
                 Divider()
                 ForEach(store.outputGroups) { group in
@@ -1192,6 +1200,17 @@ private struct StudioSmoothRouteBuilder: View {
                 detail: device.isDefault ? "\(device.typeDescription) · Main" : device.typeDescription,
                 systemImage: device.kind.systemImage,
                 tint: device.transport == .builtIn ? StudioPalette.amber : StudioPalette.teal
+            )
+        }
+
+        targets += store.airPlayRouteCandidates.map { candidate in
+            SmoothRouteTarget(
+                id: "airplay-\(candidate.id)",
+                selectionID: candidate.routeTargetID,
+                title: candidate.name,
+                detail: "\(candidate.kindDescription) · use AirPlay picker",
+                systemImage: "airplayaudio",
+                tint: StudioPalette.amber
             )
         }
 
@@ -1293,6 +1312,9 @@ private struct StudioSmoothRouteBuilder: View {
         if routeTargetIsGroup {
             return "Routes this source to every connected output in the group. Separate devices may have small latency differences."
         }
+        if selectedOutputIsAirPlayCandidate {
+            return "Saves this AirPlay target. Press AirPlay, choose \(outputDisplayName) in macOS, then refresh AudioRouter so it can use the real Core Audio output if macOS exposes one."
+        }
         if !store.supportsTruePerAppRouting {
             return "Saves this output choice. This Mac cannot start live process-tap routing with the current backend."
         }
@@ -1311,6 +1333,9 @@ private struct StudioSmoothRouteBuilder: View {
         }
         if routeTargetIsGroup {
             return "Output group selected. AudioRouter will fan this source out to each connected device in the group."
+        }
+        if selectedOutputIsAirPlayCandidate {
+            return "\(selectedSource.appName) -> \(outputDisplayName). Use AirPlay to activate this route in macOS."
         }
         if routeAlreadySet, selectedOutputID.isEmpty {
             return "\(selectedSource.appName) follows the current system output."
@@ -1348,12 +1373,18 @@ private struct StudioSmoothRouteBuilder: View {
         selectedOutputID.isEmpty
             || store.outputDevices.contains { $0.uid == selectedOutputID }
             || store.outputGroups.contains { $0.routeTargetID == selectedOutputID }
+            || selectedOutputIsAirPlayCandidate
     }
 
     private var selectedOutputReadyLabel: String {
         if selectedOutputID.isEmpty { return "System" }
+        if selectedOutputIsAirPlayCandidate { return "AirPlay" }
         if routeTargetIsGroup { return "Group" }
         return selectedOutputReady ? "Ready" : "Missing"
+    }
+
+    private var selectedOutputIsAirPlayCandidate: Bool {
+        store.isAirPlayRouteCandidateTarget(selectedOutputID)
     }
 
     private var routeTargetIsGroup: Bool {
@@ -1373,6 +1404,7 @@ private struct StudioSmoothRouteBuilder: View {
               store.supportsTruePerAppRouting,
               !selectedOutputID.isEmpty,
               selectedOutputReady,
+              !selectedOutputIsAirPlayCandidate,
               selectedSource.audioObjectID != nil else {
             return false
         }
@@ -1386,6 +1418,7 @@ private struct StudioSmoothRouteBuilder: View {
         if store.settings.demoMode { return "Demo" }
         if selectedOutputID.isEmpty { return "System" }
         if selectedRoute?.status == .active && routeAlreadySet { return "Live" }
+        if selectedOutputIsAirPlayCandidate { return "AirPlay" }
         if canAttemptLiveRoute { return "Ready" }
         if !store.supportsTruePerAppRouting { return "Backend" }
         return "Saved"
@@ -1395,6 +1428,7 @@ private struct StudioSmoothRouteBuilder: View {
         switch routeReadinessLabel {
         case "Live": return "checkmark.circle.fill"
         case "Ready": return "bolt.circle.fill"
+        case "AirPlay": return "airplayaudio"
         case "Backend": return "exclamationmark.triangle.fill"
         case "Demo": return "sparkles"
         case "System": return "arrow.triangle.branch"
@@ -1405,7 +1439,7 @@ private struct StudioSmoothRouteBuilder: View {
     private var routeReadinessTint: Color {
         switch routeReadinessLabel {
         case "Live", "Ready": return StudioPalette.green
-        case "Backend", "Saved": return StudioPalette.amber
+        case "AirPlay", "Backend", "Saved": return StudioPalette.amber
         case "System": return StudioPalette.blue
         default: return StudioPalette.teal
         }
@@ -1461,6 +1495,9 @@ private struct StudioSmoothRouteBuilder: View {
         }
         if let group = store.outputGroups.first {
             ids.append(group.routeTargetID)
+        }
+        if let candidate = store.airPlayRouteCandidates.first {
+            ids.append(candidate.routeTargetID)
         }
 
         var seen: Set<String> = []
@@ -2133,6 +2170,12 @@ private struct StudioChannelStrip: View {
                 Text("Follow System").tag("")
                 ForEach(store.outputDevices) { device in
                     Text(device.name).tag(device.uid)
+                }
+                if !store.airPlayRouteCandidates.isEmpty {
+                    Divider()
+                    ForEach(store.airPlayRouteCandidates) { candidate in
+                        Text("\(candidate.name) (AirPlay)").tag(candidate.routeTargetID)
+                    }
                 }
                 if !store.outputGroups.isEmpty {
                     Divider()

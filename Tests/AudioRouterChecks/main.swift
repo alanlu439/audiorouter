@@ -1,4 +1,5 @@
 import AudioRouterCore
+import Combine
 import CoreAudio
 import Foundation
 import SwiftUI
@@ -20,6 +21,26 @@ func dumpRealOutputDevices() throws {
     }
 }
 
+func dumpAirPlayRouteCandidates(seconds: TimeInterval = 6) {
+    let discoveryService = AirPlayRouteDiscoveryService()
+    var latestCandidates: [AirPlayRouteCandidate] = []
+    let cancellable = discoveryService.$candidates.sink { candidates in
+        latestCandidates = candidates
+    }
+
+    discoveryService.start()
+    RunLoop.current.run(until: Date().addingTimeInterval(seconds))
+    let discoveredCandidates = latestCandidates
+    discoveryService.stop()
+    _ = cancellable
+
+    print("Discovered AirPlay route candidates (\(discoveredCandidates.count)):")
+    for candidate in discoveredCandidates {
+        let endpoint = [candidate.hostName, candidate.port.map(String.init)].compactMap { $0 }.joined(separator: ":")
+        print("- \(candidate.name) | type=\(candidate.serviceType) | target=\(candidate.routeTargetID) | endpoint=\(endpoint.isEmpty ? "unresolved" : endpoint)")
+    }
+}
+
 @MainActor
 func runChecks() throws {
     checkEQPresets()
@@ -30,6 +51,7 @@ func runChecks() throws {
     try checkSelectedSourceVolumeCommandStep()
     try checkSelectedOutputVolumeCommandStep()
     checkDeviceModelIDs()
+    checkAirPlayRouteCandidateModel()
     checkAllAliveOutputFiltering()
     checkRouteBackwardCompatibility()
     try checkRoutingManagerRoutesAndFallback()
@@ -93,6 +115,21 @@ func checkEQPresets() {
 
     let reloaded = EQManager(defaults: defaults)
     precondition(reloaded.state.customBands.first == 7, "Saved custom EQ should persist")
+}
+
+func checkAirPlayRouteCandidateModel() {
+    let displayName = AirPlayRouteCandidate.displayName(from: "70-35-60-AA-BB-CC@Living Room HomePod")
+    precondition(displayName == "Living Room HomePod", "RAOP service names should show the human device name")
+
+    let candidate = AirPlayRouteCandidate(
+        id: AirPlayRouteCandidate.stableID(name: displayName, serviceType: "_raop._tcp.", domain: "local."),
+        name: displayName,
+        serviceType: "_raop._tcp.",
+        domain: "local."
+    )
+    precondition(candidate.routeTargetID.hasPrefix(AirPlayRouteCandidate.routeTargetPrefix), "AirPlay candidates should produce route target ids")
+    precondition(AirPlayRouteCandidate.isRouteTargetID(candidate.routeTargetID), "AirPlay route target ids should be recognizable")
+    precondition(candidate.kindDescription == "AirPlay audio", "RAOP candidates should be labeled as AirPlay audio")
 }
 
 func checkPresetPersistence() throws {
@@ -1028,6 +1065,10 @@ private final class FakeDeviceManager: AudioDeviceManaging {
 do {
     if CommandLine.arguments.contains("--dump-outputs") {
         try dumpRealOutputDevices()
+        exit(0)
+    }
+    if CommandLine.arguments.contains("--dump-airplay") {
+        dumpAirPlayRouteCandidates()
         exit(0)
     }
 

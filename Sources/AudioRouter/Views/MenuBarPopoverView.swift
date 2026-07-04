@@ -405,6 +405,16 @@ public struct MenuBarPopoverView: View {
             )
         }
 
+        targets += store.airPlayRouteCandidates.map { candidate in
+            MenuRouteTarget(
+                id: candidate.routeTargetID,
+                title: candidate.name,
+                subtitle: "AirPlay · use picker",
+                systemImage: "airplayaudio",
+                tint: .orange
+            )
+        }
+
         targets += store.outputGroups.map { group in
             MenuRouteTarget(
                 id: group.routeTargetID,
@@ -456,6 +466,12 @@ public struct MenuBarPopoverView: View {
         if let group = store.outputGroups.first(where: { $0.routeTargetID == id }) {
             return group.name
         }
+        if let candidate = store.airPlayRouteCandidate(forRouteTargetID: id) {
+            return candidate.name
+        }
+        if store.isAirPlayRouteCandidateTarget(id) {
+            return "AirPlay Route"
+        }
         return "Missing Output"
     }
 
@@ -476,6 +492,7 @@ public struct MenuBarPopoverView: View {
         }
         let outputExists = store.outputDevices.contains { $0.uid == selectedOutputID }
             || store.outputGroups.contains { $0.routeTargetID == selectedOutputID }
+            || store.isAirPlayRouteCandidateTarget(selectedOutputID)
         if !outputExists {
             syncOutputFromSelectedSource()
         }
