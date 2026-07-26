@@ -467,7 +467,10 @@ public final class AudioRouterStore: ObservableObject {
                     audioRoutingManager.handleDeviceReconnected(deviceID: reconnectedUID)
                 }
             }
-            let refreshedSources = usingDemoMode ? demoSources : focusedSources(from: audioRoutingManager.getActiveAudioSources())
+            var refreshedSources = usingDemoMode ? demoSources : focusedSources(from: audioRoutingManager.getActiveAudioSources())
+            if !usingDemoMode {
+                reconcileAirPlayRoutes(using: &refreshedSources)
+            }
             if refreshedSources != audioSources {
                 audioSources = refreshedSources
             }
@@ -752,7 +755,15 @@ public final class AudioRouterStore: ObservableObject {
     }
 
     public func airPlayRouteCandidate(forRouteTargetID routeTargetID: String) -> AirPlayRouteCandidate? {
-        airPlayRouteCandidates.first { $0.routeTargetID == routeTargetID }
+        if let exact = airPlayRouteCandidates.first(where: { $0.routeTargetID == routeTargetID }) {
+            return exact
+        }
+        guard let targetKey = AirPlayRouteCandidate.normalizedTargetKey(forRouteTargetID: routeTargetID) else {
+            return nil
+        }
+        return airPlayRouteCandidates.first {
+            AirPlayRouteCandidate.normalizedKey(for: $0.name) == targetKey
+        }
     }
 
     public func isAirPlayRouteCandidateTarget(_ routeTargetID: String) -> Bool {
@@ -964,6 +975,10 @@ public final class AudioRouterStore: ObservableObject {
         }
 
         if AirPlayRouteCandidate.isRouteTargetID(uid) {
+            if let output = Self.airPlayOutputDevice(forRouteTargetID: uid, outputs: outputDevices) {
+                prepareAndAssignSourceOutput(source: source, uid: output.uid)
+                return
+            }
             assignAirPlayCandidateRoute(source: source, routeTargetID: uid)
             return
         }
@@ -1003,6 +1018,48 @@ public final class AudioRouterStore: ObservableObject {
         assignSourceOutput(source: source, uid: routeTargetID)
         let candidateName = airPlayRouteCandidate(forRouteTargetID: routeTargetID)?.name ?? "that AirPlay device"
         showUnsupportedNote("AudioRouter found \(candidateName) through AirPlay discovery, but macOS has not exposed it as a Core Audio output device yet. Press AirPlay, choose \(candidateName) in macOS, then refresh AudioRouter. Live routing can start only after macOS exposes a real output device.")
+    }
+
+    nonisolated public static func airPlayOutputDevice(
+        forRouteTargetID routeTargetID: String,
+        outputs: [AudioDevice]
+    ) -> AudioDevice? {
+        guard let targetKey = AirPlayRouteCandidate.normalizedTargetKey(forRouteTargetID: routeTargetID) else {
+            return nil
+        }
+        return outputs.first {
+            $0.kind == .output
+                && $0.isAlive
+                && AirPlayRouteCandidate.normalizedKey(for: $0.name) == targetKey
+        }
+    }
+
+    private func reconcileAirPlayRoutes(using sources: inout [AudioSource]) {
+        for index in sources.indices {
+            let source = sources[index]
+            let route = audioRoutingManager.route(for: source.id)
+            guard route.routeMode == .customOutput,
+                  let routeTargetID = route.outputDeviceID,
+                  AirPlayRouteCandidate.isRouteTargetID(routeTargetID),
+                  let output = Self.airPlayOutputDevice(
+                    forRouteTargetID: routeTargetID,
+                    outputs: outputDevices
+                  ) else {
+                continue
+            }
+
+            audioRoutingManager.assignOutputDevice(sourceID: source.id, deviceID: output.uid)
+            let updatedRoute = audioRoutingManager.route(for: source.id)
+            sources[index].assignedOutputDeviceID = updatedRoute.outputDeviceID
+            sources[index].routeMode = updatedRoute.routeMode
+            sources[index].followsSystemOutput = updatedRoute.routeMode == .followSystemOutput
+
+            if updatedRoute.status == .active {
+                unsupportedNote = nil
+            } else {
+                unsupportedNote = "\(output.name) is now available to Core Audio. AudioRouter prepared the saved route and will start it automatically when \(source.appName) exposes audio."
+            }
+        }
     }
 
     public func resetSourceToSystemOutput(_ source: AudioSource) {
@@ -1239,20 +1296,12 @@ public final class AudioRouterStore: ObservableObject {
         return audioRoutingManager.sourceAudioQuality(for: source.id)
     }
 
-    public func sourceAudioQualityLabel(for source: AudioSource) -> String {
-        sourceAudioQuality(for: source)?.compactDisplayLabel ?? "Pending"
-    }
-
-    public func sourceAudioQualityIsLive(for source: AudioSource) -> Bool {
-        !settings.demoMode && audioRoutingManager.sourceAudioQuality(for: source.id) != nil
-    }
-
-    public func sourceAudioQualityHelp(for source: AudioSource) -> String {
-        if let quality = sourceAudioQuality(for: source) {
-            let mode = settings.demoMode ? "Demo source quality" : "Core Audio process-tap format"
-            return "\(mode): \(quality.accessibilityDescription)."
-        }
-        return "Source audio quality appears after macOS allows AudioRouter to create a process-tap probe for this app."
+    public func sourceAudioQualityHelp(
+        for source: AudioSource,
+        quality: SourceAudioQuality
+    ) -> String {
+        let mode = settings.demoMode ? "Demo sample rate" : "Live Core Audio sample rate"
+        return "\(source.appName) \(mode.lowercased()): \(quality.accessibilityDescription)."
     }
 
     public var routeSummaryText: String {

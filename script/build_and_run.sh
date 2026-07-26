@@ -10,6 +10,7 @@ MIN_SYSTEM_VERSION="14.2"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DIST_DIR="$ROOT_DIR/dist"
 APP_BUNDLE="$DIST_DIR/$APP_NAME.app"
+LEGACY_STAGING_DIR="$DIST_DIR/$APP_NAME-macOS"
 APP_CONTENTS="$APP_BUNDLE/Contents"
 APP_MACOS="$APP_CONTENTS/MacOS"
 APP_RESOURCES="$APP_CONTENTS/Resources"
@@ -20,6 +21,11 @@ LICENSE_SOURCE="$ROOT_DIR/LICENSE"
 NOTICE_SOURCE="$ROOT_DIR/NOTICE"
 
 cd "$ROOT_DIR"
+
+source "$ROOT_DIR/script/macos_sdk_env.sh"
+if [[ "${AUDIOROUTER_SDK_FALLBACK:-0}" == "1" ]]; then
+  echo "Using compatible macOS SDK: $SDKROOT" >&2
+fi
 
 APP_GIT_COMMIT="${AUDIO_ROUTER_GIT_COMMIT:-$(git rev-parse HEAD 2>/dev/null || echo unknown)}"
 
@@ -36,7 +42,7 @@ esac
 swift build --disable-sandbox
 BUILD_BINARY="$(swift build --disable-sandbox --show-bin-path)/$APP_NAME"
 
-rm -rf "$APP_BUNDLE"
+rm -rf "$APP_BUNDLE" "$LEGACY_STAGING_DIR"
 mkdir -p "$APP_MACOS" "$APP_RESOURCES"
 cp "$BUILD_BINARY" "$APP_BINARY"
 chmod +x "$APP_BINARY"

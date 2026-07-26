@@ -129,6 +129,7 @@ public final class UpdateManager: ObservableObject {
 
         if let existingURL = existingDownloadedUpdateURL(for: availableUpdate), FileManager.default.fileExists(atPath: existingURL.path) {
             downloadedUpdateURL = existingURL
+            shouldPromptToInstall = true
             message = "AudioRouter \(availableUpdate.version) is downloaded. Open the ZIP to install."
             return
         }

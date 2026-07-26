@@ -116,9 +116,9 @@ dist/AudioRouter.app
 Run validation checks:
 
 ```bash
-swift build --disable-sandbox
-swift run --disable-sandbox AudioRouterChecks
-swift run --disable-sandbox AudioRouterChecks --dump-airplay
+./script/build_and_run.sh --bundle
+./script/run_checks.sh
+./script/run_checks.sh --dump-airplay
 plutil -lint dist/AudioRouter.app/Contents/Info.plist
 ```
 
@@ -361,8 +361,8 @@ AudioRouter also includes `Advanced` -> `System` -> `Protect playback`, which is
 ## Verify
 
 ```bash
-swift build
-swift run AudioRouterChecks
+./script/build_and_run.sh --bundle
+./script/run_checks.sh
 ./script/build_and_run.sh --verify
 LOCAL_TEST_ZIP=1 ./script/package_release.sh
 plutil -lint dist/AudioRouter.app/Contents/Info.plist

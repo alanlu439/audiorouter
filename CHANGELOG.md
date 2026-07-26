@@ -9,6 +9,18 @@
 - Added local-network and Bonjour usage descriptions to the app bundle so macOS can ask for discovery permission cleanly.
 - Added an `AudioRouterChecks --dump-airplay` diagnostic that verifies the AirPlay discovery layer separately from the Core Audio output list.
 - AirPlay candidates are labeled as AirPlay handoff routes instead of fake live Core Audio devices; live routing still requires macOS to expose a real output UID or a future dedicated AirPlay sender backend.
+- Unified duplicate AirPlay and RAOP discovery records and preserved compatibility with routes saved by earlier releases.
+- Saved AirPlay routes now bind automatically when macOS exposes the matching destination as a real Core Audio output.
+
+### Reliability And Interface
+
+- Removed a blocking route-start wait that could freeze the interface for up to 750 milliseconds whenever an app route was assigned.
+- Reduced source format probing while apps are idle and now show sample-rate badges only when Core Audio returns real data.
+- Unified the Dashboard with the same studio-console header and surface language used throughout the app.
+- Replaced ambiguous shortcut modifier checkboxes with clear Command and Option key controls.
+- Fixed the updater so an already-downloaded release still presents the install prompt.
+- Added a compatible SDK fallback for macOS 27 Command Line Tools installations that omit the matching SwiftUI macro plug-in.
+- Removed persistent release staging folders that could make macOS discover a second AudioRouter app.
 
 ## 1.1.2 - 2026-07-03
 

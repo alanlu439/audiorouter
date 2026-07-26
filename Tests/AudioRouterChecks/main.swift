@@ -52,6 +52,7 @@ func runChecks() throws {
     try checkSelectedOutputVolumeCommandStep()
     checkDeviceModelIDs()
     checkAirPlayRouteCandidateModel()
+    checkAirPlayRouteDeviceMatching()
     checkAllAliveOutputFiltering()
     checkRouteBackwardCompatibility()
     try checkRoutingManagerRoutesAndFallback()
@@ -130,6 +131,45 @@ func checkAirPlayRouteCandidateModel() {
     precondition(candidate.routeTargetID.hasPrefix(AirPlayRouteCandidate.routeTargetPrefix), "AirPlay candidates should produce route target ids")
     precondition(AirPlayRouteCandidate.isRouteTargetID(candidate.routeTargetID), "AirPlay route target ids should be recognizable")
     precondition(candidate.kindDescription == "AirPlay audio", "RAOP candidates should be labeled as AirPlay audio")
+
+    let airPlayID = AirPlayRouteCandidate.stableID(
+        name: displayName,
+        serviceType: "_airplay._tcp.",
+        domain: "local."
+    )
+    precondition(candidate.id == airPlayID, "AirPlay and RAOP discovery should keep one stable route target")
+
+    let legacyTarget = "\(AirPlayRouteCandidate.routeTargetPrefix)\(candidate.id)|_raop._tcp.|local."
+    precondition(
+        AirPlayRouteCandidate.normalizedTargetKey(forRouteTargetID: legacyTarget) == candidate.id,
+        "Saved AirPlay targets from older releases should remain matchable"
+    )
+}
+
+func checkAirPlayRouteDeviceMatching() {
+    let candidateID = "\(AirPlayRouteCandidate.routeTargetPrefix)living room"
+    let output = AudioDevice(
+        audioObjectID: 55,
+        uid: "airplay-output",
+        name: "Living Room",
+        kind: .output,
+        channelCount: 2,
+        transport: .airPlay,
+        isDefault: false,
+        isAlive: true
+    )
+    let matched = AudioRouterStore.airPlayOutputDevice(
+        forRouteTargetID: candidateID,
+        outputs: [output]
+    )
+    precondition(matched?.uid == output.uid, "AirPlay route candidates should bind to matching Core Audio outputs")
+
+    let legacyID = "\(AirPlayRouteCandidate.routeTargetPrefix)living room|_airplay._tcp.|local."
+    let legacyMatch = AudioRouterStore.airPlayOutputDevice(
+        forRouteTargetID: legacyID,
+        outputs: [output]
+    )
+    precondition(legacyMatch?.uid == output.uid, "Legacy AirPlay route ids should bind to matching Core Audio outputs")
 }
 
 func checkPresetPersistence() throws {

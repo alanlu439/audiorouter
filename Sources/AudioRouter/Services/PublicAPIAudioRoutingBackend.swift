@@ -19,8 +19,8 @@ public final class PublicAPIAudioRoutingBackend: AudioRoutingBackend {
     private var latestSourcesByID: [String: AudioSource] = [:]
     private var latestOutputsByUID: [String: AudioDevice] = [:]
     private var sourceQualityProbeCacheByID: [String: SourceQualityProbeCacheEntry] = [:]
-    private let successfulSourceQualityProbeTTL: TimeInterval = 3
-    private let failedSourceQualityProbeTTL: TimeInterval = 2
+    private let successfulSourceQualityProbeTTL: TimeInterval = 8
+    private let failedSourceQualityProbeTTL: TimeInterval = 15
 
     public convenience init() {
         self.init(
@@ -104,6 +104,10 @@ public final class PublicAPIAudioRoutingBackend: AudioRoutingBackend {
 
         guard let source = try? source(for: sourceID) else {
             cacheSourceQuality(nil, for: sourceID, now: now)
+            return nil
+        }
+        guard source.isProducingAudio else {
+            cacheSourceQuality(nil, for: sourceID, source: source, now: now)
             return nil
         }
 

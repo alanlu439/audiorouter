@@ -55,11 +55,17 @@ public struct AirPlayRouteCandidate: Identifiable, Codable, Hashable {
     }
 
     public static func stableID(name: String, serviceType: String, domain: String) -> String {
-        [
-            normalizedKey(for: name),
-            serviceType.lowercased(),
-            domain.lowercased()
-        ].joined(separator: "|")
+        normalizedKey(for: name)
+    }
+
+    public static func normalizedTargetKey(forRouteTargetID routeTargetID: String) -> String? {
+        guard isRouteTargetID(routeTargetID) else { return nil }
+        let rawID = String(routeTargetID.dropFirst(routeTargetPrefix.count))
+        guard let nameComponent = rawID.split(separator: "|", maxSplits: 1, omittingEmptySubsequences: false).first,
+              !nameComponent.isEmpty else {
+            return nil
+        }
+        return normalizedKey(for: String(nameComponent))
     }
 
     public static func normalizedKey(for name: String) -> String {

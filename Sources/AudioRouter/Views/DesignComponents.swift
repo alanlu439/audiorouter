@@ -399,7 +399,7 @@ struct SourceQualityPill: View {
                 .stroke((isLive ? Color.cyan : Color.secondary).opacity(isLive ? 0.28 : 0.16), lineWidth: 1)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(isLive ? "Fetched source audio quality \(label)" : "Source audio quality \(label)")
+        .accessibilityLabel(isLive ? "Live source sample rate \(label)" : "Source sample rate \(label)")
     }
 }
 

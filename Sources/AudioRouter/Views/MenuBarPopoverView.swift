@@ -166,11 +166,13 @@ public struct MenuBarPopoverView: View {
                                 .controlSize(.small)
                                 .frame(maxWidth: 190, alignment: .leading)
 
-                                SourceQualityPill(
-                                    label: store.sourceAudioQualityLabel(for: source),
-                                    isLive: store.sourceAudioQualityIsLive(for: source)
-                                )
-                                .help(store.sourceAudioQualityHelp(for: source))
+                                if let quality = store.sourceAudioQuality(for: source) {
+                                    SourceQualityPill(
+                                        label: quality.compactDisplayLabel,
+                                        isLive: !store.settings.demoMode
+                                    )
+                                    .help(store.sourceAudioQualityHelp(for: source, quality: quality))
+                                }
                             }
 
                             Text(routeSummary(for: source))

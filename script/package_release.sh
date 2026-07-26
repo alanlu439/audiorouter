@@ -6,7 +6,9 @@ APP_NAME="AudioRouter"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DIST_DIR="$ROOT_DIR/dist"
 APP_BUNDLE="$DIST_DIR/$APP_NAME.app"
-STAGING_DIR="$DIST_DIR/$APP_NAME-macOS"
+LEGACY_STAGING_DIR="$DIST_DIR/$APP_NAME-macOS"
+STAGING_PARENT="$(mktemp -d "${TMPDIR:-/tmp}/AudioRouter-release.XXXXXX")"
+STAGING_DIR="$STAGING_PARENT/$APP_NAME-macOS"
 MANUAL_SOURCE="$ROOT_DIR/DOWNLOAD_AND_USE.md"
 MANUAL_NAME="DOWNLOAD_AND_USE.md"
 USER_MANUAL_PDF_SOURCE="$ROOT_DIR/docs/assets/AudioRouter-User-Manual.pdf"
@@ -22,6 +24,11 @@ LOCAL_TEST_ZIP="${LOCAL_TEST_ZIP:-${LOCAL_TEST_DMG:-0}}"
 NOTARIZE="${NOTARIZE:-1}"
 ALLOW_UNNOTARIZED_PUBLIC_ZIP="${ALLOW_UNNOTARIZED_PUBLIC_ZIP:-0}"
 
+cleanup() {
+  rm -rf "$STAGING_PARENT"
+}
+trap cleanup EXIT
+
 if [[ "$LOCAL_TEST_ZIP" == "1" ]]; then
   ZIP_PATH="$LOCAL_ZIP_PATH"
 else
@@ -29,6 +36,7 @@ else
 fi
 
 cd "$ROOT_DIR"
+rm -rf "$LEGACY_STAGING_DIR"
 
 SIGN_IDENTITY="${DEVELOPER_ID_APPLICATION:-}"
 if [[ "$LOCAL_TEST_ZIP" != "1" && "$ALLOW_UNNOTARIZED_PUBLIC_ZIP" != "1" && -z "$SIGN_IDENTITY" ]]; then
@@ -90,7 +98,7 @@ create_zip() {
   cp "$ROOT_DIR/script/install_hal_driver.sh" "$STAGING_DIR/script/install_hal_driver.sh"
   cp "$ROOT_DIR/script/uninstall_hal_driver.sh" "$STAGING_DIR/script/uninstall_hal_driver.sh"
   chmod +x "$STAGING_DIR/script/install_hal_driver.sh" "$STAGING_DIR/script/uninstall_hal_driver.sh"
-  (cd "$DIST_DIR" && /usr/bin/ditto -c -k --sequesterRsrc --keepParent "$APP_NAME-macOS" "$output_path")
+  /usr/bin/ditto -c -k --sequesterRsrc --keepParent "$STAGING_DIR" "$output_path"
   /usr/bin/unzip -tq "$output_path" >/dev/null
 }
 

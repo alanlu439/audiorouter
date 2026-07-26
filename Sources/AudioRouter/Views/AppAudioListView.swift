@@ -64,11 +64,13 @@ struct AppAudioRowView: View {
                         Text(source.appName)
                             .font(.subheadline.weight(.semibold))
                             .lineLimit(1)
-                        SourceQualityPill(
-                            label: store.sourceAudioQualityLabel(for: source),
-                            isLive: store.sourceAudioQualityIsLive(for: source)
-                        )
-                        .help(store.sourceAudioQualityHelp(for: source))
+                        if let quality = store.sourceAudioQuality(for: source) {
+                            SourceQualityPill(
+                                label: quality.compactDisplayLabel,
+                                isLive: !store.settings.demoMode
+                            )
+                            .help(store.sourceAudioQualityHelp(for: source, quality: quality))
+                        }
                     }
                     HStack(spacing: 6) {
                         StatusBadge(text: source.activityLabel, isActive: source.isProducingAudio)

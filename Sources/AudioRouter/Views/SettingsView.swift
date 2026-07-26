@@ -120,12 +120,8 @@ private struct ShortcutsSettingsView: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            Toggle("Command", isOn: modifierBinding(action, .command))
-                .labelsHidden()
-                .accessibilityLabel("\(action.title) command modifier")
-            Toggle("Option", isOn: modifierBinding(action, .option))
-                .labelsHidden()
-                .accessibilityLabel("\(action.title) option modifier")
+            modifierButton(action, modifier: .command, symbol: "⌘", name: "Command")
+            modifierButton(action, modifier: .option, symbol: "⌥", name: "Option")
             Picker("Key", selection: keyBinding(action, defaultValue: binding.key)) {
                 ForEach(visualKeys, id: \.self) { key in
                     Text(key.uppercased()).tag(key)
@@ -149,6 +145,39 @@ private struct ShortcutsSettingsView: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("\(action.title), current shortcut \(binding.displayValue)")
+    }
+
+    private func modifierButton(
+        _ action: ShortcutAction,
+        modifier: EventModifiers,
+        symbol: String,
+        name: String
+    ) -> some View {
+        let binding = modifierBinding(action, modifier)
+        let isEnabled = binding.wrappedValue
+        return Button {
+            binding.wrappedValue.toggle()
+        } label: {
+            Text(symbol)
+                .font(.system(size: 15, weight: .bold, design: .rounded))
+                .frame(width: 30, height: 26)
+                .foregroundStyle(isEnabled ? .black : .secondary)
+                .background(
+                    isEnabled ? ConsolePalette.blue : ConsolePalette.strip,
+                    in: RoundedRectangle(cornerRadius: 6, style: .continuous)
+                )
+                .overlay {
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .stroke(
+                            isEnabled ? ConsolePalette.blue : ConsolePalette.strongStroke,
+                            lineWidth: 1
+                        )
+                }
+        }
+        .buttonStyle(.plain)
+        .help("\(name) modifier")
+        .accessibilityLabel("\(action.title) \(name) modifier")
+        .accessibilityValue(isEnabled ? "On" : "Off")
     }
 
     private func keyBinding(_ action: ShortcutAction, defaultValue: String) -> Binding<String> {

@@ -6,130 +6,41 @@ struct RoutingDashboardView: View {
     @ObservedObject var store: AudioRouterStore
 
     var body: some View {
-        StudioConsoleFrame {
-            StudioPatchBayPanel(store: store)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        ConsoleFrame {
+            VStack(alignment: .leading, spacing: 12) {
+                ConsolePageHeader(
+                    title: "Routing Dashboard",
+                    subtitle: "Choose an app, then choose exactly where it should play.",
+                    systemImage: "point.3.connected.trianglepath.dotted",
+                    tint: ConsolePalette.amber
+                ) {
+                    HStack(spacing: 8) {
+                        StatusLabel(
+                            text: store.settings.demoMode ? "Demo" : "Live",
+                            status: store.settings.demoMode ? .simulated : .working
+                        )
+
+                        Button {
+                            store.refresh()
+                        } label: {
+                            Image(systemName: "arrow.clockwise")
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .help("Refresh devices and apps")
+                        .accessibilityLabel("Refresh devices and apps")
+                    }
+                }
+
+                StudioPatchBayPanel(store: store)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
-
-    private var consoleHeader: some View {
-        HStack(spacing: 14) {
-            AudioRouterLogo(size: 44)
-
-            VStack(alignment: .leading, spacing: 5) {
-                HStack(spacing: 10) {
-                    Text("Live Routing Console")
-                        .font(.title2.weight(.semibold))
-                    StudioLEDLabel(text: store.backendReadinessTitle, status: store.backendReadinessState.visualStatus)
-                }
-
-                HStack(spacing: 8) {
-                    Text("AudioRouter")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                    Text("MAIN OUT")
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(StudioPalette.amber)
-                    Text(store.currentOutput?.name ?? "No system output")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-            }
-
-            Spacer()
-
-            Button {
-                store.refresh()
-            } label: {
-                Image(systemName: "arrow.clockwise")
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.large)
-            .help("Refresh")
-            .accessibilityLabel("Refresh AudioRouter")
-            .accessibilityHint("Reloads audio devices, apps, routes, and meters")
-
-            Picker("Mode", selection: demoBinding) {
-                Text("Live").tag(false)
-                Text("Demo").tag(true)
-            }
-            .pickerStyle(.segmented)
-            .frame(width: 154)
-            .accessibilityLabel("AudioRouter mode")
-            .accessibilityValue(store.settings.demoMode ? "Demo Mode" : "Live Mode")
-        }
-        .padding(14)
-        .background(StudioPalette.header, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(StudioPalette.stroke, lineWidth: 1)
-        }
-    }
-
-    private var consoleStatusRail: some View {
-        HStack(spacing: 8) {
-            StudioMetricTile(title: "Sources", value: "\(store.audioSources.count)", systemImage: "app.connected.to.app.below.fill", tint: StudioPalette.blue)
-            StudioMetricTile(title: "Outputs", value: "\(store.outputDevices.count)", systemImage: "speaker.wave.2.fill", tint: StudioPalette.teal)
-            StudioMetricTile(title: "Live", value: "\(store.activeLiveRouteCount)", systemImage: "waveform.circle.fill", tint: StudioPalette.green)
-            StudioMetricTile(title: "Saved", value: "\(store.savedCustomRouteCount)", systemImage: "tray.and.arrow.down.fill", tint: StudioPalette.amber)
-            StudioBackendStrip(store: store)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var demoBinding: Binding<Bool> {
-        Binding(
-            get: { store.settings.demoMode },
-            set: { value in
-                store.settings.demoMode = value
-                store.refresh()
-            }
-        )
-    }
 }
 
-private enum StudioPalette {
-    static let console = Color(red: 0.055, green: 0.057, blue: 0.062)
-    static let header = Color(red: 0.083, green: 0.087, blue: 0.095)
-    static let panel = Color(red: 0.069, green: 0.072, blue: 0.079)
-    static let strip = Color(red: 0.096, green: 0.100, blue: 0.108)
-    static let inset = Color(red: 0.038, green: 0.040, blue: 0.045)
-    static let stroke = Color.white.opacity(0.075)
-    static let strongStroke = Color.white.opacity(0.125)
-    static let green = Color(red: 0.45, green: 0.88, blue: 0.58)
-    static let amber = Color(red: 0.94, green: 0.66, blue: 0.36)
-    static let teal = Color(red: 0.36, green: 0.80, blue: 0.75)
-    static let blue = Color(red: 0.50, green: 0.63, blue: 0.92)
-    static let red = Color(red: 0.94, green: 0.38, blue: 0.36)
-    static let warmInk = Color(red: 0.11, green: 0.085, blue: 0.050)
-}
-
-private struct StudioConsoleFrame<Content: View>: View {
-    let content: Content
-
-    init(@ViewBuilder content: () -> Content) {
-        self.content = content()
-    }
-
-    var body: some View {
-        content
-            .padding(14)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .background(StudioPalette.console, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-            .overlay(alignment: .top) {
-                Rectangle()
-                    .fill(StudioPalette.strongStroke)
-                    .frame(height: 1)
-                    .padding(.horizontal, 12)
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .stroke(StudioPalette.strongStroke, lineWidth: 1)
-            }
-    }
-}
+private typealias StudioPalette = ConsolePalette
 
 private struct StudioMetricTile: View {
     let title: String
@@ -2146,11 +2057,13 @@ private struct StudioChannelStrip: View {
                     Text(source.appName)
                         .font(.subheadline.weight(.semibold))
                         .lineLimit(1)
-                    SourceQualityPill(
-                        label: store.sourceAudioQualityLabel(for: source),
-                        isLive: store.sourceAudioQualityIsLive(for: source)
-                    )
-                    .help(store.sourceAudioQualityHelp(for: source))
+                    if let quality = store.sourceAudioQuality(for: source) {
+                        SourceQualityPill(
+                            label: quality.compactDisplayLabel,
+                            isLive: !store.settings.demoMode
+                        )
+                        .help(store.sourceAudioQualityHelp(for: source, quality: quality))
+                    }
                     StudioLED(color: source.isProducingAudio ? StudioPalette.green : StudioPalette.amber.opacity(0.75))
                 }
                 Text(source.isRunning ? "Running" : "Ready")

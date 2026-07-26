@@ -9,7 +9,6 @@ final class ProcessTapRoutingEngine {
         private var storedVolume: Float
         private var storedMuted: Bool
         private var storedLevel: Double = 0
-        private var receivedBufferCount = 0
 
         init(volume: Double, muted: Bool) {
             self.storedVolume = Float(RouteAudioQualityPolicy.normalizedGain(volume))
@@ -38,7 +37,6 @@ final class ProcessTapRoutingEngine {
         func updateLevel(_ level: Double) {
             lock.lock()
             storedLevel = max(0, min(1, level))
-            receivedBufferCount += 1
             lock.unlock()
         }
 
@@ -47,33 +45,6 @@ final class ProcessTapRoutingEngine {
             let value = storedLevel
             lock.unlock()
             return value
-        }
-
-        func hasReceivedBuffers() -> Bool {
-            lock.lock()
-            let value = receivedBufferCount > 0
-            lock.unlock()
-            return value
-        }
-    }
-
-    private final class RouteStartProbe {
-        private let lock = NSLock()
-        private let semaphore = DispatchSemaphore(value: 0)
-        private var signaled = false
-
-        func signal() {
-            lock.lock()
-            let shouldSignal = !signaled
-            signaled = true
-            lock.unlock()
-            if shouldSignal {
-                semaphore.signal()
-            }
-        }
-
-        func wait(seconds: Double) -> Bool {
-            semaphore.wait(timeout: .now() + seconds) == .success
         }
     }
 
@@ -236,10 +207,10 @@ final class ProcessTapRoutingEngine {
             from inputData: UnsafePointer<AudioBufferList>,
             outputChannelCount: Int,
             gain: Float
-        ) -> (level: Double, wroteFrames: Bool) {
+        ) -> Double {
             let inputBuffers = UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: inputData))
             guard let frameCount = frameCount(for: inputBuffers), frameCount > 0 else {
-                return (0, false)
+                return 0
             }
 
             lock.lock()
@@ -262,8 +233,8 @@ final class ProcessTapRoutingEngine {
                 }
             }
 
-            guard sampleCount > 0 else { return (0, false) }
-            return (min(1, sqrt(squareSum / Double(sampleCount)) * 3.2), true)
+            guard sampleCount > 0 else { return 0 }
+            return min(1, sqrt(squareSum / Double(sampleCount)) * 3.2)
         }
 
         func read(into destination: UnsafeMutableRawPointer?, byteCount: Int) {
@@ -518,7 +489,6 @@ final class ProcessTapRoutingEngine {
                         volume: pendingVolumes[source.id] ?? source.volume,
                         muted: pendingMutes[source.id] ?? source.isMuted
                     )
-                    let startProbe = RouteStartProbe()
                     var ioProcID: AudioDeviceIOProcID?
                     let ioStatus = AudioDeviceCreateIOProcIDWithBlock(
                         &ioProcID,
@@ -530,8 +500,7 @@ final class ProcessTapRoutingEngine {
                             outputData: outputData,
                             control: control,
                             pipes: pipes,
-                            outputChannelCount: Int(playbackFormat.mChannelsPerFrame),
-                            startProbe: startProbe
+                            outputChannelCount: Int(playbackFormat.mChannelsPerFrame)
                         )
                     }
                     try check(ioStatus, "Create route IO callback")
@@ -542,7 +511,6 @@ final class ProcessTapRoutingEngine {
 
                     do {
                         try check(AudioDeviceStart(aggregateDeviceID, ioProcID), "Start route IO")
-                        _ = startProbe.wait(seconds: 0.75) || control.hasReceivedBuffers()
                         sessions[source.id] = RouteSession(
                             sourceID: source.id,
                             outputDeviceUIDs: outputDeviceUIDs,
@@ -747,26 +715,20 @@ final class ProcessTapRoutingEngine {
         outputData: UnsafeMutablePointer<AudioBufferList>,
         control: RouteControl,
         pipes: [PCMBufferPipe],
-        outputChannelCount: Int,
-        startProbe: RouteStartProbe
+        outputChannelCount: Int
     ) {
         let outputBuffers = UnsafeMutableAudioBufferListPointer(outputData)
         zero(outputBuffers)
         let gain = control.gain()
         HALVirtualInputBridge.shared.writeInterleavedFloat32(from: inputData, gain: gain)
         var maxLevel = 0.0
-        var wroteFrames = false
         for pipe in pipes {
-            let result = pipe.writeInterleavedFloat32(
+            let level = pipe.writeInterleavedFloat32(
                 from: inputData,
                 outputChannelCount: outputChannelCount,
                 gain: gain
             )
-            maxLevel = max(maxLevel, result.level)
-            wroteFrames = wroteFrames || result.wroteFrames
-        }
-        if wroteFrames {
-            startProbe.signal()
+            maxLevel = max(maxLevel, level)
         }
         control.updateLevel(maxLevel)
     }
