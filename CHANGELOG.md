@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.1.3 - 2026-07-26
+
 ### AirPlay Backend Discovery
 
 - Added a backend-level AirPlay/RAOP Bonjour discovery service so AudioRouter can see AirPlay route candidates such as TV and HomePod even when macOS does not expose them as Core Audio output devices.
