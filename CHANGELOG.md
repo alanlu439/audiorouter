@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.1.4 - 2026-08-22
+
 ### Interface Refresh
 
 - Unified the title bar and sidebar chrome so the navigation rail stays visually aligned with the window at every tab.
@@ -10,6 +12,13 @@
 - Applied the refreshed controls across the Dashboard, Devices, EQ, Setups, onboarding, updates, and Advanced screens.
 - Removed sidebar-row hover tracking, replaced the bordered native sidebar toggle, and aligned profile, AirPlay, and Group Play controls to one compact control grid.
 - Removed the shared white outer frame and top highlight from every main app page.
+
+### Interaction Accuracy
+
+- Replaced the scroll-backed sidebar navigation with a stable top-aligned stack so pointer targets match the visible rows.
+- Fixed Dashboard and Devices click alignment and preserved full-row navigation targets.
+- Kept the native macOS sidebar control in the title bar while removing its extra bordered treatment.
+- Aligned the Dashboard row with the main header and the profile control with the dashboard card edge.
 
 ## 1.1.3 - 2026-07-26
 
