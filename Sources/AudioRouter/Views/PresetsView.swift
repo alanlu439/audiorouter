@@ -70,7 +70,7 @@ struct PresetsView: View {
             } label: {
                 Label("Save Current Setup", systemImage: "plus.circle.fill")
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.audioRouterPrimary)
             .tint(ConsolePalette.teal)
             Button {
                 NSPasteboard.general.clearContents()
@@ -167,7 +167,7 @@ struct PresetsView: View {
                     Image(systemName: "trash")
                 }
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.audioRouter)
         }
         .padding(12)
         .background(ConsolePalette.inset.opacity(0.78), in: RoundedRectangle(cornerRadius: 8, style: .continuous))

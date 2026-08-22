@@ -25,7 +25,7 @@ struct RoutingDashboardView: View {
                         } label: {
                             Image(systemName: "arrow.clockwise")
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(.audioRouterQuiet)
                         .controlSize(.small)
                         .help("Refresh devices and apps")
                         .accessibilityLabel("Refresh devices and apps")
@@ -193,7 +193,7 @@ private struct StudioOnboardingCard: View {
                     } label: {
                         Label("Got It", systemImage: "checkmark")
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.audioRouterPrimary)
                     .tint(StudioPalette.teal)
                     .accessibilityHint("Hides the quick start card")
                 }
@@ -268,7 +268,7 @@ private struct StudioPanel<Content: View>: View {
                     .frame(width: 18, height: 18, alignment: .center)
                 Text(title.uppercased())
                     .font(.system(size: 12, weight: .heavy, design: .monospaced))
-                    .tracking(1.2)
+                    .tracking(0)
                     .lineLimit(1)
                 Spacer()
                 if let trailing {
@@ -410,7 +410,7 @@ private struct StudioPatchBayActions: View {
             } label: {
                 Label("Add App", systemImage: "plus.app.fill")
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.audioRouterPrimary)
             .tint(StudioPalette.teal)
             .accessibilityHint("Opens the app picker so you can add another routable source")
         }
@@ -1010,7 +1010,7 @@ private struct StudioSmoothRouteBuilder: View {
                 Label(routeActionTitle, systemImage: routeActionIcon)
                     .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(AudioRouterButtonStyle(kind: .primary, tint: routeButtonTint))
             .controlSize(.small)
             .tint(routeButtonTint)
             .disabled(routeActionDisabled)
@@ -1905,7 +1905,7 @@ private struct AddRouteAppRow: View {
             } label: {
                 Label("Add", systemImage: "plus")
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.audioRouter)
             .controlSize(.small)
             .disabled(source.bundleIdentifier == nil)
             .help(source.bundleIdentifier == nil ? "AudioRouter needs a bundle identifier to save this app." : "Add this app to the routing dashboard.")
@@ -2228,7 +2228,7 @@ private struct StudioOutputActions: View {
             } label: {
                 Label("New Group Play", systemImage: "speaker.3.fill")
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.audioRouterPrimary)
             .tint(StudioPalette.teal)
             .accessibilityHint("Creates a group containing all currently visible outputs")
         }
@@ -2366,7 +2366,7 @@ private struct StudioOutputStrip: View {
                 store.selectOutputDevice(device)
                 store.setDefaultDevice(device)
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.audioRouter)
             .controlSize(.small)
             .disabled(device.isDefault)
             .accessibilityHint(device.isDefault ? "\(device.name) is already the system output" : "Makes \(device.name) the system output")
@@ -3174,7 +3174,7 @@ private struct StudioOutputModule: View {
                 } label: {
                     Image(systemName: (device.isMuted ?? false) ? "speaker.slash.fill" : "speaker.wave.1.fill")
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.audioRouterQuiet)
                 .controlSize(.small)
                 .disabled(!device.canSetMute)
                 .accessibilityLabel((device.isMuted ?? false) ? "Unmute \(device.name)" : "Mute \(device.name)")
@@ -3184,7 +3184,7 @@ private struct StudioOutputModule: View {
                     store.selectOutputDevice(device)
                     store.setDefaultDevice(device)
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.audioRouter)
                 .controlSize(.small)
                 .disabled(device.isDefault)
                 .accessibilityHint(device.isDefault ? "\(device.name) is already the system output" : "Makes \(device.name) the system output")

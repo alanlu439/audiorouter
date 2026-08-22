@@ -57,7 +57,7 @@ struct UpdateStatusView: View {
                     } label: {
                         Label("Install", systemImage: "externaldrive.fill")
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.audioRouterPrimary)
                     .tint(.teal)
                     .accessibilityHint("Opens the downloaded AudioRouter ZIP")
                 } else if store.updateManager.availableUpdate != nil {
@@ -66,7 +66,7 @@ struct UpdateStatusView: View {
                     } label: {
                         Label("Fetch ZIP", systemImage: "square.and.arrow.down")
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.audioRouterPrimary)
                     .tint(.teal)
                     .accessibilityHint("Downloads the newest AudioRouter ZIP")
                 } else if !compact {

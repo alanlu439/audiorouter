@@ -25,19 +25,263 @@ struct DockCard<Content: View>: View {
 }
 
 enum ConsolePalette {
-    static let console = Color(red: 0.055, green: 0.057, blue: 0.062)
-    static let header = Color(red: 0.083, green: 0.087, blue: 0.095)
-    static let panel = Color(red: 0.069, green: 0.072, blue: 0.079)
-    static let strip = Color(red: 0.096, green: 0.100, blue: 0.108)
-    static let inset = Color(red: 0.038, green: 0.040, blue: 0.045)
-    static let stroke = Color.white.opacity(0.075)
-    static let strongStroke = Color.white.opacity(0.125)
+    static let window = Color(red: 0.035, green: 0.039, blue: 0.047)
+    static let windowChrome = Color(red: 0.092, green: 0.098, blue: 0.112)
+    static let sidebar = Color(red: 0.069, green: 0.074, blue: 0.086)
+    static let console = Color(red: 0.047, green: 0.051, blue: 0.060)
+    static let header = Color(red: 0.074, green: 0.080, blue: 0.092)
+    static let panel = Color(red: 0.060, green: 0.065, blue: 0.076)
+    static let strip = Color(red: 0.094, green: 0.101, blue: 0.116)
+    static let inset = Color(red: 0.030, green: 0.033, blue: 0.040)
+    static let stroke = Color.white.opacity(0.085)
+    static let strongStroke = Color.white.opacity(0.14)
     static let green = Color(red: 0.45, green: 0.88, blue: 0.58)
     static let amber = Color(red: 0.94, green: 0.66, blue: 0.36)
     static let teal = Color(red: 0.36, green: 0.80, blue: 0.75)
     static let blue = Color(red: 0.50, green: 0.63, blue: 0.92)
     static let red = Color(red: 0.94, green: 0.38, blue: 0.36)
     static let warmInk = Color(red: 0.11, green: 0.085, blue: 0.050)
+}
+
+enum AudioRouterButtonKind {
+    case primary
+    case secondary
+    case quiet
+    case destructive
+}
+
+struct AudioRouterButtonStyle: ButtonStyle {
+    let kind: AudioRouterButtonKind
+    let tint: Color
+
+    init(kind: AudioRouterButtonKind = .secondary, tint: Color = ConsolePalette.teal) {
+        self.kind = kind
+        self.tint = tint
+    }
+
+    func makeBody(configuration: Configuration) -> some View {
+        AudioRouterButtonBody(configuration: configuration, kind: kind, tint: tint)
+    }
+}
+
+extension ButtonStyle where Self == AudioRouterButtonStyle {
+    static var audioRouter: AudioRouterButtonStyle {
+        AudioRouterButtonStyle()
+    }
+
+    static var audioRouterPrimary: AudioRouterButtonStyle {
+        AudioRouterButtonStyle(kind: .primary)
+    }
+
+    static var audioRouterQuiet: AudioRouterButtonStyle {
+        AudioRouterButtonStyle(kind: .quiet)
+    }
+
+    static var audioRouterDestructive: AudioRouterButtonStyle {
+        AudioRouterButtonStyle(kind: .destructive, tint: ConsolePalette.red)
+    }
+}
+
+private struct AudioRouterButtonBody: View {
+    let configuration: ButtonStyleConfiguration
+    let kind: AudioRouterButtonKind
+    let tint: Color
+
+    @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.controlSize) private var controlSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isHovering = false
+
+    var body: some View {
+        configuration.label
+            .font(buttonFont)
+            .lineLimit(1)
+            .padding(.horizontal, horizontalPadding)
+            .frame(minHeight: minimumHeight)
+            .foregroundStyle(foregroundColor)
+            .background(backgroundColor, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .stroke(borderColor, lineWidth: 1)
+            }
+            .shadow(color: shadowColor, radius: configuration.isPressed ? 2 : 7, y: configuration.isPressed ? 1 : 3)
+            .scaleEffect(configuration.isPressed ? 0.975 : 1)
+            .opacity(isEnabled ? 1 : 0.46)
+            .contentShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: configuration.isPressed)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: isHovering)
+            .onHover { hovering in
+                isHovering = hovering
+            }
+    }
+
+    private var minimumHeight: CGFloat {
+        switch controlSize {
+        case .mini: return 22
+        case .small: return 28
+        case .large: return 36
+        default: return 31
+        }
+    }
+
+    private var horizontalPadding: CGFloat {
+        switch controlSize {
+        case .mini: return kind == .quiet ? 5 : 8
+        case .small: return kind == .quiet ? 6 : 10
+        case .large: return kind == .quiet ? 10 : 15
+        default: return kind == .quiet ? 8 : 12
+        }
+    }
+
+    private var buttonFont: Font {
+        switch controlSize {
+        case .mini: return .system(size: 10, weight: .semibold)
+        case .small: return .system(size: 11, weight: .semibold)
+        case .large: return .system(size: 14, weight: .semibold)
+        default: return .system(size: 12, weight: .semibold)
+        }
+    }
+
+    private var foregroundColor: Color {
+        switch kind {
+        case .primary:
+            return ConsolePalette.warmInk
+        case .destructive:
+            return isHovering ? .white : tint
+        case .secondary, .quiet:
+            return isHovering ? .white : .primary
+        }
+    }
+
+    private var backgroundColor: Color {
+        let pressed = configuration.isPressed
+        switch kind {
+        case .primary:
+            return tint.opacity(pressed ? 0.76 : (isHovering ? 1 : 0.90))
+        case .secondary:
+            return isHovering
+                ? tint.opacity(pressed ? 0.14 : 0.18)
+                : ConsolePalette.strip.opacity(pressed ? 0.72 : 0.92)
+        case .quiet:
+            return isHovering ? Color.white.opacity(pressed ? 0.055 : 0.09) : .clear
+        case .destructive:
+            return isHovering ? tint.opacity(pressed ? 0.62 : 0.78) : tint.opacity(0.10)
+        }
+    }
+
+    private var borderColor: Color {
+        switch kind {
+        case .primary:
+            return Color.white.opacity(isHovering ? 0.30 : 0.18)
+        case .secondary:
+            return isHovering ? tint.opacity(0.52) : ConsolePalette.strongStroke
+        case .quiet:
+            return isHovering ? ConsolePalette.strongStroke : .clear
+        case .destructive:
+            return tint.opacity(isHovering ? 0.86 : 0.36)
+        }
+    }
+
+    private var shadowColor: Color {
+        guard isEnabled, !configuration.isPressed else { return .clear }
+        switch kind {
+        case .primary: return tint.opacity(isHovering ? 0.24 : 0.12)
+        case .destructive: return tint.opacity(isHovering ? 0.18 : 0.05)
+        case .secondary, .quiet: return .black.opacity(isHovering ? 0.18 : 0.08)
+        }
+    }
+}
+
+struct AudioRouterSidebar: View {
+    @Binding var selection: SettingsSection
+    var showsWatermark = false
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ScrollView {
+                LazyVStack(spacing: 4) {
+                    ForEach(SettingsSection.allCases) { section in
+                        AudioRouterSidebarRow(
+                            section: section,
+                            isSelected: selection == section
+                        ) {
+                            selection = section
+                        }
+                    }
+                }
+                .padding(.horizontal, 10)
+                .padding(.top, 10)
+            }
+            .scrollIndicators(.hidden)
+
+            if showsWatermark {
+                AudioRouterWatermarkBanner(titleSize: 10, subtitleSize: 9, titleTracking: 0)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 18)
+                    .padding(.top, 10)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(ConsolePalette.sidebar)
+        .navigationSplitViewColumnWidth(min: 168, ideal: 176, max: 196)
+    }
+}
+
+private struct AudioRouterSidebarRow: View {
+    let section: SettingsSection
+    let isSelected: Bool
+    let action: () -> Void
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isHovering = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                RoundedRectangle(cornerRadius: 2, style: .continuous)
+                    .fill(isSelected ? ConsolePalette.teal : .clear)
+                    .frame(width: 3, height: 17)
+
+                Image(systemName: section.systemImage)
+                    .font(.system(size: 14, weight: isSelected ? .semibold : .medium))
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(isSelected ? ConsolePalette.teal : .secondary)
+                    .frame(width: 18, height: 18, alignment: .center)
+
+                Text(section.rawValue)
+                    .font(.system(size: 13, weight: isSelected ? .semibold : .medium))
+                    .foregroundStyle(isSelected ? .primary : .secondary)
+                    .lineLimit(1)
+
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 8)
+            .frame(height: 34)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(rowBackground, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .stroke(isSelected ? ConsolePalette.teal.opacity(0.20) : .clear, lineWidth: 1)
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            isHovering = hovering
+        }
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: isHovering)
+        .accessibilityLabel(section.rawValue)
+        .accessibilityValue(isSelected ? "Selected" : "Not selected")
+        .accessibilityHint("Shows the \(section.rawValue) screen")
+    }
+
+    private var rowBackground: Color {
+        if isSelected {
+            return ConsolePalette.teal.opacity(isHovering ? 0.16 : 0.11)
+        }
+        return isHovering ? Color.white.opacity(0.055) : .clear
+    }
 }
 
 struct SystemAirPlayPickerButton: View {
@@ -202,7 +446,7 @@ struct ConsolePanel<Content: View>: View {
                     .frame(width: 18, height: 18, alignment: .center)
                 Text(title.uppercased())
                     .font(.system(size: 12, weight: .heavy, design: .monospaced))
-                    .tracking(1.2)
+                    .tracking(0)
                     .lineLimit(1)
                 Spacer()
                 if let trailing {
@@ -340,7 +584,7 @@ struct SectionHeader: View {
 struct AudioRouterWatermarkBanner: View {
     var titleSize: CGFloat = 10
     var subtitleSize: CGFloat = 9
-    var titleTracking: CGFloat = 0.8
+    var titleTracking: CGFloat = 0
     var lineSpacing: CGFloat = 1
 
     var body: some View {

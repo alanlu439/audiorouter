@@ -9,18 +9,16 @@ public struct SettingsView: View {
 
     public var body: some View {
         NavigationSplitView {
-            List(selection: $store.selectedSettingsSection) {
-                ForEach(SettingsSection.allCases) { section in
-                    Label(section.rawValue, systemImage: section.systemImage)
-                        .tag(section)
-                }
-            }
-            .listStyle(.sidebar)
+            AudioRouterSidebar(selection: $store.selectedSettingsSection)
         } detail: {
             SettingsDetailView(section: store.selectedSettingsSection, store: store)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .navigationTitle("AudioRouter Settings")
+        .navigationSplitViewStyle(.balanced)
+        .toolbarBackground(ConsolePalette.windowChrome, for: .windowToolbar)
+        .toolbarBackground(.visible, for: .windowToolbar)
+        .buttonStyle(.audioRouter)
         .preferredColorScheme(store.settings.effectiveColorScheme)
     }
 }
@@ -56,7 +54,7 @@ struct SettingsDetailView: View {
                 )
             }
             .scrollIndicators(.visible)
-            .background(Color(red: 0.035, green: 0.037, blue: 0.042))
+            .background(ConsolePalette.window)
         }
     }
 }
@@ -96,7 +94,7 @@ private struct ShortcutsSettingsView: View {
                             } label: {
                                 Label("Reset Shortcuts", systemImage: "arrow.counterclockwise")
                             }
-                            .buttonStyle(.bordered)
+                            .buttonStyle(.audioRouter)
                             .controlSize(.small)
                             .accessibilityHint("Restores default local shortcuts")
                         }
@@ -387,7 +385,7 @@ private struct AdvancedSettingsView: View {
                         } label: {
                             Label("Reset", systemImage: "arrow.counterclockwise")
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(.audioRouterDestructive)
                         .controlSize(.small)
                         .accessibilityHint("Restores AudioRouter preferences to defaults")
                     }
@@ -680,7 +678,7 @@ private struct HALDriverStatusView: View {
                 } label: {
                     Label("Refresh", systemImage: "arrow.clockwise")
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.audioRouter)
                 .controlSize(.small)
             }
 
@@ -735,7 +733,7 @@ private struct AppInputPublishingStatusView: View {
                 } label: {
                     Label("Refresh", systemImage: "arrow.clockwise")
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.audioRouter)
                 .controlSize(.small)
             }
 

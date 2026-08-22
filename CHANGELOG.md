@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Interface Refresh
+
+- Unified the title bar and sidebar chrome so the navigation rail stays visually aligned with the window at every tab.
+- Rebuilt the sidebar with stable icon, label, selection, hover, and watermark alignment.
+- Added a shared modern button system with clear primary, secondary, quiet, destructive, hover, pressed, and disabled states.
+- Applied the refreshed controls across the Dashboard, Devices, EQ, Setups, onboarding, updates, and Advanced screens.
+
 ## 1.1.3 - 2026-07-26
 
 ### AirPlay Backend Discovery

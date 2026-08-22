@@ -11,25 +11,16 @@ public struct MainWindowView: View {
 
     public var body: some View {
         NavigationSplitView {
-            List(selection: $store.selectedSettingsSection) {
-                ForEach(SettingsSection.allCases) { section in
-                    Label(section.rawValue, systemImage: section.systemImage)
-                        .tag(section)
-                }
-            }
-            .listStyle(.sidebar)
-            .navigationTitle("AudioRouter")
+            AudioRouterSidebar(selection: $store.selectedSettingsSection, showsWatermark: true)
         } detail: {
             SettingsDetailView(section: store.selectedSettingsSection, store: store)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
-        .overlay(alignment: .bottomLeading) {
-            AudioRouterWatermarkBanner()
-                .padding(.leading, 24)
-                .padding(.bottom, 22)
-                .allowsHitTesting(false)
-                .zIndex(20)
-        }
+        .navigationTitle("AudioRouter")
+        .navigationSplitViewStyle(.balanced)
+        .toolbarBackground(ConsolePalette.windowChrome, for: .windowToolbar)
+        .toolbarBackground(.visible, for: .windowToolbar)
+        .buttonStyle(.audioRouter)
         .preferredColorScheme(store.settings.effectiveColorScheme)
         .sheet(isPresented: $store.isOnboardingPresented) {
             GuidedOnboardingSheet(store: store)
@@ -156,18 +147,18 @@ private struct UserProfileMenu: View {
         switch style {
         case .full:
             profileNameRow(height: 32, horizontalPadding: 12)
-                .background(.ultraThinMaterial, in: Capsule())
+                .background(ConsolePalette.strip, in: Capsule())
                 .overlay {
                     Capsule()
-                        .stroke(.white.opacity(0.16), lineWidth: 1)
+                        .stroke(ConsolePalette.strongStroke, lineWidth: 1)
                 }
-                .shadow(color: .black.opacity(0.18), radius: 10, y: 4)
+                .shadow(color: .black.opacity(0.16), radius: 8, y: 3)
         case .toolbar:
             profileNameRow(height: 30, horizontalPadding: 10)
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                .background(ConsolePalette.strip, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
                 .overlay {
                     RoundedRectangle(cornerRadius: 7, style: .continuous)
-                        .stroke(.white.opacity(0.16), lineWidth: 1)
+                        .stroke(ConsolePalette.strongStroke, lineWidth: 1)
                 }
                 .contentShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
         }
@@ -249,7 +240,7 @@ private struct ProfileNameSheet: View {
                 Button(modeButtonTitle) {
                     save()
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.audioRouterPrimary)
                 .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         }

@@ -21,6 +21,7 @@ struct AudioRouterApplication: App {
                     store.start()
                 }
         }
+        .windowToolbarStyle(.unifiedCompact(showsTitle: true))
         .commands {
             AudioRouterCommands(store: store)
         }
@@ -43,6 +44,7 @@ struct AudioRouterApplication: App {
             SettingsView(store: store)
                 .frame(width: 720, height: 560)
         }
+        .windowToolbarStyle(.unifiedCompact(showsTitle: true))
     }
 }
 

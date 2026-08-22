@@ -347,7 +347,7 @@ struct GuidedOnboardingSheet: View {
                 } label: {
                     Label("Finish Setup", systemImage: "checkmark")
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.audioRouterPrimary)
                 .tint(.teal)
             }
             .controlSize(.small)
@@ -404,7 +404,7 @@ struct GuidedOnboardingSheet: View {
             } label: {
                 Label(selectedStep == GuidedSetupStep.allCases.last ? "Finish" : "Next", systemImage: selectedStep == GuidedSetupStep.allCases.last ? "checkmark" : "chevron.right")
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.audioRouterPrimary)
             .tint(.teal)
         }
         .padding(14)

@@ -34,7 +34,7 @@ struct MixerView: View {
                     } label: {
                         Label((output.isMuted ?? false) ? "Unmute System" : "Mute System", systemImage: (output.isMuted ?? false) ? "speaker.wave.2.fill" : "speaker.slash.fill")
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.audioRouter)
                 }
             }
 
@@ -109,7 +109,7 @@ private struct MixerSourceCard: View {
                     Label(store.soloSourceID == source.id ? "Solo On" : "Solo", systemImage: "person.wave.2.fill")
                 }
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.audioRouter)
             .disabled(!store.supportsPerAppMute)
         }
         .overlay {

@@ -247,7 +247,7 @@ public struct MenuBarPopoverView: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text("AUDIOROUTER")
                     .font(.system(size: 11, weight: .heavy, design: .rounded))
-                    .tracking(1.6)
+                    .tracking(0)
                 Text("by Alan")
                     .font(.system(size: 9, weight: .semibold))
             }
@@ -262,7 +262,7 @@ public struct MenuBarPopoverView: View {
             } label: {
                 Label("Add Apps", systemImage: "app.badge.plus")
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.audioRouter)
             .controlSize(.small)
 
             Button {
@@ -271,7 +271,7 @@ public struct MenuBarPopoverView: View {
             } label: {
                 Image(systemName: "gearshape")
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.audioRouterQuiet)
             .controlSize(.small)
             .help("Open AudioRouter settings")
             .accessibilityLabel("Open AudioRouter settings")

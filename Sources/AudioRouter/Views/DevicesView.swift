@@ -66,7 +66,7 @@ private struct DeviceOverviewHeader: View {
             } label: {
                 Label("Refresh", systemImage: "arrow.clockwise")
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.audioRouter)
             .controlSize(.small)
             .accessibilityHint("Reloads audio inputs, outputs, and output groups")
         }
@@ -216,7 +216,7 @@ private struct CompactDeviceRow: View {
             Button(device.isDefault ? "Default" : "Set") {
                 store.setDefaultDevice(device)
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.audioRouter)
             .controlSize(.small)
             .disabled(device.isDefault || !device.isAlive)
             .accessibilityHint(device.isDefault ? "\(device.name) is already the system \(device.kind.title.lowercased())" : "Makes \(device.name) the system \(device.kind.title.lowercased())")
@@ -292,7 +292,7 @@ private struct CompactOutputGroupsSection: View {
                 } label: {
                     Label("New", systemImage: "plus.circle.fill")
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.audioRouterPrimary)
                 .controlSize(.small)
                 .accessibilityHint("Creates a group play route target using all currently visible outputs")
             }
