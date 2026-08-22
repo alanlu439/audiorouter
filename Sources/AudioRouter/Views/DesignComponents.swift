@@ -198,21 +198,19 @@ struct AudioRouterSidebar: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ScrollView {
-                VStack(spacing: 4) {
-                    ForEach(SettingsSection.allCases) { section in
-                        AudioRouterSidebarRow(
-                            section: section,
-                            isSelected: selection == section
-                        ) {
-                            selection = section
-                        }
+            VStack(spacing: 4) {
+                ForEach(SettingsSection.allCases) { section in
+                    AudioRouterSidebarRow(
+                        section: section,
+                        isSelected: selection == section
+                    ) {
+                        selection = section
                     }
                 }
-                .padding(.horizontal, 10)
-                .padding(.top, 10)
             }
-            .scrollIndicators(.hidden)
+            .padding(.horizontal, 10)
+            .padding(.top, 10)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 
             if showsWatermark {
                 AudioRouterWatermarkBanner(titleSize: 10, subtitleSize: 9, titleTracking: 0)
@@ -321,9 +319,7 @@ final class ToolbarStylerView: NSView {
 
         for item in toolbar.items where isNativeSidebarToggle(item) {
             item.isBordered = false
-            if let view = item.view {
-                styleButtons(in: view)
-            }
+            installBorderlessButton(on: item)
         }
 
         if let titlebarView = window.contentView?.superview {
@@ -339,6 +335,34 @@ final class ToolbarStylerView: NSView {
             || identifier.contains("sidebar-toggle")
     }
 
+    private static func installBorderlessButton(on item: NSToolbarItem) {
+        let button: BorderlessSidebarToolbarButton
+        if let existingButton = item.view as? BorderlessSidebarToolbarButton {
+            button = existingButton
+        } else {
+            let originalTarget = item.target
+            let originalAction = item.action ?? #selector(NSSplitViewController.toggleSidebar(_:))
+            button = BorderlessSidebarToolbarButton(frame: NSRect(x: 0, y: 0, width: 32, height: 28))
+            button.target = originalTarget
+            button.action = originalAction
+            button.image = NSImage(
+                systemSymbolName: "sidebar.leading",
+                accessibilityDescription: "Toggle Sidebar"
+            )?.withSymbolConfiguration(
+                NSImage.SymbolConfiguration(pointSize: 15, weight: .medium)
+            )
+            button.imagePosition = .imageOnly
+            button.imageScaling = .scaleProportionallyDown
+            button.contentTintColor = .secondaryLabelColor
+            button.focusRingType = .none
+            button.toolTip = "Toggle Sidebar"
+            button.setAccessibilityLabel("Toggle Sidebar")
+            item.view = button
+        }
+
+        style(button)
+    }
+
     private static func styleSidebarButtons(in view: NSView) {
         if let button = view as? NSButton,
            button.action == #selector(NSSplitViewController.toggleSidebar(_:)) {
@@ -347,18 +371,23 @@ final class ToolbarStylerView: NSView {
         view.subviews.forEach(styleSidebarButtons(in:))
     }
 
-    private static func styleButtons(in view: NSView) {
-        if let button = view as? NSButton {
-            style(button)
-        }
-        view.subviews.forEach(styleButtons(in:))
-    }
-
     private static func style(_ button: NSButton) {
         button.isBordered = false
         button.showsBorderOnlyWhileMouseInside = false
         button.wantsLayer = true
+        button.layer?.borderWidth = 0
+        button.layer?.cornerRadius = 0
         button.layer?.backgroundColor = NSColor.clear.cgColor
+        if let cell = button.cell as? NSButtonCell {
+            cell.isBordered = false
+            cell.showsBorderOnlyWhileMouseInside = false
+        }
+    }
+}
+
+private final class BorderlessSidebarToolbarButton: NSButton {
+    override var intrinsicContentSize: NSSize {
+        NSSize(width: 32, height: 28)
     }
 }
 
