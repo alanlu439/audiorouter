@@ -2,6 +2,7 @@ import SwiftUI
 
 public struct MainWindowView: View {
     @ObservedObject private var store: AudioRouterStore
+    @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @State private var offeredInitialOnboarding = false
     @State private var profileSheetMode: ProfileNameSheet.Mode?
 
@@ -10,7 +11,7 @@ public struct MainWindowView: View {
     }
 
     public var body: some View {
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
             AudioRouterSidebar(selection: $store.selectedSettingsSection, showsWatermark: true)
         } detail: {
             SettingsDetailView(section: store.selectedSettingsSection, store: store)
@@ -33,13 +34,21 @@ public struct MainWindowView: View {
                 .preferredColorScheme(store.settings.effectiveColorScheme)
         }
         .toolbar {
+            ToolbarItem(id: "AudioRouterSidebarToggle", placement: .navigation) {
+                AudioRouterSidebarToggle(visibility: $columnVisibility)
+            }
+
             ToolbarItem(placement: .primaryAction) {
                 UserProfileMenu(store: store, style: .toolbar) { mode in
                     profileSheetMode = mode
                 }
+                .padding(.trailing, 8)
             }
         }
+        .toolbar(removing: .sidebarToggle)
+        .background(AudioRouterToolbarCleaner())
         .onAppear {
+            AudioRouterToolbarCleaner.scheduleCleanup()
             presentInitialOnboardingIfNeeded()
         }
         .alert("AudioRouter Update Available", isPresented: updatePromptBinding) {
@@ -136,8 +145,9 @@ private struct UserProfileMenu: View {
         } label: {
             profileLabel
         }
-        .menuStyle(.button)
+        .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
+        .fixedSize(horizontal: true, vertical: true)
         .help("AudioRouter profile: \(store.activeUserProfile.displayName)")
         .accessibilityLabel("AudioRouter profile \(store.activeUserProfile.displayName)")
     }
@@ -154,7 +164,7 @@ private struct UserProfileMenu: View {
                 }
                 .shadow(color: .black.opacity(0.16), radius: 8, y: 3)
         case .toolbar:
-            profileNameRow(height: 30, horizontalPadding: 10)
+            profileNameRow(height: 28, horizontalPadding: 10)
                 .background(ConsolePalette.strip, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
                 .overlay {
                     RoundedRectangle(cornerRadius: 7, style: .continuous)
@@ -167,13 +177,13 @@ private struct UserProfileMenu: View {
     private func profileNameRow(height: CGFloat, horizontalPadding: CGFloat) -> some View {
         HStack(alignment: .center, spacing: 7) {
             Text(store.activeUserProfile.displayName)
-                .font(.system(size: 14, weight: .semibold))
+                .font(.system(size: style == .toolbar ? 13 : 14, weight: .semibold))
                 .lineLimit(1)
                 .fixedSize(horizontal: true, vertical: false)
             Image(systemName: "chevron.down")
                 .font(.system(size: 9, weight: .bold))
                 .foregroundStyle(.secondary)
-                .frame(width: 10, height: height, alignment: .center)
+                .frame(width: 10, height: 18, alignment: .center)
                 .accessibilityHidden(true)
         }
         .frame(height: height, alignment: .center)

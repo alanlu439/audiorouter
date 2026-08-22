@@ -2226,7 +2226,12 @@ private struct StudioOutputActions: View {
             Button {
                 store.createOutputGroup()
             } label: {
-                Label("New Group Play", systemImage: "speaker.3.fill")
+                HStack(spacing: 7) {
+                    Image(systemName: "speaker.3.fill")
+                        .font(.system(size: 13, weight: .semibold))
+                        .frame(width: 18, height: 18)
+                    Text("New Group Play")
+                }
             }
             .buttonStyle(.audioRouterPrimary)
             .tint(StudioPalette.teal)

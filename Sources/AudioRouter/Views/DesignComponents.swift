@@ -233,9 +233,6 @@ private struct AudioRouterSidebarRow: View {
     let isSelected: Bool
     let action: () -> Void
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var isHovering = false
-
     var body: some View {
         Button(action: action) {
             HStack(spacing: 10) {
@@ -267,10 +264,6 @@ private struct AudioRouterSidebarRow: View {
             .contentShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
         }
         .buttonStyle(.plain)
-        .onHover { hovering in
-            isHovering = hovering
-        }
-        .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: isHovering)
         .accessibilityLabel(section.rawValue)
         .accessibilityValue(isSelected ? "Selected" : "Not selected")
         .accessibilityHint("Shows the \(section.rawValue) screen")
@@ -278,9 +271,83 @@ private struct AudioRouterSidebarRow: View {
 
     private var rowBackground: Color {
         if isSelected {
-            return ConsolePalette.teal.opacity(isHovering ? 0.16 : 0.11)
+            return ConsolePalette.teal.opacity(0.11)
         }
-        return isHovering ? Color.white.opacity(0.055) : .clear
+        return .clear
+    }
+}
+
+struct AudioRouterSidebarToggle: View {
+    @Binding var visibility: NavigationSplitViewVisibility
+
+    var body: some View {
+        Button {
+            visibility = visibility == .detailOnly ? .all : .detailOnly
+        } label: {
+            Image(systemName: "sidebar.leading")
+                .font(.system(size: 15, weight: .semibold))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(.secondary)
+                .frame(width: 28, height: 28)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(visibility == .detailOnly ? "Show Sidebar" : "Hide Sidebar")
+        .accessibilityLabel(visibility == .detailOnly ? "Show Sidebar" : "Hide Sidebar")
+    }
+}
+
+struct AudioRouterToolbarCleaner: NSViewRepresentable {
+    func makeNSView(context: Context) -> ToolbarCleanerView {
+        let view = ToolbarCleanerView(frame: .zero)
+        view.removeNativeSidebarToggle()
+        return view
+    }
+
+    func updateNSView(_ nsView: ToolbarCleanerView, context: Context) {
+        nsView.removeNativeSidebarToggle()
+    }
+
+    static func scheduleCleanup() {
+        for delay in [0.0, 0.15, 0.45] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                NSApp.windows.forEach(ToolbarCleanerView.removeNativeSidebarToggle(from:))
+            }
+        }
+    }
+}
+
+final class ToolbarCleanerView: NSView {
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        removeNativeSidebarToggle()
+
+        DispatchQueue.main.async {
+            self.removeNativeSidebarToggle()
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.20) { [weak self] in
+            self?.removeNativeSidebarToggle()
+        }
+    }
+
+    func removeNativeSidebarToggle() {
+        Self.removeNativeSidebarToggle(from: window)
+    }
+
+    static func removeNativeSidebarToggle(from window: NSWindow?) {
+        guard let toolbar = window?.toolbar,
+              let index = toolbar.items.firstIndex(where: isNativeSidebarToggle) else {
+            return
+        }
+        toolbar.removeItem(at: index)
+    }
+
+    private static func isNativeSidebarToggle(_ item: NSToolbarItem) -> Bool {
+        let identifier = item.itemIdentifier.rawValue.lowercased()
+        return item.itemIdentifier == .toggleSidebar
+            || item.action == #selector(NSSplitViewController.toggleSidebar(_:))
+            || identifier.contains("togglesidebar")
+            || identifier.contains("sidebar-toggle")
     }
 }
 
@@ -292,21 +359,22 @@ struct SystemAirPlayPickerButton: View {
         HStack(spacing: 7) {
 #if canImport(AVKit)
             AirPlayRoutePickerRepresentable()
-                .frame(width: 26, height: 22)
+                .frame(width: 18, height: 18)
                 .accessibilityLabel("Open macOS AirPlay route picker")
 #else
             Image(systemName: "airplayaudio")
-                .frame(width: 26, height: 22)
+                .font(.system(size: 13, weight: .semibold))
+                .frame(width: 18, height: 18)
 #endif
 
             if !compact {
                 Text(title)
-                    .font(.caption.weight(.semibold))
+                    .font(.system(size: 11, weight: .semibold))
                     .lineLimit(1)
             }
         }
-        .padding(.horizontal, compact ? 6 : 9)
-        .padding(.vertical, 5)
+        .padding(.horizontal, compact ? 5 : 10)
+        .frame(height: 28)
         .background(ConsolePalette.strip.opacity(0.82), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 7, style: .continuous)
@@ -350,16 +418,6 @@ struct ConsoleFrame<Content: View>: View {
             .padding(14)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .background(ConsolePalette.console, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-            .overlay(alignment: .top) {
-                Rectangle()
-                    .fill(ConsolePalette.strongStroke)
-                    .frame(height: 1)
-                    .padding(.horizontal, 12)
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .stroke(ConsolePalette.strongStroke, lineWidth: 1)
-            }
     }
 }
 
