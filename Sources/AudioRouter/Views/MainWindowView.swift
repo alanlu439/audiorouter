@@ -37,7 +37,6 @@ public struct MainWindowView: View {
                 UserProfileMenu(store: store, style: .toolbar) { mode in
                     profileSheetMode = mode
                 }
-                .padding(.trailing, 8)
             }
         }
         .background(AudioRouterToolbarStyler())

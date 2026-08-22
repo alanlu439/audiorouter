@@ -209,7 +209,7 @@ struct AudioRouterSidebar: View {
                 }
             }
             .padding(.horizontal, 10)
-            .padding(.top, 10)
+            .padding(.top, 28)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 
             if showsWatermark {
