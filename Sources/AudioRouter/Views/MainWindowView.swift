@@ -2,7 +2,6 @@ import SwiftUI
 
 public struct MainWindowView: View {
     @ObservedObject private var store: AudioRouterStore
-    @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @State private var offeredInitialOnboarding = false
     @State private var profileSheetMode: ProfileNameSheet.Mode?
 
@@ -11,7 +10,7 @@ public struct MainWindowView: View {
     }
 
     public var body: some View {
-        NavigationSplitView(columnVisibility: $columnVisibility) {
+        NavigationSplitView {
             AudioRouterSidebar(selection: $store.selectedSettingsSection, showsWatermark: true)
         } detail: {
             SettingsDetailView(section: store.selectedSettingsSection, store: store)
@@ -34,10 +33,6 @@ public struct MainWindowView: View {
                 .preferredColorScheme(store.settings.effectiveColorScheme)
         }
         .toolbar {
-            ToolbarItem(id: "AudioRouterSidebarToggle", placement: .navigation) {
-                AudioRouterSidebarToggle(visibility: $columnVisibility)
-            }
-
             ToolbarItem(placement: .primaryAction) {
                 UserProfileMenu(store: store, style: .toolbar) { mode in
                     profileSheetMode = mode
@@ -45,10 +40,9 @@ public struct MainWindowView: View {
                 .padding(.trailing, 8)
             }
         }
-        .toolbar(removing: .sidebarToggle)
-        .background(AudioRouterToolbarCleaner())
+        .background(AudioRouterToolbarStyler())
         .onAppear {
-            AudioRouterToolbarCleaner.scheduleCleanup()
+            AudioRouterToolbarStyler.scheduleStyling()
             presentInitialOnboardingIfNeeded()
         }
         .alert("AudioRouter Update Available", isPresented: updatePromptBinding) {

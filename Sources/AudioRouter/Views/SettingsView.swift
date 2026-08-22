@@ -2,14 +2,12 @@ import SwiftUI
 
 public struct SettingsView: View {
     @ObservedObject private var store: AudioRouterStore
-    @State private var columnVisibility: NavigationSplitViewVisibility = .all
-
     public init(store: AudioRouterStore) {
         self.store = store
     }
 
     public var body: some View {
-        NavigationSplitView(columnVisibility: $columnVisibility) {
+        NavigationSplitView {
             AudioRouterSidebar(selection: $store.selectedSettingsSection)
         } detail: {
             SettingsDetailView(section: store.selectedSettingsSection, store: store)
@@ -19,17 +17,11 @@ public struct SettingsView: View {
         .navigationSplitViewStyle(.balanced)
         .toolbarBackground(ConsolePalette.windowChrome, for: .windowToolbar)
         .toolbarBackground(.visible, for: .windowToolbar)
-        .toolbar {
-            ToolbarItem(id: "AudioRouterSidebarToggle", placement: .navigation) {
-                AudioRouterSidebarToggle(visibility: $columnVisibility)
-            }
-        }
-        .toolbar(removing: .sidebarToggle)
-        .background(AudioRouterToolbarCleaner())
+        .background(AudioRouterToolbarStyler())
         .buttonStyle(.audioRouter)
         .preferredColorScheme(store.settings.effectiveColorScheme)
         .onAppear {
-            AudioRouterToolbarCleaner.scheduleCleanup()
+            AudioRouterToolbarStyler.scheduleStyling()
         }
     }
 }

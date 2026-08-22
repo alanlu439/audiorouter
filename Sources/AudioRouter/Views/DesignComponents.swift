@@ -199,7 +199,7 @@ struct AudioRouterSidebar: View {
     var body: some View {
         VStack(spacing: 0) {
             ScrollView {
-                LazyVStack(spacing: 4) {
+                VStack(spacing: 4) {
                     ForEach(SettingsSection.allCases) { section in
                         AudioRouterSidebarRow(
                             section: section,
@@ -254,7 +254,7 @@ private struct AudioRouterSidebarRow: View {
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 8)
-            .frame(height: 34)
+            .frame(height: 40)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(rowBackground, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
             .overlay {
@@ -264,6 +264,8 @@ private struct AudioRouterSidebarRow: View {
             .contentShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
         }
         .buttonStyle(.plain)
+        .frame(maxWidth: .infinity)
+        .contentShape(Rectangle())
         .accessibilityLabel(section.rawValue)
         .accessibilityValue(isSelected ? "Selected" : "Not selected")
         .accessibilityHint("Shows the \(section.rawValue) screen")
@@ -277,69 +279,56 @@ private struct AudioRouterSidebarRow: View {
     }
 }
 
-struct AudioRouterSidebarToggle: View {
-    @Binding var visibility: NavigationSplitViewVisibility
-
-    var body: some View {
-        Button {
-            visibility = visibility == .detailOnly ? .all : .detailOnly
-        } label: {
-            Image(systemName: "sidebar.leading")
-                .font(.system(size: 15, weight: .semibold))
-                .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(.secondary)
-                .frame(width: 28, height: 28)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .help(visibility == .detailOnly ? "Show Sidebar" : "Hide Sidebar")
-        .accessibilityLabel(visibility == .detailOnly ? "Show Sidebar" : "Hide Sidebar")
-    }
-}
-
-struct AudioRouterToolbarCleaner: NSViewRepresentable {
-    func makeNSView(context: Context) -> ToolbarCleanerView {
-        let view = ToolbarCleanerView(frame: .zero)
-        view.removeNativeSidebarToggle()
+struct AudioRouterToolbarStyler: NSViewRepresentable {
+    func makeNSView(context: Context) -> ToolbarStylerView {
+        let view = ToolbarStylerView(frame: .zero)
+        view.styleNativeSidebarToggle()
         return view
     }
 
-    func updateNSView(_ nsView: ToolbarCleanerView, context: Context) {
-        nsView.removeNativeSidebarToggle()
+    func updateNSView(_ nsView: ToolbarStylerView, context: Context) {
+        nsView.styleNativeSidebarToggle()
     }
 
-    static func scheduleCleanup() {
+    static func scheduleStyling() {
         for delay in [0.0, 0.15, 0.45] {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-                NSApp.windows.forEach(ToolbarCleanerView.removeNativeSidebarToggle(from:))
+                NSApp.windows.forEach(ToolbarStylerView.styleNativeSidebarToggle(in:))
             }
         }
     }
 }
 
-final class ToolbarCleanerView: NSView {
+final class ToolbarStylerView: NSView {
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
-        removeNativeSidebarToggle()
+        styleNativeSidebarToggle()
 
         DispatchQueue.main.async {
-            self.removeNativeSidebarToggle()
+            self.styleNativeSidebarToggle()
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.20) { [weak self] in
-            self?.removeNativeSidebarToggle()
+            self?.styleNativeSidebarToggle()
         }
     }
 
-    func removeNativeSidebarToggle() {
-        Self.removeNativeSidebarToggle(from: window)
+    func styleNativeSidebarToggle() {
+        Self.styleNativeSidebarToggle(in: window)
     }
 
-    static func removeNativeSidebarToggle(from window: NSWindow?) {
-        guard let toolbar = window?.toolbar,
-              let index = toolbar.items.firstIndex(where: isNativeSidebarToggle) else {
-            return
+    static func styleNativeSidebarToggle(in window: NSWindow?) {
+        guard let window, let toolbar = window.toolbar else { return }
+
+        for item in toolbar.items where isNativeSidebarToggle(item) {
+            item.isBordered = false
+            if let view = item.view {
+                styleButtons(in: view)
+            }
         }
-        toolbar.removeItem(at: index)
+
+        if let titlebarView = window.contentView?.superview {
+            styleSidebarButtons(in: titlebarView)
+        }
     }
 
     private static func isNativeSidebarToggle(_ item: NSToolbarItem) -> Bool {
@@ -348,6 +337,28 @@ final class ToolbarCleanerView: NSView {
             || item.action == #selector(NSSplitViewController.toggleSidebar(_:))
             || identifier.contains("togglesidebar")
             || identifier.contains("sidebar-toggle")
+    }
+
+    private static func styleSidebarButtons(in view: NSView) {
+        if let button = view as? NSButton,
+           button.action == #selector(NSSplitViewController.toggleSidebar(_:)) {
+            style(button)
+        }
+        view.subviews.forEach(styleSidebarButtons(in:))
+    }
+
+    private static func styleButtons(in view: NSView) {
+        if let button = view as? NSButton {
+            style(button)
+        }
+        view.subviews.forEach(styleButtons(in:))
+    }
+
+    private static func style(_ button: NSButton) {
+        button.isBordered = false
+        button.showsBorderOnlyWhileMouseInside = false
+        button.wantsLayer = true
+        button.layer?.backgroundColor = NSColor.clear.cgColor
     }
 }
 
