@@ -42,7 +42,7 @@ struct AudioRouterApplication: App {
 
         Settings {
             SettingsView(store: store)
-                .frame(width: 720, height: 560)
+                .frame(minWidth: 680, idealWidth: 760, minHeight: 560, idealHeight: 680)
         }
         .windowToolbarStyle(.unifiedCompact(showsTitle: true))
     }

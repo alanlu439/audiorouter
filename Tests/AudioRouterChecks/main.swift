@@ -45,6 +45,7 @@ func dumpAirPlayRouteCandidates(seconds: TimeInterval = 6) {
 func runChecks() throws {
     checkEQPresets()
     checkThemePreferenceMapping()
+    checkSettingsNavigation()
     try checkPresetPersistence()
     try checkUserProfilePresetScoping()
     checkShortcutPersistence()
@@ -69,6 +70,16 @@ func runChecks() throws {
     checkPlaybackKeepAliveCandidates()
     checkAppInputPublishingMetadata()
     try checkRouteHealthDiagnostics()
+}
+
+func checkSettingsNavigation() {
+    let sections = SettingsSection.allCases
+    precondition(sections.contains(.settings), "The main sidebar should include a dedicated Settings page")
+    precondition(
+        sections.firstIndex(of: .settings)! < sections.firstIndex(of: .advanced)!,
+        "Everyday Settings should appear before Advanced tools"
+    )
+    precondition(SettingsSection.settings.systemImage == "gearshape", "Settings should use the standard gear icon")
 }
 
 func checkThemePreferenceMapping() {

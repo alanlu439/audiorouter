@@ -266,7 +266,7 @@ public struct MenuBarPopoverView: View {
             .controlSize(.small)
 
             Button {
-                store.selectedSettingsSection = .advanced
+                store.selectedSettingsSection = .settings
                 openWindow(id: "main")
             } label: {
                 Image(systemName: "gearshape")

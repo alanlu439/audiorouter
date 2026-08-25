@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Settings
+
+- Added a dedicated Settings page to the main sidebar for appearance, launch behavior, Dock visibility, Demo Mode, playback protection, and automatic release updates.
+- Made the menu-bar gear open Settings instead of Advanced and rebuilt the native `Command-,` window as a focused preferences view.
+- Kept virtual input publishing, backend status, reliability, permissions, diagnostics, and reset tools grouped under Advanced.
+- Added a Launch Services retry when the local build script needs to register a freshly rebuilt app bundle before opening it.
+
 ## 1.1.4 - 2026-08-22
 
 ### Interface Refresh

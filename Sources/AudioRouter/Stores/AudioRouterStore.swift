@@ -2420,6 +2420,7 @@ public enum SettingsSection: String, CaseIterable, Identifiable {
     case eq = "EQ"
     case setups = "Setups"
     case shortcuts = "Shortcuts"
+    case settings = "Settings"
     case advanced = "Advanced"
 
     public var id: String { rawValue }
@@ -2431,7 +2432,8 @@ public enum SettingsSection: String, CaseIterable, Identifiable {
         case .eq: return "waveform"
         case .setups: return "square.stack.3d.up"
         case .shortcuts: return "keyboard"
-        case .advanced: return "gearshape.2"
+        case .settings: return "gearshape"
+        case .advanced: return "wrench.and.screwdriver"
         }
     }
 }

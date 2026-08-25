@@ -105,6 +105,15 @@ PLIST
 /usr/bin/codesign --force --deep --sign - "$APP_BUNDLE" >/dev/null
 
 open_app() {
+  if /usr/bin/open -n "$APP_BUNDLE"; then
+    return
+  fi
+
+  local launch_services_register="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
+  if [[ -x "$launch_services_register" ]]; then
+    "$launch_services_register" -f "$APP_BUNDLE" >/dev/null 2>&1 || true
+  fi
+  sleep 0.5
   /usr/bin/open -n "$APP_BUNDLE"
 }
 

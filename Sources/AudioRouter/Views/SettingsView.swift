@@ -7,14 +7,20 @@ public struct SettingsView: View {
     }
 
     public var body: some View {
-        NavigationSplitView {
-            AudioRouterSidebar(selection: $store.selectedSettingsSection)
-        } detail: {
-            SettingsDetailView(section: store.selectedSettingsSection, store: store)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        GeometryReader { proxy in
+            ScrollView {
+                AppSettingsView(store: store)
+                    .padding(14)
+                    .frame(
+                        minWidth: proxy.size.width,
+                        minHeight: proxy.size.height,
+                        alignment: .topLeading
+                    )
+            }
+            .scrollIndicators(.visible)
+            .background(ConsolePalette.window)
         }
         .navigationTitle("AudioRouter Settings")
-        .navigationSplitViewStyle(.balanced)
         .toolbarBackground(ConsolePalette.windowChrome, for: .windowToolbar)
         .toolbarBackground(.visible, for: .windowToolbar)
         .background(AudioRouterToolbarStyler())
@@ -45,6 +51,8 @@ struct SettingsDetailView: View {
                         PresetsView(store: store)
                     case .shortcuts:
                         ShortcutsSettingsView(store: store)
+                    case .settings:
+                        AppSettingsView(store: store)
                     case .advanced:
                         AdvancedSettingsView(store: store)
                     }
@@ -59,6 +67,134 @@ struct SettingsDetailView: View {
             .scrollIndicators(.visible)
             .background(ConsolePalette.window)
         }
+    }
+}
+
+private struct AppSettingsView: View {
+    @ObservedObject var store: AudioRouterStore
+
+    var body: some View {
+        ConsoleFrame {
+            VStack(alignment: .leading, spacing: 16) {
+                ConsolePageHeader(
+                    title: "Settings",
+                    subtitle: "Everyday app behavior, playback protection, appearance, and release updates.",
+                    systemImage: "gearshape.fill",
+                    tint: ConsolePalette.blue
+                ) {
+                    StatusLabel(text: "Saved Automatically", status: .working)
+                }
+
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .top, spacing: 12) {
+                        generalPanel
+                            .frame(minWidth: 280)
+                        playbackPanel
+                            .frame(minWidth: 280)
+                    }
+
+                    VStack(alignment: .leading, spacing: 12) {
+                        generalPanel
+                        playbackPanel
+                    }
+                }
+
+                UpdateStatusView(store: store, compact: false)
+            }
+        }
+    }
+
+    private var generalPanel: some View {
+        ConsolePanel(
+            title: "General",
+            systemImage: "switch.2",
+            trailing: "App preferences",
+            tint: ConsolePalette.blue
+        ) {
+            VStack(alignment: .leading, spacing: 10) {
+                ThemePreferenceRow(settings: store.settings)
+                ToggleRow(
+                    title: "Launch at login",
+                    detail: "Start AudioRouter automatically",
+                    systemImage: "power",
+                    isOn: launchAtLoginBinding
+                )
+                ToggleRow(
+                    title: "Show in Dock",
+                    detail: "Keep a Dock icon while running",
+                    systemImage: "dock.rectangle",
+                    isOn: showInDockBinding
+                )
+                ToggleRow(
+                    title: "Demo Mode",
+                    detail: "Use sample apps, devices, and meters",
+                    systemImage: "play.rectangle",
+                    isOn: demoModeBinding
+                )
+            }
+        }
+    }
+
+    private var playbackPanel: some View {
+        ConsolePanel(
+            title: "Playback",
+            systemImage: "waveform.path",
+            trailing: "Device changes",
+            tint: ConsolePalette.teal
+        ) {
+            VStack(alignment: .leading, spacing: 10) {
+                ToggleRow(
+                    title: "Protect playback",
+                    detail: "Wait for Bluetooth and AirPods changes to settle before refreshing routes",
+                    systemImage: "earbuds",
+                    isOn: protectPlaybackBinding
+                )
+                ToggleRow(
+                    title: "Keep media playing",
+                    detail: "Keep Spotify or Music playing through device changes",
+                    systemImage: "play.circle",
+                    isOn: keepMediaPlayingBinding
+                )
+            }
+        }
+    }
+
+    private var demoModeBinding: Binding<Bool> {
+        Binding(
+            get: { store.settings.demoMode },
+            set: { value in
+                store.settings.demoMode = value
+                store.refresh()
+            }
+        )
+    }
+
+    private var launchAtLoginBinding: Binding<Bool> {
+        Binding(
+            get: { store.settings.launchAtLogin },
+            set: { store.setLaunchAtLogin($0) }
+        )
+    }
+
+    private var showInDockBinding: Binding<Bool> {
+        Binding(
+            get: { store.settings.showInDock },
+            set: { store.settings.showInDock = $0 }
+        )
+    }
+
+    private var protectPlaybackBinding: Binding<Bool> {
+        Binding(
+            get: { store.settings.protectPlaybackDuringDeviceChanges },
+            set: { store.settings.protectPlaybackDuringDeviceChanges = $0 }
+        )
+    }
+
+    private var keepMediaPlayingBinding: Binding<Bool> {
+        Binding(
+            get: { store.settings.keepMediaPlayingDuringDeviceChanges },
+            set: { store.settings.keepMediaPlayingDuringDeviceChanges = $0 }
+        )
     }
 }
 
@@ -215,15 +351,15 @@ private struct ShortcutsSettingsView: View {
 private struct AdvancedSettingsView: View {
     @ObservedObject var store: AudioRouterStore
     @State private var showDebug = false
-    @State private var selectedAdvancedSection: AdvancedSection = .system
+    @State private var selectedAdvancedSection: AdvancedSection = .backend
 
     var body: some View {
         ConsoleFrame {
             VStack(alignment: .leading, spacing: 18) {
                 ConsolePageHeader(
                     title: "Advanced",
-                    subtitle: "Choose one system area at a time. Backend status stays visible above the controls.",
-                    systemImage: "gearshape.2.fill",
+                    subtitle: "Backend, reliability, permissions, diagnostics, and reset tools.",
+                    systemImage: "wrench.and.screwdriver.fill",
                     tint: ConsolePalette.teal
                 ) {
                     AdvancedHeaderStatus(store: store)
@@ -241,44 +377,14 @@ private struct AdvancedSettingsView: View {
     @ViewBuilder
     private var selectedSectionContent: some View {
         switch selectedAdvancedSection {
-        case .system:
-            ConsolePanel(title: "System Controls", systemImage: "slider.horizontal.3", tint: ConsolePalette.teal) {
+        case .backend:
+            ConsolePanel(title: "Mixer Input Backend", systemImage: "externaldrive.connected.to.line.below", tint: ConsolePalette.teal) {
                 VStack(alignment: .leading, spacing: 12) {
                     AdvancedSectionIntro(
-                        title: "App behavior",
-                        detail: "These settings change how AudioRouter starts, appears, and switches between Live and Demo modes."
+                        title: "Virtual inputs",
+                        detail: "Control the experimental path that exposes routed apps to mixer software."
                     )
                     VStack(alignment: .leading, spacing: 10) {
-                        ToggleRow(
-                            title: "Launch at login",
-                            detail: "Start AudioRouter automatically",
-                            systemImage: "power",
-                            isOn: launchAtLoginBinding
-                        )
-                        ToggleRow(
-                            title: "Show in Dock",
-                            detail: "Keep a Dock icon while running",
-                            systemImage: "dock.rectangle",
-                            isOn: showInDockBinding
-                        )
-                        ToggleRow(
-                            title: "Demo Mode",
-                            detail: "Use sample apps, devices, and meters",
-                            systemImage: "play.rectangle",
-                            isOn: demoModeBinding
-                        )
-                        ToggleRow(
-                            title: "Protect playback",
-                            detail: "Debounce AirPods and Bluetooth changes before refreshing routes",
-                            systemImage: "earbuds",
-                            isOn: protectPlaybackBinding
-                        )
-                        ToggleRow(
-                            title: "Always keep media playing",
-                            detail: "Continuously tells Spotify or Music to play while AudioRouter is running",
-                            systemImage: "play.circle",
-                            isOn: keepMediaPlayingBinding
-                        )
                         ToggleRow(
                             title: "Publish mixer inputs",
                             detail: "Expose route apps as selectable macOS input devices when taps are available",
@@ -287,7 +393,6 @@ private struct AdvancedSettingsView: View {
                         )
                         HALDriverStatusView()
                         AppInputPublishingStatusView(store: store)
-                        ThemePreferenceRow(settings: store.settings)
                     }
                 }
             }
@@ -327,9 +432,6 @@ private struct AdvancedSettingsView: View {
                     }
                 }
             }
-
-        case .updates:
-            UpdateStatusView(store: store, compact: false)
 
         case .diagnostics:
             ConsolePanel(title: "Diagnostics", systemImage: "stethoscope", tint: ConsolePalette.blue) {
@@ -408,55 +510,6 @@ private struct AdvancedSettingsView: View {
         )
     }
 
-    private var automaticUpdatesBinding: Binding<Bool> {
-        Binding(
-            get: { store.settings.automaticallyCheckForUpdates },
-            set: { store.setAutomaticallyCheckForUpdates($0) }
-        )
-    }
-
-    private var demoModeBinding: Binding<Bool> {
-        Binding(
-            get: { store.settings.demoMode },
-            set: { value in
-                store.settings.demoMode = value
-                store.refresh()
-            }
-        )
-    }
-
-    private var launchAtLoginBinding: Binding<Bool> {
-        Binding(
-            get: { store.settings.launchAtLogin },
-            set: { store.setLaunchAtLogin($0) }
-        )
-    }
-
-    private var showInDockBinding: Binding<Bool> {
-        Binding(
-            get: { store.settings.showInDock },
-            set: { store.settings.showInDock = $0 }
-        )
-    }
-
-    private var protectPlaybackBinding: Binding<Bool> {
-        Binding(
-            get: { store.settings.protectPlaybackDuringDeviceChanges },
-            set: { value in
-                store.settings.protectPlaybackDuringDeviceChanges = value
-            }
-        )
-    }
-
-    private var keepMediaPlayingBinding: Binding<Bool> {
-        Binding(
-            get: { store.settings.keepMediaPlayingDuringDeviceChanges },
-            set: { value in
-                store.settings.keepMediaPlayingDuringDeviceChanges = value
-            }
-        )
-    }
-
     private var appInputPublishingBinding: Binding<Bool> {
         Binding(
             get: { store.settings.publishAppInputsAsSystemDevices },
@@ -470,10 +523,9 @@ private struct AdvancedSettingsView: View {
 }
 
 private enum AdvancedSection: String, CaseIterable, Identifiable {
-    case system = "System"
+    case backend = "Backend"
     case reliability = "Reliability"
     case permissions = "Access"
-    case updates = "Updates"
     case diagnostics = "Diagnostics"
     case reset = "Reset"
 
@@ -481,10 +533,9 @@ private enum AdvancedSection: String, CaseIterable, Identifiable {
 
     var systemImage: String {
         switch self {
-        case .system: return "slider.horizontal.3"
+        case .backend: return "externaldrive.connected.to.line.below"
         case .reliability: return "stethoscope"
         case .permissions: return "checkmark.shield"
-        case .updates: return "arrow.down.circle"
         case .diagnostics: return "stethoscope"
         case .reset: return "exclamationmark.triangle"
         }
@@ -492,10 +543,9 @@ private enum AdvancedSection: String, CaseIterable, Identifiable {
 
     var tint: Color {
         switch self {
-        case .system: return ConsolePalette.teal
+        case .backend: return ConsolePalette.teal
         case .reliability: return ConsolePalette.amber
         case .permissions: return ConsolePalette.green
-        case .updates: return ConsolePalette.blue
         case .diagnostics: return ConsolePalette.blue
         case .reset: return ConsolePalette.red
         }
