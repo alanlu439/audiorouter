@@ -507,6 +507,29 @@ func checkRouteAudioQualityPolicy() {
     )
     precondition(sharedOutputFormat.mSampleRate == 96_000, "Group routes should keep the source tap rate and let Core Audio convert at the output renderer")
     precondition(sharedOutputFormat.mChannelsPerFrame == 2, "Group routes should use the highest channel count shared by every output")
+
+    let highBandwidthFormat = AudioStreamBasicDescription(
+        mSampleRate: 192_000,
+        mFormatID: kAudioFormatLinearPCM,
+        mFormatFlags: kAudioFormatFlagIsFloat | kAudioFormatFlagIsPacked | kAudioFormatFlagsNativeEndian,
+        mBytesPerPacket: 8 * UInt32(MemoryLayout<Float32>.size),
+        mFramesPerPacket: 1,
+        mBytesPerFrame: 8 * UInt32(MemoryLayout<Float32>.size),
+        mChannelsPerFrame: 8,
+        mBitsPerChannel: 32,
+        mReserved: 0
+    )
+    let highBandwidthBufferSize = RouteAudioQualityPolicy.outputBufferByteSize(for: highBandwidthFormat)
+    let minimumHighBandwidthBufferSize = UInt32(
+        ceil(highBandwidthFormat.mSampleRate * RouteAudioQualityPolicy.outputBufferDurationSeconds)
+    ) * highBandwidthFormat.mBytesPerFrame
+    precondition(
+        highBandwidthBufferSize >= minimumHighBandwidthBufferSize,
+        "High-rate multichannel routes should keep the full output-buffer duration instead of shrinking into callback-heavy chunks"
+    )
+    precondition(RouteAudioQualityPolicy.outputQueueBufferCount >= 8, "Live routes should retain enough queued buffers for short CPU spikes")
+    precondition(RouteAudioQualityPolicy.outputQueueHeadroomSeconds >= 0.15, "Live routes should keep at least 150 ms of output headroom")
+    precondition(RouteAudioQualityPolicy.routePipeBufferSeconds >= 3, "Live routes should retain source audio through longer scheduler stalls")
 }
 
 func checkSourceAudioQualityDisplay() throws {

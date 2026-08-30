@@ -55,6 +55,7 @@ final class ProcessTapRoutingEngine {
         let aggregateDeviceID: AudioObjectID
         let ioProcID: AudioDeviceIOProcID
         let control: RouteControl
+        let processor: RouteAudioProcessor
         let pipes: [PCMBufferPipe]
         let outputRenderers: [RouteOutputRenderer]
         var sourceQuality: SourceAudioQuality
@@ -123,11 +124,13 @@ final class ProcessTapRoutingEngine {
         private let sampleRate: Double
         private let channelCount: Int
         private var filtersByChannel: [[BiquadFilter]]
+        private var activeFilterIndices: [Int]
 
         init(sampleRate: Double, channelCount: Int, bands: [Double]) {
             self.sampleRate = sampleRate
             self.channelCount = max(1, channelCount)
             let normalizedBands = Self.normalizedBands(bands)
+            self.activeFilterIndices = normalizedBands.indices.filter { abs(normalizedBands[$0]) >= 0.05 }
             self.filtersByChannel = (0..<self.channelCount).map { _ in
                 Self.centerFrequencies.enumerated().map { index, frequency in
                     BiquadFilter(
@@ -141,6 +144,7 @@ final class ProcessTapRoutingEngine {
 
         func updateBands(_ bands: [Double]) {
             let normalizedBands = Self.normalizedBands(bands)
+            activeFilterIndices = normalizedBands.indices.filter { abs(normalizedBands[$0]) >= 0.05 }
             for channel in filtersByChannel.indices {
                 for index in filtersByChannel[channel].indices {
                     filtersByChannel[channel][index].update(
@@ -153,9 +157,10 @@ final class ProcessTapRoutingEngine {
         }
 
         func process(sample: Float32, channel: Int) -> Float32 {
+            guard !activeFilterIndices.isEmpty else { return sample }
             let filterChannel = min(max(0, channel), channelCount - 1)
             var value = Double(sample)
-            for index in filtersByChannel[filterChannel].indices {
+            for index in activeFilterIndices {
                 value = filtersByChannel[filterChannel][index].process(value)
             }
             guard value.isFinite else { return 0 }
@@ -171,25 +176,19 @@ final class ProcessTapRoutingEngine {
         }
     }
 
-    private final class PCMBufferPipe {
-        private let lock = NSLock()
-        private var storage: [Float32]
-        private var readIndex = 0
-        private var writeIndex = 0
-        private var availableSampleCount = 0
+    private final class RouteAudioProcessor {
+        private let processorLock = NSLock()
+        private var processingScratch: [Float32]
         private var equalizer: GraphicEQProcessor
 
         let channelCount: Int
 
-        init(
-            format: AudioStreamBasicDescription,
-            eqBands: [Double],
-            seconds: Double = 1.0
-        ) {
+        init(format: AudioStreamBasicDescription, eqBands: [Double]) {
             self.channelCount = max(1, Int(format.mChannelsPerFrame))
-            let bytesPerSecond = max(4096, Int(format.mSampleRate) * max(1, Int(format.mBytesPerFrame)))
-            let sampleCapacity = max(4_096, Int(Double(bytesPerSecond) * seconds) / MemoryLayout<Float32>.size)
-            self.storage = Array(repeating: 0, count: sampleCapacity)
+            self.processingScratch = Array(
+                repeating: 0,
+                count: RouteAudioQualityPolicy.processingChunkFrameCount * self.channelCount
+            )
             self.equalizer = GraphicEQProcessor(
                 sampleRate: format.mSampleRate,
                 channelCount: self.channelCount,
@@ -198,76 +197,58 @@ final class ProcessTapRoutingEngine {
         }
 
         func setEQBands(_ bands: [Double]) {
-            lock.lock()
+            processorLock.lock()
             equalizer.updateBands(bands)
-            lock.unlock()
+            processorLock.unlock()
         }
 
         func writeInterleavedFloat32(
             from inputData: UnsafePointer<AudioBufferList>,
-            outputChannelCount: Int,
-            gain: Float
+            gain: Float,
+            consume: (UnsafeBufferPointer<Float32>) -> Void
         ) -> Double {
             let inputBuffers = UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: inputData))
             guard let frameCount = frameCount(for: inputBuffers), frameCount > 0 else {
                 return 0
             }
 
-            lock.lock()
-            defer { lock.unlock() }
+            processorLock.lock()
+            defer { processorLock.unlock() }
 
             var squareSum: Double = 0
             var sampleCount = 0
-            for frame in 0..<frameCount {
-                for channel in 0..<outputChannelCount {
-                    let equalizedSample = equalizer.process(
-                        sample: sampleAt(frame: frame, channel: channel, inputBuffers: inputBuffers),
-                        channel: channel
-                    )
-                    let sample = Self.peakLimited(
-                        equalizedSample * gain
-                    )
-                    squareSum += Double(sample) * Double(sample)
-                    sampleCount += 1
-                    writeSample(sample)
+            var processedFrameCount = 0
+            while processedFrameCount < frameCount {
+                let chunkFrameCount = min(
+                    RouteAudioQualityPolicy.processingChunkFrameCount,
+                    frameCount - processedFrameCount
+                )
+                let chunkSampleCount = chunkFrameCount * channelCount
+
+                for frame in 0..<chunkFrameCount {
+                    for channel in 0..<channelCount {
+                        let equalizedSample = equalizer.process(
+                            sample: sampleAt(
+                                frame: processedFrameCount + frame,
+                                channel: channel,
+                                inputBuffers: inputBuffers
+                            ),
+                            channel: channel
+                        )
+                        let sample = Self.peakLimited(equalizedSample * gain)
+                        processingScratch[frame * channelCount + channel] = sample
+                        squareSum += Double(sample) * Double(sample)
+                    }
                 }
+                sampleCount += chunkSampleCount
+                processingScratch.withUnsafeBufferPointer { scratch in
+                    consume(UnsafeBufferPointer(start: scratch.baseAddress, count: chunkSampleCount))
+                }
+                processedFrameCount += chunkFrameCount
             }
 
             guard sampleCount > 0 else { return 0 }
             return min(1, sqrt(squareSum / Double(sampleCount)) * 3.2)
-        }
-
-        func read(into destination: UnsafeMutableRawPointer?, byteCount: Int) {
-            guard let destination, byteCount > 0 else { return }
-            let samples = destination.assumingMemoryBound(to: Float32.self)
-            let requestedSampleCount = byteCount / MemoryLayout<Float32>.size
-            lock.lock()
-            defer { lock.unlock() }
-
-            for index in 0..<requestedSampleCount {
-                if availableSampleCount > 0 {
-                    samples[index] = storage[readIndex]
-                    readIndex = (readIndex + 1) % storage.count
-                    availableSampleCount -= 1
-                } else {
-                    samples[index] = 0
-                }
-            }
-
-            let copiedByteCount = requestedSampleCount * MemoryLayout<Float32>.size
-            if copiedByteCount < byteCount {
-                memset(destination.advanced(by: copiedByteCount), 0, byteCount - copiedByteCount)
-            }
-        }
-
-        private func writeSample(_ sample: Float32) {
-            if availableSampleCount == storage.count {
-                readIndex = (readIndex + 1) % storage.count
-                availableSampleCount -= 1
-            }
-            storage[writeIndex] = sample
-            writeIndex = (writeIndex + 1) % storage.count
-            availableSampleCount += 1
         }
 
         private func frameCount(for inputBuffers: UnsafeMutableAudioBufferListPointer) -> Int? {
@@ -316,20 +297,112 @@ final class ProcessTapRoutingEngine {
         }
     }
 
+    private final class PCMBufferPipe {
+        private let bufferLock = NSLock()
+        private var storage: [Float32]
+        private var readIndex = 0
+        private var writeIndex = 0
+        private var availableSampleCount = 0
+
+        init(format: AudioStreamBasicDescription, seconds: Double = 1.0) {
+            let bytesPerSecond = max(4096, Int(format.mSampleRate) * max(1, Int(format.mBytesPerFrame)))
+            let sampleCapacity = max(4_096, Int(Double(bytesPerSecond) * seconds) / MemoryLayout<Float32>.size)
+            self.storage = Array(repeating: 0, count: sampleCapacity)
+        }
+
+        func read(into destination: UnsafeMutableRawPointer?, byteCount: Int) {
+            guard let destination, byteCount > 0 else { return }
+            let samples = destination.assumingMemoryBound(to: Float32.self)
+            let requestedSampleCount = byteCount / MemoryLayout<Float32>.size
+            bufferLock.lock()
+            let copiedSampleCount = min(requestedSampleCount, availableSampleCount)
+            if copiedSampleCount > 0 {
+                storage.withUnsafeBufferPointer { source in
+                    guard let sourceBase = source.baseAddress else { return }
+                    let firstCopyCount = min(copiedSampleCount, storage.count - readIndex)
+                    memcpy(
+                        samples,
+                        sourceBase.advanced(by: readIndex),
+                        firstCopyCount * MemoryLayout<Float32>.size
+                    )
+                    let secondCopyCount = copiedSampleCount - firstCopyCount
+                    if secondCopyCount > 0 {
+                        memcpy(
+                            samples.advanced(by: firstCopyCount),
+                            sourceBase,
+                            secondCopyCount * MemoryLayout<Float32>.size
+                        )
+                    }
+                }
+                readIndex = (readIndex + copiedSampleCount) % storage.count
+                availableSampleCount -= copiedSampleCount
+            }
+            bufferLock.unlock()
+
+            let copiedByteCount = copiedSampleCount * MemoryLayout<Float32>.size
+            if copiedByteCount < byteCount {
+                memset(destination.advanced(by: copiedByteCount), 0, byteCount - copiedByteCount)
+            }
+        }
+
+        func write(samples: UnsafeBufferPointer<Float32>) {
+            guard var sourceBase = samples.baseAddress, !samples.isEmpty else { return }
+            var sourceCount = samples.count
+            if sourceCount > storage.count {
+                sourceBase = sourceBase.advanced(by: sourceCount - storage.count)
+                sourceCount = storage.count
+            }
+
+            bufferLock.lock()
+            let overflowCount = max(0, availableSampleCount + sourceCount - storage.count)
+            if overflowCount > 0 {
+                readIndex = (readIndex + overflowCount) % storage.count
+                availableSampleCount -= overflowCount
+            }
+
+            storage.withUnsafeMutableBufferPointer { destination in
+                guard let destinationBase = destination.baseAddress else { return }
+                let firstCopyCount = min(sourceCount, storage.count - writeIndex)
+                memcpy(
+                    destinationBase.advanced(by: writeIndex),
+                    sourceBase,
+                    firstCopyCount * MemoryLayout<Float32>.size
+                )
+                let secondCopyCount = sourceCount - firstCopyCount
+                if secondCopyCount > 0 {
+                    memcpy(
+                        destinationBase,
+                        sourceBase.advanced(by: firstCopyCount),
+                        secondCopyCount * MemoryLayout<Float32>.size
+                    )
+                }
+            }
+            writeIndex = (writeIndex + sourceCount) % storage.count
+            availableSampleCount += sourceCount
+            bufferLock.unlock()
+        }
+
+    }
+
     private final class RouteOutputRenderer {
         private let queue: AudioQueueRef
         private let pipe: PCMBufferPipe
         private let bufferByteSize: UInt32
+        private let callbackQueue: DispatchQueue
         private let stopLock = NSLock()
         private var stopped = false
 
         init(format: AudioStreamBasicDescription, outputDeviceUID: String, pipe: PCMBufferPipe) throws {
             self.pipe = pipe
-            self.bufferByteSize = Self.preferredBufferByteSize(for: format)
+            self.bufferByteSize = RouteAudioQualityPolicy.outputBufferByteSize(for: format)
+            self.callbackQueue = DispatchQueue(
+                label: "com.local.AudioRouter.route-output.\(UUID().uuidString)",
+                qos: .userInteractive,
+                autoreleaseFrequency: .workItem
+            )
 
             var mutableFormat = format
             var queueRef: AudioQueueRef?
-            let callbackQueue = DispatchQueue(label: "com.local.AudioRouter.route-output.\(UUID().uuidString)")
             let bufferByteSize = self.bufferByteSize
             let status = AudioQueueNewOutputWithDispatchQueue(
                 &queueRef,
@@ -389,12 +462,6 @@ final class ProcessTapRoutingEngine {
             stopLock.unlock()
             AudioQueueStop(queue, true)
             AudioQueueDispose(queue, true)
-        }
-
-        private static func preferredBufferByteSize(for format: AudioStreamBasicDescription) -> UInt32 {
-            let frames = max(256, Int(format.mSampleRate * 0.02))
-            let bytes = frames * max(1, Int(format.mBytesPerFrame))
-            return UInt32(min(max(bytes, 4096), 32_768))
         }
 
         private static func check(_ status: OSStatus, _ operation: String) throws {
@@ -465,10 +532,10 @@ final class ProcessTapRoutingEngine {
                 let sourceQuality = SourceAudioQuality(from: tapFormat)
                 let playbackFormat = RouteAudioQualityPolicy.playbackFormat(from: tapFormat, outputDevices: outputDevices)
                 HALVirtualInputBridge.shared.prepare()
+                let processor = RouteAudioProcessor(format: playbackFormat, eqBands: currentEQBands)
                 let pipes = outputDevices.map { _ in
                     PCMBufferPipe(
                         format: playbackFormat,
-                        eqBands: currentEQBands,
                         seconds: RouteAudioQualityPolicy.routePipeBufferSeconds
                     )
                 }
@@ -499,8 +566,8 @@ final class ProcessTapRoutingEngine {
                             inputData: inputData,
                             outputData: outputData,
                             control: control,
-                            pipes: pipes,
-                            outputChannelCount: Int(playbackFormat.mChannelsPerFrame)
+                            processor: processor,
+                            pipes: pipes
                         )
                     }
                     try check(ioStatus, "Create route IO callback")
@@ -518,6 +585,7 @@ final class ProcessTapRoutingEngine {
                             aggregateDeviceID: aggregateDeviceID,
                             ioProcID: ioProcID,
                             control: control,
+                            processor: processor,
                             pipes: pipes,
                             outputRenderers: outputRenderers,
                             sourceQuality: sourceQuality,
@@ -601,7 +669,7 @@ final class ProcessTapRoutingEngine {
     func setEQState(_ state: EQState) {
         currentEQBands = state.bands
         for session in sessions.values {
-            session.pipes.forEach { $0.setEQBands(state.bands) }
+            session.processor.setEQBands(state.bands)
         }
     }
 
@@ -714,23 +782,19 @@ final class ProcessTapRoutingEngine {
         inputData: UnsafePointer<AudioBufferList>,
         outputData: UnsafeMutablePointer<AudioBufferList>,
         control: RouteControl,
-        pipes: [PCMBufferPipe],
-        outputChannelCount: Int
+        processor: RouteAudioProcessor,
+        pipes: [PCMBufferPipe]
     ) {
         let outputBuffers = UnsafeMutableAudioBufferListPointer(outputData)
         zero(outputBuffers)
         let gain = control.gain()
         HALVirtualInputBridge.shared.writeInterleavedFloat32(from: inputData, gain: gain)
-        var maxLevel = 0.0
-        for pipe in pipes {
-            let level = pipe.writeInterleavedFloat32(
-                from: inputData,
-                outputChannelCount: outputChannelCount,
-                gain: gain
-            )
-            maxLevel = max(maxLevel, level)
+        let level = processor.writeInterleavedFloat32(from: inputData, gain: gain) { samples in
+            for pipe in pipes {
+                pipe.write(samples: samples)
+            }
         }
-        control.updateLevel(maxLevel)
+        control.updateLevel(level)
     }
 
     private static func zero(_ outputBuffers: UnsafeMutableAudioBufferListPointer) {

@@ -6,8 +6,13 @@ public enum RouteAudioQualityPolicy {
     public static let unityGainSnapTolerance: Double = 0.01
     public static let liveSourceQualityRefreshInterval: TimeInterval = 1.0
     public static let maximumRenderedChannels = 8
-    public static let routePipeBufferSeconds: Double = 2.0
-    public static let outputQueueBufferCount = 5
+    public static let routePipeBufferSeconds: Double = 3.0
+    public static let outputQueueBufferCount = 8
+    public static let outputBufferDurationSeconds: TimeInterval = 0.02
+    public static let processingChunkFrameCount = 4_096
+    public static let outputQueueHeadroomSeconds = Double(outputQueueBufferCount) * outputBufferDurationSeconds
+
+    private static let maximumOutputBufferByteSize = 1_048_576
 
     private static let commonHardwareSampleRates: [Double] = [
         44_100, 48_000, 88_200, 96_000, 176_400, 192_000
@@ -63,6 +68,17 @@ public enum RouteAudioQualityPolicy {
     public static func normalizedGain(_ volume: Double) -> Double {
         let clamped = max(0, min(maximumGain, volume))
         return abs(clamped - 1) <= unityGainSnapTolerance ? 1 : clamped
+    }
+
+    public static func outputBufferByteSize(for format: AudioStreamBasicDescription) -> UInt32 {
+        let sampleRate = format.mSampleRate.isFinite && format.mSampleRate > 0
+            ? format.mSampleRate
+            : 48_000
+        let frameCount = max(256, Int(ceil(sampleRate * outputBufferDurationSeconds)))
+        let bytesPerFrame = max(MemoryLayout<Float32>.size, Int(format.mBytesPerFrame))
+        let requestedBytes = frameCount.multipliedReportingOverflow(by: bytesPerFrame)
+        let safeBytes = requestedBytes.overflow ? maximumOutputBufferByteSize : requestedBytes.partialValue
+        return UInt32(min(max(safeBytes, 4_096), maximumOutputBufferByteSize))
     }
 
     public static func allOutputsSupport(sampleRate: Double, outputDevices: [AudioDevice]) -> Bool {
