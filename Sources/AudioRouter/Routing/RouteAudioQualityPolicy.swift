@@ -81,6 +81,10 @@ public enum RouteAudioQualityPolicy {
         return UInt32(min(max(safeBytes, 4_096), maximumOutputBufferByteSize))
     }
 
+    public static func validateRealtimeBufferCopying() -> Bool {
+        ProcessTapRoutingEngine.validatePCMBufferCopying()
+    }
+
     public static func allOutputsSupport(sampleRate: Double, outputDevices: [AudioDevice]) -> Bool {
         outputDevices.allSatisfy { outputSupports(sampleRate: sampleRate, device: $0) }
     }

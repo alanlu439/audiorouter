@@ -530,6 +530,10 @@ func checkRouteAudioQualityPolicy() {
     precondition(RouteAudioQualityPolicy.outputQueueBufferCount >= 8, "Live routes should retain enough queued buffers for short CPU spikes")
     precondition(RouteAudioQualityPolicy.outputQueueHeadroomSeconds >= 0.15, "Live routes should keep at least 150 ms of output headroom")
     precondition(RouteAudioQualityPolicy.routePipeBufferSeconds >= 3, "Live routes should retain source audio through longer scheduler stalls")
+    precondition(
+        RouteAudioQualityPolicy.validateRealtimeBufferCopying(),
+        "Realtime route buffers should copy wrapped and overflowing sample blocks without an exclusivity conflict"
+    )
 }
 
 func checkSourceAudioQualityDisplay() throws {

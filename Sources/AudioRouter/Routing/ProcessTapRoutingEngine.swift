@@ -314,15 +314,17 @@ final class ProcessTapRoutingEngine {
             guard let destination, byteCount > 0 else { return }
             let samples = destination.assumingMemoryBound(to: Float32.self)
             let requestedSampleCount = byteCount / MemoryLayout<Float32>.size
+            let storageCapacity = storage.count
             bufferLock.lock()
             let copiedSampleCount = min(requestedSampleCount, availableSampleCount)
             if copiedSampleCount > 0 {
+                let currentReadIndex = readIndex
                 storage.withUnsafeBufferPointer { source in
                     guard let sourceBase = source.baseAddress else { return }
-                    let firstCopyCount = min(copiedSampleCount, storage.count - readIndex)
+                    let firstCopyCount = min(copiedSampleCount, storageCapacity - currentReadIndex)
                     memcpy(
                         samples,
-                        sourceBase.advanced(by: readIndex),
+                        sourceBase.advanced(by: currentReadIndex),
                         firstCopyCount * MemoryLayout<Float32>.size
                     )
                     let secondCopyCount = copiedSampleCount - firstCopyCount
@@ -334,7 +336,7 @@ final class ProcessTapRoutingEngine {
                         )
                     }
                 }
-                readIndex = (readIndex + copiedSampleCount) % storage.count
+                readIndex = (currentReadIndex + copiedSampleCount) % storageCapacity
                 availableSampleCount -= copiedSampleCount
             }
             bufferLock.unlock()
@@ -347,24 +349,26 @@ final class ProcessTapRoutingEngine {
 
         func write(samples: UnsafeBufferPointer<Float32>) {
             guard var sourceBase = samples.baseAddress, !samples.isEmpty else { return }
+            let storageCapacity = storage.count
             var sourceCount = samples.count
-            if sourceCount > storage.count {
-                sourceBase = sourceBase.advanced(by: sourceCount - storage.count)
-                sourceCount = storage.count
+            if sourceCount > storageCapacity {
+                sourceBase = sourceBase.advanced(by: sourceCount - storageCapacity)
+                sourceCount = storageCapacity
             }
 
             bufferLock.lock()
-            let overflowCount = max(0, availableSampleCount + sourceCount - storage.count)
+            let overflowCount = max(0, availableSampleCount + sourceCount - storageCapacity)
             if overflowCount > 0 {
-                readIndex = (readIndex + overflowCount) % storage.count
+                readIndex = (readIndex + overflowCount) % storageCapacity
                 availableSampleCount -= overflowCount
             }
 
+            let currentWriteIndex = writeIndex
             storage.withUnsafeMutableBufferPointer { destination in
                 guard let destinationBase = destination.baseAddress else { return }
-                let firstCopyCount = min(sourceCount, storage.count - writeIndex)
+                let firstCopyCount = min(sourceCount, storageCapacity - currentWriteIndex)
                 memcpy(
-                    destinationBase.advanced(by: writeIndex),
+                    destinationBase.advanced(by: currentWriteIndex),
                     sourceBase,
                     firstCopyCount * MemoryLayout<Float32>.size
                 )
@@ -377,11 +381,10 @@ final class ProcessTapRoutingEngine {
                     )
                 }
             }
-            writeIndex = (writeIndex + sourceCount) % storage.count
+            writeIndex = (currentWriteIndex + sourceCount) % storageCapacity
             availableSampleCount += sourceCount
             bufferLock.unlock()
         }
-
     }
 
     private final class RouteOutputRenderer {
@@ -475,6 +478,54 @@ final class ProcessTapRoutingEngine {
     private var pendingVolumes: [String: Double] = [:]
     private var pendingMutes: [String: Bool] = [:]
     private var currentEQBands: [Double] = EQPreset.flat.bands
+
+    static func validatePCMBufferCopying() -> Bool {
+        let format = AudioStreamBasicDescription(
+            mSampleRate: 1,
+            mFormatID: kAudioFormatLinearPCM,
+            mFormatFlags: kAudioFormatFlagIsFloat | kAudioFormatFlagIsPacked | kAudioFormatFlagsNativeEndian,
+            mBytesPerPacket: UInt32(MemoryLayout<Float32>.size),
+            mFramesPerPacket: 1,
+            mBytesPerFrame: UInt32(MemoryLayout<Float32>.size),
+            mChannelsPerFrame: 1,
+            mBitsPerChannel: 32,
+            mReserved: 0
+        )
+
+        let overflowPipe = PCMBufferPipe(format: format, seconds: 0)
+        let oversizedInput = (0..<5_000).map(Float32.init)
+        oversizedInput.withUnsafeBufferPointer { overflowPipe.write(samples: $0) }
+        var overflowOutput = Array(repeating: Float32.zero, count: 4_096)
+        overflowOutput.withUnsafeMutableBufferPointer { output in
+            overflowPipe.read(
+                into: output.baseAddress.map(UnsafeMutableRawPointer.init),
+                byteCount: output.count * MemoryLayout<Float32>.size
+            )
+        }
+        guard overflowOutput == Array(oversizedInput.suffix(4_096)) else { return false }
+
+        let wrapPipe = PCMBufferPipe(format: format, seconds: 0)
+        let firstInput = (0..<3_000).map(Float32.init)
+        firstInput.withUnsafeBufferPointer { wrapPipe.write(samples: $0) }
+        var discarded = Array(repeating: Float32.zero, count: 2_500)
+        discarded.withUnsafeMutableBufferPointer { output in
+            wrapPipe.read(
+                into: output.baseAddress.map(UnsafeMutableRawPointer.init),
+                byteCount: output.count * MemoryLayout<Float32>.size
+            )
+        }
+
+        let secondInput = (10_000..<12_500).map(Float32.init)
+        secondInput.withUnsafeBufferPointer { wrapPipe.write(samples: $0) }
+        var wrappedOutput = Array(repeating: Float32.zero, count: 3_000)
+        wrappedOutput.withUnsafeMutableBufferPointer { output in
+            wrapPipe.read(
+                into: output.baseAddress.map(UnsafeMutableRawPointer.init),
+                byteCount: output.count * MemoryLayout<Float32>.size
+            )
+        }
+        return wrappedOutput == Array(firstInput.suffix(500)) + secondInput
+    }
 
     var isSupportedOnThisOS: Bool {
         if #available(macOS 14.2, *) {
