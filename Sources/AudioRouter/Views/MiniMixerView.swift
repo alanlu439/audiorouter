@@ -43,7 +43,7 @@ private struct MiniSystemRow: View {
                     .frame(width: 20)
                 Text("System")
                     .font(.caption.weight(.semibold))
-                MeterView(level: store.systemOutputMeter, barCount: 10, height: 12, color: .teal)
+                SystemOutputMeterView(meterState: store.meterState, barCount: 10, height: 12, color: .teal)
                     .frame(maxWidth: 90)
                 Spacer()
                 Button {
@@ -110,7 +110,13 @@ private struct MiniSourceRow: View {
             }
 
             HStack(spacing: 8) {
-                MeterView(level: store.sourceMeters[source.id] ?? 0, barCount: 8, height: 12, color: source.isProducingAudio ? .green : .cyan)
+                SourceMeterView(
+                    meterState: store.meterState,
+                    sourceID: source.id,
+                    barCount: 8,
+                    height: 12,
+                    color: source.isProducingAudio ? .green : .cyan
+                )
                     .frame(width: 78)
                 InlineVolumeSlider(
                     value: source.volume,

@@ -46,6 +46,7 @@ func runChecks() throws {
     checkEQPresets()
     checkThemePreferenceMapping()
     checkSettingsNavigation()
+    try checkMeterStateIsolation()
     try checkPresetPersistence()
     try checkUserProfilePresetScoping()
     checkShortcutPersistence()
@@ -70,6 +71,49 @@ func runChecks() throws {
     checkPlaybackKeepAliveCandidates()
     checkAppInputPublishingMetadata()
     try checkRouteHealthDiagnostics()
+}
+
+@MainActor
+func checkMeterStateIsolation() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    let store = AudioRouterStore(
+        deviceManager: FakeDeviceManager(devices: []),
+        settings: AppSettingsStore(defaults: UserDefaults(suiteName: "AudioRouterChecks-\(UUID().uuidString)")!),
+        audioRoutingManager: AudioRoutingManager(
+            backend: FakeRoutingBackend(),
+            fileURL: directory.appendingPathComponent("routes.json")
+        ),
+        outputGroupsURL: directory.appendingPathComponent("groups.json"),
+        appSourcesURL: directory.appendingPathComponent("sources.json"),
+        hiddenDefaultSourcesURL: directory.appendingPathComponent("hidden-defaults.json"),
+        sourceOrderURL: directory.appendingPathComponent("source-order.json")
+    )
+
+    var storeChangeCount = 0
+    var meterChangeCount = 0
+    let storeCancellable = store.objectWillChange.sink { storeChangeCount += 1 }
+    let meterCancellable = store.meterState.objectWillChange.sink { meterChangeCount += 1 }
+
+    store.meterState.update(
+        systemOutput: 0.6,
+        input: 0.2,
+        sources: ["spotify": 0.75],
+        devices: ["speakers": 0.6]
+    )
+    precondition(meterChangeCount == 1, "A meter snapshot should publish one lightweight view update")
+    precondition(storeChangeCount == 0, "Meter ticks must not invalidate the entire AudioRouter interface")
+    precondition(store.meterState.snapshot.sourceMeters["spotify"] == 0.75, "Meter snapshot should retain source levels")
+
+    store.meterState.update(
+        systemOutput: 0.6,
+        input: 0.2,
+        sources: ["spotify": 0.75],
+        devices: ["speakers": 0.6]
+    )
+    precondition(meterChangeCount == 1, "Identical meter snapshots should not publish duplicate updates")
+    _ = storeCancellable
+    _ = meterCancellable
 }
 
 func checkSettingsNavigation() {

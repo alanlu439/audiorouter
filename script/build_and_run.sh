@@ -4,8 +4,9 @@ set -euo pipefail
 MODE="${1:-run}"
 APP_NAME="AudioRouter"
 BUNDLE_ID="com.local.AudioRouter"
-APP_VERSION="1.1.4"
+APP_VERSION="1.1.5"
 MIN_SYSTEM_VERSION="14.2"
+BUILD_CONFIGURATION="${AUDIO_ROUTER_BUILD_CONFIGURATION:-debug}"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DIST_DIR="$ROOT_DIR/dist"
@@ -39,8 +40,8 @@ case "$MODE" in
     ;;
 esac
 
-swift build --disable-sandbox
-BUILD_BINARY="$(swift build --disable-sandbox --show-bin-path)/$APP_NAME"
+swift build --disable-sandbox --configuration "$BUILD_CONFIGURATION"
+BUILD_BINARY="$(swift build --disable-sandbox --configuration "$BUILD_CONFIGURATION" --show-bin-path)/$APP_NAME"
 
 rm -rf "$APP_BUNDLE" "$LEGACY_STAGING_DIR"
 mkdir -p "$APP_MACOS" "$APP_RESOURCES"

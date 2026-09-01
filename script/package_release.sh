@@ -67,7 +67,7 @@ if [[ -n "${DEVELOPER_ID_INSTALLER:-}" ]]; then
   echo "Note: DEVELOPER_ID_INSTALLER is for .pkg installers. ZIP releases use DEVELOPER_ID_APPLICATION for the app."
 fi
 
-./script/build_and_run.sh --bundle >/dev/null
+AUDIO_ROUTER_BUILD_CONFIGURATION=release ./script/build_and_run.sh --bundle >/dev/null
 ./script/build_hal_driver.sh >/dev/null
 
 if [[ -n "$SIGN_IDENTITY" ]]; then

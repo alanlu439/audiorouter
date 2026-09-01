@@ -14,7 +14,7 @@ struct MixerView: View {
 
             DockCard {
                 SectionHeader(title: "System Output", systemImage: "speaker.wave.2.fill")
-                MeterView(level: store.systemOutputMeter, barCount: 18, height: 24, color: .green)
+                SystemOutputMeterView(meterState: store.meterState, barCount: 18, height: 24, color: .green)
                 if !store.settings.demoMode && !store.liveMeteringAvailable {
                     Text(store.meteringNote)
                         .font(.caption)
@@ -40,7 +40,7 @@ struct MixerView: View {
 
             DockCard {
                 SectionHeader(title: "Input Microphone", systemImage: "mic.fill")
-                MeterView(level: store.inputMeter, barCount: 18, height: 24, color: .cyan)
+                InputMeterView(meterState: store.meterState, barCount: 18, height: 24, color: .cyan)
                 if let input = store.currentInput {
                     VolumeSlider(
                         title: "Input",
@@ -80,7 +80,11 @@ private struct MixerSourceCard: View {
                 Spacer()
                 StatusLabel(text: store.routeStatus(for: source), status: store.statusStyle(for: source))
             }
-            MeterView(level: store.sourceMeters[source.id] ?? 0, color: source.isProducingAudio ? .green : .cyan)
+            SourceMeterView(
+                meterState: store.meterState,
+                sourceID: source.id,
+                color: source.isProducingAudio ? .green : .cyan
+            )
             if !store.settings.demoMode && !store.liveMeteringAvailable {
                 Text("Meter unavailable")
                     .font(.caption2.weight(.semibold))

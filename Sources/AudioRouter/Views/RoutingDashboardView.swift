@@ -754,7 +754,7 @@ private struct StudioSmoothRouteBuilder: View {
                                 SmoothSourceChoice(
                                     source: source,
                                     isSelected: source.id == selectedSource?.id,
-                                    meterLevel: store.sourceMeters[source.id] ?? 0
+                                    meterState: store.meterState
                                 ) {
                                     selectSource(source)
                                 }
@@ -1571,7 +1571,7 @@ private struct SmoothRouteColumn<Content: View>: View {
 private struct SmoothSourceChoice: View {
     let source: AudioSource
     let isSelected: Bool
-    let meterLevel: Double
+    @ObservedObject var meterState: AudioMeterState
     let action: () -> Void
 
     var body: some View {
@@ -1591,7 +1591,10 @@ private struct SmoothSourceChoice: View {
 
                 Spacer(minLength: 0)
 
-                SmoothMiniMeter(level: meterLevel, tint: source.isProducingAudio ? StudioPalette.green : StudioPalette.blue)
+                SmoothMiniMeter(
+                    level: meterState.snapshot.sourceMeters[source.id] ?? 0,
+                    tint: source.isProducingAudio ? StudioPalette.green : StudioPalette.blue
+                )
                     .frame(width: 38)
 
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
@@ -2033,8 +2036,9 @@ private struct StudioChannelStrip: View {
             channelIdentity
                 .frame(minWidth: 150, maxWidth: 210, alignment: .leading)
 
-            StudioSegmentMeter(
-                level: store.sourceMeters[source.id] ?? 0,
+            StudioSourceSegmentMeter(
+                meterState: store.meterState,
+                sourceID: source.id,
                 segmentCount: 10,
                 tint: source.isProducingAudio ? StudioPalette.green : StudioPalette.teal
             )
@@ -2257,8 +2261,9 @@ private struct StudioOutputStrip: View {
             outputIdentity
                 .frame(minWidth: 188, maxWidth: 260, alignment: .leading)
 
-            StudioSegmentMeter(
-                level: store.deviceMeters[device.id] ?? 0,
+            StudioDeviceSegmentMeter(
+                meterState: store.meterState,
+                deviceID: device.id,
                 segmentCount: 10,
                 tint: StudioPalette.teal
             )
@@ -2951,6 +2956,36 @@ private struct StudioSegmentMeter: View {
     }
 }
 
+private struct StudioSourceSegmentMeter: View {
+    @ObservedObject var meterState: AudioMeterState
+    let sourceID: String
+    let segmentCount: Int
+    let tint: Color
+
+    var body: some View {
+        StudioSegmentMeter(
+            level: meterState.snapshot.sourceMeters[sourceID] ?? 0,
+            segmentCount: segmentCount,
+            tint: tint
+        )
+    }
+}
+
+private struct StudioDeviceSegmentMeter: View {
+    @ObservedObject var meterState: AudioMeterState
+    let deviceID: String
+    let segmentCount: Int
+    let tint: Color
+
+    var body: some View {
+        StudioSegmentMeter(
+            level: meterState.snapshot.deviceMeters[deviceID] ?? 0,
+            segmentCount: segmentCount,
+            tint: tint
+        )
+    }
+}
+
 private struct StudioRouteInspector: View {
     let source: AudioSource
     @ObservedObject var store: AudioRouterStore
@@ -3155,7 +3190,12 @@ private struct StudioOutputModule: View {
                 )
             }
 
-            StudioSegmentMeter(level: store.deviceMeters[device.id] ?? 0, segmentCount: 14, tint: StudioPalette.teal)
+            StudioDeviceSegmentMeter(
+                meterState: store.meterState,
+                deviceID: device.id,
+                segmentCount: 14,
+                tint: StudioPalette.teal
+            )
 
             InlineVolumeSlider(
                 value: device.volume,

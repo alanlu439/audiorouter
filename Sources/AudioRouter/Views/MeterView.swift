@@ -43,6 +43,72 @@ struct MeterView: View {
     }
 }
 
+struct SourceMeterView: View {
+    @ObservedObject var meterState: AudioMeterState
+    let sourceID: String
+    var barCount: Int = 10
+    var height: CGFloat = 18
+    var color: Color = .green
+
+    var body: some View {
+        MeterView(
+            level: meterState.snapshot.sourceMeters[sourceID] ?? 0,
+            barCount: barCount,
+            height: height,
+            color: color
+        )
+    }
+}
+
+struct DeviceMeterView: View {
+    @ObservedObject var meterState: AudioMeterState
+    let deviceID: String
+    var barCount: Int = 10
+    var height: CGFloat = 18
+    var color: Color = .green
+
+    var body: some View {
+        MeterView(
+            level: meterState.snapshot.deviceMeters[deviceID] ?? 0,
+            barCount: barCount,
+            height: height,
+            color: color
+        )
+    }
+}
+
+struct SystemOutputMeterView: View {
+    @ObservedObject var meterState: AudioMeterState
+    var barCount: Int = 10
+    var height: CGFloat = 18
+    var color: Color = .green
+
+    var body: some View {
+        MeterView(
+            level: meterState.snapshot.systemOutputMeter,
+            barCount: barCount,
+            height: height,
+            color: color
+        )
+    }
+}
+
+struct InputMeterView: View {
+    @ObservedObject var meterState: AudioMeterState
+    var barCount: Int = 10
+    var height: CGFloat = 18
+    var color: Color = .green
+
+    var body: some View {
+        MeterView(
+            level: meterState.snapshot.inputMeter,
+            barCount: barCount,
+            height: height,
+            color: color
+        )
+    }
+}
+
 struct StatusLabel: View {
     let text: String
     var status: RouteVisualStatus = .working

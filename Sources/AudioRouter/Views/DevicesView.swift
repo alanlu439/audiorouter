@@ -205,8 +205,9 @@ private struct CompactDeviceRow: View {
 
             Spacer(minLength: 8)
 
-            MeterView(
-                level: store.deviceMeters[device.id] ?? 0,
+            DeviceMeterView(
+                meterState: store.meterState,
+                deviceID: device.id,
                 barCount: 8,
                 height: 12,
                 color: tint

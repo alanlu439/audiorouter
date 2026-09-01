@@ -2,12 +2,34 @@
 
 ## Unreleased
 
+## 1.1.5 - 2026-09-01
+
 ### Settings
 
 - Added a dedicated Settings page to the main sidebar for appearance, launch behavior, Dock visibility, Demo Mode, playback protection, and automatic release updates.
 - Made the menu-bar gear open Settings instead of Advanced and rebuilt the native `Command-,` window as a focused preferences view.
 - Kept virtual input publishing, backend status, reliability, permissions, diagnostics, and reset tools grouped under Advanced.
 - Added a Launch Services retry when the local build script needs to register a freshly rebuilt app bundle before opening it.
+
+### Routed Audio Reliability
+
+- Increased real-time route buffering and output queue headroom to keep routed playback stable while the Mac is under heavy media or CPU load.
+- Reduced allocation and copying pressure in the live process-tap path while preserving 32-bit floating-point audio and source-rate-first rendering.
+- Fixed a Swift exclusivity crash in the real-time PCM ring buffer when audio blocks wrapped or overflowed its storage.
+- Added regression checks for wrapped and overflowing buffer copies and validated routed playback under sustained CPU load.
+
+### Interface Performance
+
+- Moved high-frequency audio meters into a dedicated lightweight observable snapshot instead of publishing them through the entire app store.
+- Limited 10 Hz meter refreshes to the small meter components, preventing Dashboard, Devices, onboarding, and mixer controls from rebuilding on every audio tick.
+- Coalesced source, device, system, and input levels into one update per meter frame and skipped identical snapshots.
+- Changed public release packaging to use the compiler-optimized Release configuration instead of shipping a Debug binary.
+
+### Window Lifecycle
+
+- Changed the main scene to a single retained AudioRouter window so closing it does not stop routing or create duplicate windows.
+- Made Dock, Finder, and normal app reopen events restore the Dashboard after the window is closed with `Command-W`.
+- Added `Window` > `Show AudioRouter` with `Command-0` as an additional way to bring the main window forward.
 
 ## 1.1.4 - 2026-08-22
 

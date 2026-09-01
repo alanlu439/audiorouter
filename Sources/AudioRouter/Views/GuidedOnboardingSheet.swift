@@ -238,7 +238,7 @@ struct GuidedOnboardingSheet: View {
             DockCard {
                 SectionHeader(title: "Configured Source Apps", systemImage: "app.fill", trailing: "\(store.audioSources.count)")
                 ForEach(store.audioSources.prefix(6)) { source in
-                    OnboardingSourceRow(source: source, level: store.sourceMeters[source.id] ?? 0)
+                    OnboardingSourceRow(source: source, meterState: store.meterState)
                     if source.id != store.audioSources.prefix(6).last?.id {
                         Divider()
                             .opacity(0.35)
@@ -709,7 +709,7 @@ private struct OnboardingDeviceRow: View {
 
 private struct OnboardingSourceRow: View {
     let source: AudioSource
-    let level: Double
+    @ObservedObject var meterState: AudioMeterState
 
     var body: some View {
         HStack(spacing: 10) {
@@ -724,7 +724,7 @@ private struct OnboardingSourceRow: View {
                     .lineLimit(1)
             }
             Spacer()
-            MiniOnboardingMeter(level: level)
+            MiniOnboardingMeter(level: meterState.snapshot.sourceMeters[source.id] ?? 0)
                 .frame(width: 54)
             StatusBadge(text: source.isRunning ? "Running" : "Ready", isActive: source.isRunning)
         }

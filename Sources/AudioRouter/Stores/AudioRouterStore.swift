@@ -10,10 +10,6 @@ public final class AudioRouterStore: ObservableObject {
     @Published public private(set) var lastError: String?
     @Published public private(set) var unsupportedNote: String?
     @Published public var selectedSettingsSection: SettingsSection = .dashboard
-    @Published public var sourceMeters: [String: Double] = [:]
-    @Published public var deviceMeters: [String: Double] = [:]
-    @Published public var systemOutputMeter: Double = 0
-    @Published public var inputMeter: Double = 0
     @Published public var soloSourceID: String?
     @Published public var selectedSourceID: String? {
         didSet {
@@ -44,6 +40,7 @@ public final class AudioRouterStore: ObservableObject {
     public let userProfileManager: UserProfileManager
     public let shortcutManager: ShortcutManager
     public let updateManager: UpdateManager
+    public let meterState = AudioMeterState()
 
     private let deviceManager: AudioDeviceManaging
     private let volumeManager: SystemVolumeManager
@@ -892,7 +889,7 @@ public final class AudioRouterStore: ObservableObject {
             selectedSourceID = audioSources.first { $0.id != source.id }?.id
         }
         audioSources.removeAll { $0.id == source.id }
-        sourceMeters.removeValue(forKey: source.id)
+        meterState.removeSource(source.id)
         refresh(silent: true)
     }
 
@@ -2027,16 +2024,19 @@ public final class AudioRouterStore: ObservableObject {
     }
 
     private func clearMetersIfNeeded() {
-        guard systemOutputMeter != 0
-            || inputMeter != 0
-            || sourceMeters.values.contains(where: { $0 != 0 })
-            || deviceMeters.values.contains(where: { $0 != 0 }) else {
+        let current = meterState.snapshot
+        guard current.systemOutputMeter != 0
+            || current.inputMeter != 0
+            || current.sourceMeters.values.contains(where: { $0 != 0 })
+            || current.deviceMeters.values.contains(where: { $0 != 0 }) else {
             return
         }
-        systemOutputMeter = 0
-        inputMeter = 0
-        sourceMeters = Dictionary(uniqueKeysWithValues: audioSources.map { ($0.id, 0) })
-        deviceMeters = Dictionary(uniqueKeysWithValues: devices.map { ($0.id, 0) })
+        meterState.update(
+            systemOutput: 0,
+            input: 0,
+            sources: Dictionary(uniqueKeysWithValues: audioSources.map { ($0.id, 0) }),
+            devices: Dictionary(uniqueKeysWithValues: devices.map { ($0.id, 0) })
+        )
     }
 
     private func tickMeters() {
@@ -2098,23 +2098,31 @@ public final class AudioRouterStore: ObservableObject {
         sources: [String: Double],
         devices: [String: Double]
     ) {
-        let smoothedSystemOutput = smoothedMeterValue(from: systemOutputMeter, to: systemOutput)
-        let smoothedInput = smoothedMeterValue(from: inputMeter, to: input)
-        let smoothedSources = smoothedMeterDictionary(from: sourceMeters, to: sources)
-        let smoothedDevices = smoothedMeterDictionary(from: deviceMeters, to: devices)
+        let current = meterState.snapshot
+        let smoothedSystemOutput = smoothedMeterValue(from: current.systemOutputMeter, to: systemOutput)
+        let smoothedInput = smoothedMeterValue(from: current.inputMeter, to: input)
+        let smoothedSources = smoothedMeterDictionary(from: current.sourceMeters, to: sources)
+        let smoothedDevices = smoothedMeterDictionary(from: current.deviceMeters, to: devices)
 
-        if shouldPublishMeterValue(systemOutputMeter, smoothedSystemOutput) {
-            systemOutputMeter = smoothedSystemOutput
-        }
-        if shouldPublishMeterValue(inputMeter, smoothedInput) {
-            inputMeter = smoothedInput
-        }
-        if shouldPublishMeterDictionary(sourceMeters, smoothedSources) {
-            sourceMeters = smoothedSources
-        }
-        if shouldPublishMeterDictionary(deviceMeters, smoothedDevices) {
-            deviceMeters = smoothedDevices
-        }
+        let nextSystemOutput = shouldPublishMeterValue(current.systemOutputMeter, smoothedSystemOutput)
+            ? smoothedSystemOutput
+            : current.systemOutputMeter
+        let nextInput = shouldPublishMeterValue(current.inputMeter, smoothedInput)
+            ? smoothedInput
+            : current.inputMeter
+        let nextSources = shouldPublishMeterDictionary(current.sourceMeters, smoothedSources)
+            ? smoothedSources
+            : current.sourceMeters
+        let nextDevices = shouldPublishMeterDictionary(current.deviceMeters, smoothedDevices)
+            ? smoothedDevices
+            : current.deviceMeters
+
+        meterState.update(
+            systemOutput: nextSystemOutput,
+            input: nextInput,
+            sources: nextSources,
+            devices: nextDevices
+        )
     }
 
     private func smoothedMeterValue(from oldValue: Double, to newValue: Double) -> Double {
