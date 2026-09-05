@@ -6,14 +6,12 @@ import SwiftUI
 struct AudioRouterApplication: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var store: AudioRouterStore
-    private let mainWindowCoordinator: MainWindowCoordinator
+    private var mainWindowCoordinator: MainWindowCoordinator { appDelegate.mainWindowCoordinator }
 
     init() {
         let store = AudioRouterStore()
-        let mainWindowCoordinator = MainWindowCoordinator()
         _store = StateObject(wrappedValue: store)
-        self.mainWindowCoordinator = mainWindowCoordinator
-        AppDelegate.configure(with: store, mainWindowCoordinator: mainWindowCoordinator)
+        AppDelegate.configure(with: store)
     }
 
     var body: some Scene {
@@ -27,8 +25,9 @@ struct AudioRouterApplication: App {
         }
 
         MenuBarExtra {
-            MenuBarPopoverView(store: store)
+            MenuBarPopoverView(store: store, showMainWindow: mainWindowCoordinator.showMainWindow)
                 .frame(width: 420, height: 560)
+                .modifier(MainWindowActionRegistration(coordinator: mainWindowCoordinator))
                 .onAppear {
                     store.start()
                 }
@@ -37,6 +36,7 @@ struct AudioRouterApplication: App {
                 .symbolRenderingMode(.hierarchical)
                 .accessibilityLabel("AudioRouter")
                 .accessibilityHint("Opens AudioRouter routing controls")
+                .modifier(MainWindowActionRegistration(coordinator: mainWindowCoordinator))
         }
         .menuBarExtraStyle(.window)
 
@@ -48,26 +48,14 @@ struct AudioRouterApplication: App {
     }
 }
 
-@MainActor
-final class MainWindowCoordinator {
-    private var mainWindow: NSWindow?
+private struct MainWindowActionRegistration: ViewModifier {
+    @Environment(\.openWindow) private var openWindow
+    let coordinator: MainWindowCoordinator
 
-    func register(window: NSWindow) {
-        window.isReleasedWhenClosed = false
-        mainWindow = window
-    }
-
-    @discardableResult
-    func showMainWindow() -> Bool {
-        guard let mainWindow else { return false }
-        NSApp.unhide(nil)
-        NSApp.activate(ignoringOtherApps: true)
-        if mainWindow.isMiniaturized {
-            mainWindow.deminiaturize(nil)
+    func body(content: Content) -> some View {
+        content.onAppear {
+            coordinator.setOpenWindowAction { [openWindow] in openWindow(id: "main") }
         }
-        mainWindow.orderFrontRegardless()
-        mainWindow.makeKey()
-        return mainWindow.isVisible
     }
 }
 
@@ -78,6 +66,7 @@ private struct MainWindowSceneContent: View {
     var body: some View {
         MainWindowView(store: store)
             .background(MainWindowRegistrationView(coordinator: coordinator))
+            .modifier(MainWindowActionRegistration(coordinator: coordinator))
             .onAppear {
                 store.start()
             }
@@ -123,12 +112,11 @@ private final class MainWindowRegistrationNSView: NSView {
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private static weak var store: AudioRouterStore?
-    private static weak var mainWindowCoordinator: MainWindowCoordinator?
+    let mainWindowCoordinator = MainWindowCoordinator()
     private var confirmedQuit = false
 
-    static func configure(with store: AudioRouterStore, mainWindowCoordinator: MainWindowCoordinator) {
+    static func configure(with store: AudioRouterStore) {
         Self.store = store
-        Self.mainWindowCoordinator = mainWindowCoordinator
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -144,21 +132,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         _ sender: NSApplication,
         hasVisibleWindows flag: Bool
     ) -> Bool {
-        guard let mainWindowCoordinator = Self.mainWindowCoordinator else {
-            return true
-        }
-        return !mainWindowCoordinator.showMainWindow()
+        mainWindowCoordinator.showMainWindow()
+        return false
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         false
     }
 
+    func applicationDidBecomeActive(_ notification: Notification) {
+        mainWindowCoordinator.restoreAfterActivationIfNeeded()
+    }
+
     @objc private func handleReopenApplicationEvent(
         _ event: NSAppleEventDescriptor,
         withReplyEvent replyEvent: NSAppleEventDescriptor
     ) {
-        _ = Self.mainWindowCoordinator?.showMainWindow()
+        mainWindowCoordinator.showMainWindow()
     }
 
     private func installReopenEventHandler() {

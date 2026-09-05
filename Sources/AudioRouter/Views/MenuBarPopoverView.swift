@@ -2,12 +2,13 @@ import SwiftUI
 
 public struct MenuBarPopoverView: View {
     @ObservedObject private var store: AudioRouterStore
-    @Environment(\.openWindow) private var openWindow
+    private let showMainWindow: () -> Void
     @State private var selectedSourceID = ""
     @State private var selectedOutputID = ""
 
-    public init(store: AudioRouterStore) {
+    public init(store: AudioRouterStore, showMainWindow: @escaping () -> Void) {
         self.store = store
+        self.showMainWindow = showMainWindow
     }
 
     public var body: some View {
@@ -101,7 +102,7 @@ public struct MenuBarPopoverView: View {
 
             Button {
                 store.selectedSettingsSection = .dashboard
-                openWindow(id: "main")
+                showMainWindow()
             } label: {
                 Image(systemName: "square.grid.2x2")
                     .frame(width: 24, height: 24)
@@ -134,7 +135,7 @@ public struct MenuBarPopoverView: View {
                 Spacer()
 
                 Button {
-                    openWindow(id: "main")
+                    showMainWindow()
                     store.showOnboarding()
                 } label: {
                     Label("Open", systemImage: "arrow.up.right.square")
@@ -258,7 +259,7 @@ public struct MenuBarPopoverView: View {
 
             Button {
                 store.selectedSettingsSection = .dashboard
-                openWindow(id: "main")
+                showMainWindow()
             } label: {
                 Label("Add Apps", systemImage: "app.badge.plus")
             }
@@ -267,7 +268,7 @@ public struct MenuBarPopoverView: View {
 
             Button {
                 store.selectedSettingsSection = .settings
-                openWindow(id: "main")
+                showMainWindow()
             } label: {
                 Image(systemName: "gearshape")
             }

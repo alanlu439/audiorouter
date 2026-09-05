@@ -371,6 +371,8 @@ codesign --verify --deep --strict dist/AudioRouter.app
 
 This Command Line Tools install does not include `XCTest` or Swift's `Testing` module, so the package includes `AudioRouterChecks` as a small executable check suite for persistence, routing status, shortcuts, and model behavior.
 
+In a logged-in macOS graphical session, run `./script/run_window_checks.sh` to check closed-window release, repeated reopening, delayed scene creation, and activation recovery. These checks create temporary test windows without starting the audio engine. Also verify the packaged app by closing it with `Command-W`, waiting several minutes, then clicking its Dock icon; the main window should return without restarting the app or creating duplicate windows.
+
 ## Future Work
 
 - Harden the experimental process-tap aggregate-device IO pipeline across more devices and formats.

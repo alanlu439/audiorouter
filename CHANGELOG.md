@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Restore the main SwiftUI scene when reopening AudioRouter from the Dock after closing its window, including after an extended time in the background.
+- Use the same window restoration path for Dock, Finder, menu-bar controls, and `Show AudioRouter`, without restarting audio routing.
+
 ## 1.1.5 - 2026-09-01
 
 ### Settings
